@@ -1941,12 +1941,6 @@ class ApiClient {
     width?: number;
     height?: number;
     duration?: number;
-    attestationDetails?: {
-      keyId: string;
-      reason?: string;
-      location?: string;
-      docHash?: string;
-    };
   }, fileId?: string): Promise<ApiResponse<{
     fileId: string;
     message: string;
@@ -3050,46 +3044,9 @@ class ApiClient {
       };
     }
   }
-  async getAttestationKeys(): Promise<ApiResponse<any[]>> {
-    return this.request('/attestations/keys');
-  }
+  // Attestations API removed (feature deprecated)
+  // NOTE: methods and types for attestations have been removed from the frontend.
 
-  async createAttestationKey(data: {
-    encryptedName: string;
-    publicKey: string;
-    encryptedPrivateKey: string;
-  }): Promise<ApiResponse<any>> {
-    return this.request('/attestations/keys', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async revokeAttestationKey(id: string, reason?: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    return this.request(`/attestations/keys/${id}/revoke`, {
-      method: 'POST',
-      body: JSON.stringify({ reason }),
-    });
-  }
-
-  async deleteAttestationKey(id: string): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request(`/attestations/keys/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async getAttestationLogs(page = 1, limit = 10): Promise<ApiResponse<{
-    logs: any[];
-    total: number;
-    page: number;
-    totalPages: number;
-  }>> {
-    return this.request(`/attestations/logs?page=${page}&limit=${limit}`);
-  }
-
-  async getSignedDocuments(): Promise<ApiResponse<{ documents: AttestationDocument[] }>> {
-    return this.request('/attestations/documents');
-  }
 
   async chatAI(
     messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
@@ -3384,25 +3341,7 @@ class ApiClient {
   }
 }
 
-export interface AttestationDocument {
-  id: string;
-  createdAt: string;
-  reason: string;
-  location: string;
-  file: {
-    id: string;
-    filename: string;
-    originalFilename: string;
-    filenameSalt: string;
-    size: number;
-    mimeType: string;
-  };
-  key: {
-    name: string;
-    type: string;
-    publicKey: string;
-  };
-}
+// AttestationDocument type removed — attestations feature disabled
 
 export interface AIChat {
   id: string;

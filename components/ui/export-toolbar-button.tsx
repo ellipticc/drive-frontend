@@ -38,21 +38,6 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
   const { user } = useUser();
   const { resolvedTheme } = useTheme();
 
-  const isProOrUnlimited = React.useMemo(() => {
-    const planName = (user?.subscription?.plan?.name || '').toLowerCase();
-    return planName.includes('pro') || planName.includes('unlimited');
-  }, [user]);
-
-  const requirePro = (formatLabel: string): boolean => {
-    if (isProOrUnlimited) return true;
-    setOpen(false); // close menu
-    const message = `Export to ${formatLabel} requires a Pro or Unlimited subscription. Upgrade to export.`;
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('export-requires-upgrade', { detail: { message } }));
-    }
-    return false;
-  };
-
   const getCanvas = async () => {
     const { default: html2canvas } = await import('html2canvas-pro');
 
@@ -233,7 +218,6 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
   };
 
   const exportToPdf = async () => {
-    if (!requirePro('PDF')) return;
     triggerSnapshot(); // Fire and forget
 
     // Serialize the editor to HTML so it closely matches the visual output
@@ -321,7 +305,6 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
   };
 
   const exportToHtml = async () => {
-    if (!requirePro('HTML')) return;
     triggerSnapshot();
 
     const editorStatic = createSlateEditor({
@@ -369,7 +352,6 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
   };
 
   const exportToMarkdown = async () => {
-    if (!requirePro('Markdown')) return;
     triggerSnapshot();
 
     const md = editor.getApi(MarkdownPlugin).markdown.serialize();
@@ -378,7 +360,6 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
   };
 
   const exportToWord = async () => {
-    if (!requirePro('Word')) return;
     triggerSnapshot();
 
     // Serialize the editor to HTML to preserve exact visual appearance

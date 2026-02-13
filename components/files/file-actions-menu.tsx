@@ -66,10 +66,7 @@ export const FileActionsMenu = ({
                         Preview
                     </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={() => onShare(item.id, item.name, item.type)}>
-                    <IconShare3 className="h-4 w-4 mr-2" />
-                    Share
-                </DropdownMenuItem>
+
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onMoveToFolder(item.id, item.name, item.type)}>
                     <IconFolder className="h-4 w-4 mr-2" />

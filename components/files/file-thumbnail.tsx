@@ -19,37 +19,37 @@ const MAX_THUMBNAIL_CACHE_SIZE = 100;
 
 // LRU eviction: remove oldest accessed entries when cache is full
 function evictOldestThumbnails() {
-  if (thumbnailCache.size <= MAX_THUMBNAIL_CACHE_SIZE) return;
+    if (thumbnailCache.size <= MAX_THUMBNAIL_CACHE_SIZE) return;
 
-  // Convert to array and sort by lastAccessed (oldest first)
-  const entries = Array.from(thumbnailCache.entries())
-    .sort(([,a], [,b]) => a.lastAccessed - b.lastAccessed);
+    // Convert to array and sort by lastAccessed (oldest first)
+    const entries = Array.from(thumbnailCache.entries())
+        .sort(([, a], [, b]) => a.lastAccessed - b.lastAccessed);
 
-  // Remove oldest entries until we're under the limit
-  const toRemove = entries.slice(0, thumbnailCache.size - MAX_THUMBNAIL_CACHE_SIZE + 10); // Remove 10 extra to prevent frequent evictions
+    // Remove oldest entries until we're under the limit
+    const toRemove = entries.slice(0, thumbnailCache.size - MAX_THUMBNAIL_CACHE_SIZE + 10); // Remove 10 extra to prevent frequent evictions
 
-  for (const [fileId] of toRemove) {
-    const entry = thumbnailCache.get(fileId);
-    if (entry) {
-      if (entry.timeout) clearTimeout(entry.timeout);
-      URL.revokeObjectURL(entry.url);
-      thumbnailCache.delete(fileId);
+    for (const [fileId] of toRemove) {
+        const entry = thumbnailCache.get(fileId);
+        if (entry) {
+            if (entry.timeout) clearTimeout(entry.timeout);
+            URL.revokeObjectURL(entry.url);
+            thumbnailCache.delete(fileId);
+        }
     }
-  }
 }
 
 // Global function to clear thumbnail cache (called by cache manager)
 if (typeof window !== 'undefined') {
-  (window as any).clearThumbnailCache = () => {
-    for (const [fileId, entry] of thumbnailCache.entries()) {
-      if (entry.timeout) clearTimeout(entry.timeout);
-      URL.revokeObjectURL(entry.url);
-    }
-    thumbnailCache.clear();
-  };
+    (window as any).clearThumbnailCache = () => {
+        for (const [fileId, entry] of thumbnailCache.entries()) {
+            if (entry.timeout) clearTimeout(entry.timeout);
+            URL.revokeObjectURL(entry.url);
+        }
+        thumbnailCache.clear();
+    };
 
-  // Global function to get thumbnail cache size
-  (window as any).getThumbnailCacheSize = () => thumbnailCache.size;
+    // Global function to get thumbnail cache size
+    (window as any).getThumbnailCacheSize = () => thumbnailCache.size;
 }
 
 interface FileThumbnailProps {
@@ -139,15 +139,6 @@ export function FileThumbnail({
 
                 // 2. Get CEK
                 let cek: Uint8Array | null = null;
-
-                // Priority 1: Check if we have a cached CEK for this share (Fastest & Most Reliable for Shares)
-                if (shareId) {
-                    const { getCekForShare } = await import('@/lib/share-cache');
-                    const cachedCek = getCekForShare(shareId);
-                    if (cachedCek) {
-                        cek = cachedCek;
-                    }
-                }
 
                 // If no cached CEK found, proceed with standard derivation
                 if (!cek) {

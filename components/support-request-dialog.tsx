@@ -211,7 +211,7 @@ export function SupportRequestDialog({ children, open: externalOpen, onOpenChang
                         <SelectItem value="bug-report">Bug Report</SelectItem>
                         <SelectItem value="technical">Technical Issue</SelectItem>
                         <SelectItem value="account">Account Problem</SelectItem>
-                        <SelectItem value="billing">Billing</SelectItem>
+
                         <SelectItem value="feature-request">Feature Request</SelectItem>
                         <SelectItem value="general">General Inquiry</SelectItem>
                       </SelectContent>

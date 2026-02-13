@@ -294,14 +294,7 @@ export async function uploadEncryptedFile(
     completedChunks: ChunkInfo[];
   },
   onChunkComplete?: (chunk: ChunkInfo) => void,
-  // New optional parameters for Attestations
-  isHidden?: boolean,
-  attestationDetails?: {
-    keyId: string;
-    reason?: string;
-    location?: string;
-    docHash?: string;
-  }
+  isHidden?: boolean
 ): Promise<UploadResult> {
   // Generate fileId or reuse from resume state
   const fileId = resumeState?.fileId || uuidv7();
@@ -767,8 +760,7 @@ export async function uploadEncryptedFile(
       thumbnailData,
       width,
       height,
-      duration,
-      attestationDetails
+      duration
     );
 
     onProgress?.({ stage: 'finalizing', overallProgress: 100 });
@@ -1122,13 +1114,7 @@ async function finalizeUpload(
   thumbnailData?: string,
   width?: number,
   height?: number,
-  duration?: number,
-  attestationDetails?: {
-    keyId: string;
-    reason?: string;
-    location?: string;
-    docHash?: string;
-  }
+  duration?: number
 ): Promise<UploadResult> {
   // Regenerate manifest data for finalization (must match initializeUploadSession exactly)
   // Use the timestamp from initializeUploadSession to ensure consistent manifest hash
@@ -1171,8 +1157,7 @@ async function finalizeUpload(
     thumbnailData,
     width,
     height,
-    duration,
-    attestationDetails
+    duration
   }, fileId);
 
   if (!response.success || !response.data) {

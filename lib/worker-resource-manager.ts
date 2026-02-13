@@ -13,7 +13,6 @@ import { WorkerPool } from './worker-pool';
 
 export type WorkerPoolType =
   | 'filename-decryption'
-  | 'share-decryption'
   | 'download'
   | 'markdown'
   | 'highlight'
@@ -175,13 +174,6 @@ class WorkerResourceManager {
           });
         };
 
-      case 'share-decryption':
-        return () => {
-          return new WorkerPool(() => new Worker(new URL('./workers/decrypt-share.worker.ts', import.meta.url), { type: 'module' }), {
-            maxWorkers: 4,
-            taskTimeout: 60000,
-          });
-        };
 
       case 'download':
         return () => {

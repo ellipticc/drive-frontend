@@ -313,8 +313,8 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
         return <IconKey className="h-5 w-5 text-orange-600" />
       case 'security_2fa':
         return <IconShieldCheck className="h-5 w-5 text-green-600" />
-      case 'billing_payment':
-        return <IconCreditCard className="h-5 w-5 text-purple-600" />
+      // billing notifications removed
+      
       case 'file_shared':
         return <IconFileText className="h-5 w-5 text-indigo-600" />
       case 'user_registered':

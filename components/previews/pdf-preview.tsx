@@ -4,43 +4,6 @@ import { useEffect, useState } from "react"
 import { IconLoader2 as Loader2, IconAlertCircle as AlertCircle } from "@tabler/icons-react"
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile, DownloadProgress } from "@/lib/download"
 import { decryptData } from "@/lib/crypto"
-import type { ShareItem } from "@/lib/api"
-
-interface ShareContext extends Partial<ShareItem> {
-    is_folder?: boolean;
-    wrapped_cek?: string;
-    nonce_wrap?: string;
-    // Include ShareItem properties for dashboard compatibility
-    fileId?: string;
-    fileName?: string;
-    fileSize?: number;
-    createdAt?: string;
-    expiresAt?: string;
-    permissions?: 'read' | 'write' | 'admin';
-    revoked?: boolean;
-    linkSecret?: string;
-    views?: number;
-    maxViews?: number;
-    maxDownloads?: number;
-    downloads?: number;
-    folderPath?: string;
-    mimeType?: string;
-    encryptedFilename?: string;
-    filenameSalt?: string;
-    folderPathSalt?: string;
-    recipients?: Array<{
-        id: string;
-        userId?: string;
-        email?: string;
-        name?: string;
-        status: string;
-        createdAt: string;
-        revokedAt?: string;
-    }>;
-    has_password?: boolean;
-    comments_enabled?: boolean;
-    comments_locked?: boolean;
-}
 
 interface PdfPreviewProps {
     fileId: string
@@ -50,9 +13,7 @@ interface PdfPreviewProps {
     fileName?: string
     filename?: string
 
-    shareDetails?: ShareContext
-    onGetShareCEK?: () => Promise<Uint8Array>
-
+    
     onProgress?: (progress: DownloadProgress) => void
     onError?: (error: string) => void
 
@@ -63,8 +24,6 @@ interface PdfPreviewProps {
 export function PdfPreview({
     fileId,
     fileName,
-    shareDetails,
-    onGetShareCEK,
     onProgress,
     onError,
     isLoading: externalIsLoading,
@@ -88,29 +47,8 @@ export function PdfPreview({
                 setIsLoading(true)
                 setInternalError(null)
 
-                let result;
-
-                // 1. Download & Decrypt
-                if (onGetShareCEK) {
-                    const shareCekRaw = await onGetShareCEK()
-                    const shareCek = new Uint8Array(shareCekRaw);
-
-                    let fileCek = shareCek;
-
-                    if (shareDetails) {
-                        if (!shareDetails.is_folder && shareDetails.wrapped_cek && shareDetails.nonce_wrap) {
-                            try {
-                                fileCek = new Uint8Array(decryptData(shareDetails.wrapped_cek, shareCek, shareDetails.nonce_wrap));
-                            } catch (e) {
-                                console.error('Failed to unwrap file key:', e);
-                            }
-                        }
-                    }
-
-                    result = await downloadEncryptedFileWithCEK(fileId, fileCek, onProgress, abortController.signal)
-                } else {
-                    result = await downloadEncryptedFile(fileId, undefined, onProgress, abortController.signal)
-                }
+                // Download & decrypt using authenticated user keys
+                const result = await downloadEncryptedFile(fileId, undefined, onProgress, abortController.signal)
 
                 if (!isMounted) return
 
@@ -137,7 +75,7 @@ export function PdfPreview({
             abortController.abort()
             if (url) URL.revokeObjectURL(url)
         }
-    }, [fileId, onGetShareCEK, setIsLoading, onProgress, onError, shareDetails])
+    }, [fileId, setIsLoading, onProgress, onError])
 
     if (error) {
         return (

@@ -168,13 +168,7 @@ export function HeaderUser() {
                             <IconSettings className="mr-2 h-4 w-4" />
                             {t("sidebar.settings")}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                            window.location.hash = '#settings/Billing'
-                            setSettingsOpen(true)
-                        }}>
-                            <IconCreditCard className="mr-2 h-4 w-4" />
-                            {t("settings.billing")}
-                        </DropdownMenuItem>
+
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>

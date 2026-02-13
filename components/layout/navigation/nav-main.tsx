@@ -94,12 +94,7 @@ export function NavMain({
     return false
   })
 
-  const [isAttestationsExpanded, setIsAttestationsExpanded] = useState(() => {
-    if (typeof window !== "undefined") {
-      return sessionStorage.getItem("attestations-expanded") === "true";
-    }
-    return false;
-  });
+  // attestations UI removed; state previously used for attestations submenu (removed)
 
   const [currentHash, setCurrentHash] = useState('')
   useEffect(() => {
@@ -186,21 +181,7 @@ export function NavMain({
     setAreAdditionalItemsExpanded(next)
   }
 
-  const toggleAttestations = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    // If sidebar is collapsed, expand it first
-    if (state === "collapsed") {
-      toggleSidebar()
-      // Don't toggle the expansion state yet, just expand the sidebar
-      return;
-    }
-
-    const next = !isAttestationsExpanded
-    setIsAttestationsExpanded(next)
-    sessionStorage.setItem("attestations-expanded", String(next))
-  }
+  // attestations UI removed; toggle handler removed
 
   // Helper function for sub-item icons (active state filled)
   // This helps us avoid passing 'filled' icons in the data structure
@@ -246,8 +227,7 @@ export function NavMain({
         return IconHelpCircleFilled
       case 'feedback':
         return IconBubbleTextFilled
-      case 'attestations':
-        return item.icon // No filled version for main icon
+
       default:
         return item.icon
     }
@@ -422,60 +402,7 @@ export function NavMain({
               );
             }
 
-            if (item.id === 'attestations') {
-              return (
-                <SidebarMenuItem key={item.title} className="space-y-1">
-                  <div className="relative">
-                    <SidebarMenuButton
-                      tooltip={item.title}
-                      isActive={pathname.startsWith(item.url)}
-                      onClick={() => handleNavigate(item.url)}
-                      className="cursor-pointer pr-8"
-                    >
-                      {(() => {
-                        const isActive = pathname.startsWith(item.url)
-                        const IconComponent = getIcon(item, isActive)
-                        return IconComponent && <IconComponent className="shrink-0" />
-                      })()}
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-
-                    {item.items && item.items.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={toggleAttestations}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-50 flex items-center justify-center cursor-pointer"
-                      >
-                        <IconChevronDown
-                          className={cn("size-3.5 shrink-0 transition-transform duration-200", !isAttestationsExpanded && "-rotate-90")}
-                        />
-                      </button>
-                    )}
-                  </div>
-
-                  {isAttestationsExpanded && item.items && (
-                    <SidebarMenuSub className="ml-3.5 border-l border-border/50">
-                      {item.items.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton
-                            asChild
-                            isActive={currentHash === '#' + subItem.url.split('#')[1]}
-                          >
-                            <a href={subItem.url}>
-                              {(() => {
-                                const SubIcon = getSubItemIcon(subItem.url, subItem.icon)
-                                return SubIcon && <SubIcon />
-                              })()}
-                              <span>{subItem.title}</span>
-                            </a>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  )}
-                </SidebarMenuItem>
-              );
-            }
+            /* attestations menu removed */
 
             if (item.id === 'assistant') {
               const { chats, renameChat, pinChat, deleteChat, archiveChat } = useAICrypto();

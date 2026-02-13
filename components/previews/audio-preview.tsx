@@ -5,43 +5,6 @@ import { IconPlayerPlay as Play, IconPlayerPause as Pause, IconVolume as Volume2
 import { Button } from "@/components/ui/button"
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile, DownloadProgress } from "@/lib/download"
 import { decryptData } from "@/lib/crypto"
-import type { ShareItem } from "@/lib/api"
-
-interface ShareContext extends Partial<ShareItem> {
-  is_folder?: boolean;
-  wrapped_cek?: string;
-  nonce_wrap?: string;
-  // Include ShareItem properties for dashboard compatibility
-  fileId?: string;
-  fileName?: string;
-  fileSize?: number;
-  createdAt?: string;
-  expiresAt?: string;
-  permissions?: 'read' | 'write' | 'admin';
-  revoked?: boolean;
-  linkSecret?: string;
-  views?: number;
-  maxViews?: number;
-  maxDownloads?: number;
-  downloads?: number;
-  folderPath?: string;
-  mimeType?: string;
-  encryptedFilename?: string;
-  filenameSalt?: string;
-  folderPathSalt?: string;
-  recipients?: Array<{
-    id: string;
-    userId?: string;
-    email?: string;
-    name?: string;
-    status: string;
-    createdAt: string;
-    revokedAt?: string;
-  }>;
-  has_password?: boolean;
-  comments_enabled?: boolean;
-  comments_locked?: boolean;
-}
 
 interface AudioPreviewProps {
   fileId: string
@@ -51,10 +14,6 @@ interface AudioPreviewProps {
   fileSize?: number
   fileName?: string
   filename?: string
-
-  // Optional for dashboard usage
-  shareDetails?: ShareContext
-  onGetShareCEK?: () => Promise<Uint8Array>
 
   // Callbacks
   onProgress?: (progress: DownloadProgress) => void
@@ -69,8 +28,6 @@ export function AudioPreview({
   fileId,
   fileName,
   filename,
-  shareDetails,
-  onGetShareCEK,
   onProgress,
   onError,
   isLoading: externalIsLoading,
@@ -106,35 +63,8 @@ export function AudioPreview({
         setIsLoading(true)
         setInternalError(null)
 
-        let result;
-
-        if (onGetShareCEK) {
-          // Shared link context - use CEK
-          const shareCekRaw = await onGetShareCEK()
-          const shareCek = new Uint8Array(shareCekRaw); // Clone for safety
-
-          let fileCek = shareCek;
-
-          // If we have shareDetails, we might need to unwrap the FILE Key from the SHARE Key
-          if (shareDetails) {
-            // Single File Share: The file CEK is wrapped with the share CEK
-            if (!shareDetails.is_folder && shareDetails.wrapped_cek && shareDetails.nonce_wrap) {
-              try {
-                fileCek = new Uint8Array(decryptData(shareDetails.wrapped_cek, shareCek, shareDetails.nonce_wrap));
-              } catch (e) {
-                console.error('Failed to unwrap file key:', e);
-                // Fallback to shareCek? Unlikely to work if wrapped.
-              }
-            }
-            // Folder Share: logic handles inside page.tsx usually, but if previewing strict fileId...
-            // If shareDetails maps to the file directly (single file share), standard logic applies.
-          }
-
-          result = await downloadEncryptedFileWithCEK(fileId, fileCek, onProgress, abortController.signal)
-        } else {
-          // Dashboard context - use user keys (handled by downloadEncryptedFile)
-          result = await downloadEncryptedFile(fileId, undefined, onProgress, abortController.signal)
-        }
+        // Dashboard context - use user keys (handled by downloadEncryptedFile)
+        const result = await downloadEncryptedFile(fileId, undefined, onProgress, abortController.signal)
 
         if (!isMounted) return
 
@@ -158,7 +88,7 @@ export function AudioPreview({
       abortController.abort()
       if (url) URL.revokeObjectURL(url)
     }
-  }, [fileId, onGetShareCEK, setIsLoading, onProgress, onError])
+  }, [fileId, setIsLoading, onProgress, onError])
 
   const togglePlay = () => {
     if (!audioRef.current || !audioUrl) return

@@ -315,12 +315,7 @@ export function NavUser({
                   <IconSettings />
                   {t("sidebar.settings")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {
-                  window.location.hash = '#settings/Billing'
-                }}>
-                  <IconCreditCard />
-                  {t("settings.billing")}
-                </DropdownMenuItem>
+
                 <DropdownMenuItem onClick={() => setNotificationsOpen(true)}>
                   <div className="relative">
                     <IconBellRinging />

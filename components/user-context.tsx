@@ -133,41 +133,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (response.success && response.data?.user) {
         const userData = response.data.user;
 
-        // Only fetch subscription if forced or not fetched in the last 30 seconds
-        const now = Date.now();
-        if (force || (now - lastSubFetchTime.current > 30000)) {
-          console.log('UserProvider: Fetching fresh subscription status...');
-          try {
-            const subResponse = await apiClient.getSubscriptionStatus();
-            if (subResponse.success && subResponse.data?.subscription) {
-              const sub = subResponse.data.subscription;
-              userData.subscription = {
-                ...sub,
-                cancelAtPeriodEnd: typeof sub.cancelAtPeriodEnd === 'boolean' ? (sub.cancelAtPeriodEnd ? 1 : 0) : sub.cancelAtPeriodEnd,
-                currentPeriodStart: String(sub.currentPeriodStart),
-                currentPeriodEnd: String(sub.currentPeriodEnd),
-                plan: {
-                  ...sub.plan,
-                  interval: (sub.plan as { interval?: string }).interval || 'month'
-                }
-              };
-              lastSubFetchTime.current = now;
-            }
-          } catch (subError) {
-            console.warn('UserProvider: Failed to fetch subscription status:', subError);
-          }
-        } else {
-          // If skip fetch, keep existing subscription data from current user state if available
-          if (userRef.current?.subscription) {
-            userData.subscription = userRef.current.subscription;
-          } else {
-            // Check cache if user state is empty
-            const cached = getUserDataFromCache();
-            if (cached?.subscription) {
-              userData.subscription = cached.subscription;
-            }
-          }
-        }
+        // Subscription/billing removed — do not fetch or attach subscription data
+        // (kept intentionally blank to avoid exposing billing-related UI or API calls)
+        
 
         // Initialize KeyManager with user's crypto data (critical for uploads and file access)
         try {

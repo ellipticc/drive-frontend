@@ -106,7 +106,7 @@
     "@streamdown/code": "^1.0.1",
     "@streamdown/math": "^1.0.1",
     "@streamdown/mermaid": "^1.0.1",
-    "@stripe/stripe-js": "^8.6.1",
+
     "@tabler/icons-react": "^3.35.0",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-table": "^8.21.3",

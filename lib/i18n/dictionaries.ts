@@ -15,7 +15,7 @@ export const dictionaries = {
             preferences: "Preferences",
             languageTime: "Language & Time",
             security: "Security",
-            billing: "Billing",
+            /* billing removed */
             appearance: "Appearance",
             language: {
                 label: "Language",
@@ -164,7 +164,7 @@ export const dictionaries = {
             preferences: "Préférences",
             languageTime: "Langue et Heure",
             security: "Sécurité",
-            billing: "Facturation",
+            /* billing removed */
             appearance: "Apparence",
             language: {
                 label: "Langue",
@@ -311,7 +311,7 @@ export const dictionaries = {
             preferences: "Preferencias",
             languageTime: "Idioma y hora",
             security: "Seguridad",
-            billing: "Facturación",
+            /* billing removed */
             appearance: "Apariencia",
             language: {
                 label: "Idioma",
@@ -457,7 +457,7 @@ export const dictionaries = {
             preferences: "Präferenzen",
             languageTime: "Sprache & Zeit",
             security: "Sicherheit",
-            billing: "Abrechnung",
+            /* billing removed */
             appearance: "Erscheinungsbild",
             language: {
                 label: "Sprache",

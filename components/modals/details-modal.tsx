@@ -93,17 +93,12 @@ import { decryptFilename, decryptUserPrivateKeys } from "@/lib/crypto"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useFormatter } from "@/hooks/use-formatter"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { getCekForShare, setCekForShare } from '@/lib/share-cache'
-import { decryptShareInWorker } from '@/lib/decrypt-share-pool'
-import { decryptShareFilenameWithCek } from '@/lib/share-crypto'
 
 interface DetailsModalProps {
   children?: React.ReactNode
   itemId?: string
   itemName?: string
   itemType?: "file" | "folder" | "paper"
-  // Optional shareId: when provided, DetailsModal will prefer CEK from cache or derive it via worker
-  shareId?: string
   open?: boolean
   onOpenChange?: (open: boolean) => void
   onTagsUpdated?: () => void
@@ -114,7 +109,6 @@ export function DetailsModal({
   itemId = "",
   itemName = "example-file.pdf",
   itemType = "file",
-  shareId,
   open: externalOpen,
   onOpenChange: externalOnOpenChange,
   onTagsUpdated
@@ -149,7 +143,6 @@ export function DetailsModal({
   const open = externalOpen ?? internalOpen
   const setOpen = externalOnOpenChange ?? setInternalOpen
 
-  const isFreePlan = (!user?.subscription) && user?.plan !== 'pro' && user?.plan !== 'plus' && user?.plan !== 'unlimited';
 
   useEffect(() => {
     if (open && itemId) {
@@ -163,83 +156,18 @@ export function DetailsModal({
       const encryptedName = itemDetails?.encrypted_filename || itemDetails?.encryptedFilename
       const filenameSalt = itemDetails?.filename_salt || itemDetails?.nameSalt
 
-      // If this item is part of a share and caller supplied a shareId, prefer CEK cache/worker
-      if ((encryptedName && filenameSalt) || (itemDetails && (itemDetails as any).shareId && (itemDetails as any).kyber_ciphertext) || shareId) {
-        // Prefer explicit prop 'shareId' passed to the modal, otherwise try itemDetails fields
-        const effectiveShareId = (shareId) || (itemDetails && ((itemDetails as any).shareId || (itemDetails as any).share_id));
-
+      if (encryptedName && filenameSalt) {
         try {
-          // Try master key decryption first for server-provided encrypted filename
-          if (encryptedName && filenameSalt) {
-            const { masterKeyManager } = await import('@/lib/master-key')
-            const masterKey = masterKeyManager.getMasterKey()
-            try {
-              const decrypted = await decryptFilename(
-                encryptedName,
-                filenameSalt,
-                masterKey
-              )
-              setDecryptedFilename(decrypted)
-              return
-            } catch (err) {
-              // continue to share-CEK approach if that fails
-            }
-          }
-
-          if (!effectiveShareId) {
-            setDecryptedFilename(null);
-            return;
-          }
-
-          // 1. Try cache
-          const cached = getCekForShare(effectiveShareId);
-          if (cached) {
-            const name = decryptShareFilenameWithCek({ item: { encryptedName: encryptedName, nameSalt: filenameSalt } }, cached);
-            if (name) {
-              setDecryptedFilename(name);
-              return;
-            }
-          }
-
-          // 2. Fetch share details and derive CEK via worker
-          const userRes = await apiClient.getMe();
-          if (!userRes.success || !userRes.data) {
-            setDecryptedFilename(null);
-            return;
-          }
-
-          const keys = await decryptUserPrivateKeys(userRes.data as any);
-          const shareRes = await apiClient.getShare(effectiveShareId);
-          if (!shareRes.success || !shareRes.data) {
-            setDecryptedFilename(null);
-            return;
-          }
-
-          // Normalize share object into expected worker shape
-          const sd = shareRes.data as any;
-          const normalizedShare = {
-            kyberCiphertext: sd.kyberCiphertext || sd.kyber_ciphertext,
-            encryptedCek: sd.encryptedCek || sd.encrypted_cek,
-            encryptedCekNonce: sd.encryptedCekNonce || sd.encrypted_cek_nonce,
-            item: {
-              encryptedName: sd.encrypted_filename || encryptedName,
-              nameSalt: sd.nonce_filename || filenameSalt
-            }
-          }
-
-          const workerRes = await decryptShareInWorker({ id: effectiveShareId, kyberPrivateKey: keys.kyberPrivateKey.buffer as ArrayBuffer, share: normalizedShare });
-          if (workerRes && workerRes.cek) {
-            const cek = new Uint8Array(workerRes.cek);
-            setCekForShare(effectiveShareId, cek);
-          }
-          if (workerRes && workerRes.name) {
-            setDecryptedFilename(workerRes.name);
-            return;
-          }
-
-          setDecryptedFilename(null);
+          const { masterKeyManager } = await import('@/lib/master-key')
+          const masterKey = masterKeyManager.getMasterKey()
+          const decrypted = await decryptFilename(
+            encryptedName,
+            filenameSalt,
+            masterKey
+          )
+          setDecryptedFilename(decrypted)
         } catch (err) {
-          console.error('Failed to decrypt shared filename:', err)
+          console.error('Failed to decrypt filename:', err)
           setDecryptedFilename(null)
         }
       } else {
@@ -343,14 +271,6 @@ export function DetailsModal({
           try {
             // Prefer cached CEK if present to avoid redundant unwrap
             let usedCek: Uint8Array | null = null;
-            const effectiveShareIdForThumb = (shareId || (details as any)?.shareId || (details as any)?.share_id) as string | undefined;
-            if (encryption && (encryption as any).kyberCiphertext && effectiveShareIdForThumb) {
-              // Try cache first (shareId provided by props or from details)
-              const cached = getCekForShare(effectiveShareIdForThumb);
-              if (cached) {
-                usedCek = cached;
-              }
-            }
 
             if (!usedCek) {
               // 4. Unwrap Content Encryption Key (fallback)
@@ -562,16 +482,6 @@ export function DetailsModal({
       return
     }
 
-    if (isFreePlan && tags.length >= 5) {
-      toast.error("Free plan is limited to 5 tags per item. Upgrade to a paid plan for unlimited tags!", {
-        action: {
-          label: "Upgrade",
-          onClick: () => router.push('/pricing')
-        }
-      })
-      return
-    }
-
     setIsTagging(true)
     try {
       const masterKey = masterKeyManager.getMasterKey()
@@ -602,17 +512,6 @@ export function DetailsModal({
 
   const handleAttachExistingTag = async (tag: Tag) => {
     if (tags.some(t => t.id === tag.id)) return;
-
-    if (isFreePlan && tags.length >= 5) {
-      toast.error("Free plan is limited to 5 tags per item. Upgrade to a paid plan for unlimited tags!", {
-        action: {
-          label: "Upgrade",
-          onClick: () => router.push('/pricing')
-        }
-      })
-      return
-    }
-
     try {
       const response = await apiClient.attachTag({
         [itemType === 'file' ? 'fileId' : 'folderId']: itemId,
@@ -793,44 +692,44 @@ export function DetailsModal({
                     );
                     return (
                       <div
-                    className={`rounded-2xl bg-white dark:bg-zinc-900 border shadow-sm flex items-center justify-center mb-4 overflow-hidden group ${!shareId && isPreviewable ? 'cursor-pointer active:scale-[0.98]' : 'select-none pointer-events-none opacity-90'
-                      } transition-all`}
-                    style={{
-                      width: itemDetails?.width && itemDetails?.height
-                        ? (itemDetails.width > itemDetails.height ? '160px' : (itemDetails.width < itemDetails.height ? '96px' : '128px'))
-                        : '128px',
-                      height: itemDetails?.width && itemDetails?.height
-                        ? (itemDetails.width > itemDetails.height ? '90px' : (itemDetails.width < itemDetails.height ? '128px' : '128px'))
-                        : '128px',
-                    }}
-                    onClick={!shareId && isPreviewable ? handlePreview : undefined}
-                  >
-                    {thumbnailUrl ? (
-                      <img
-                        src={thumbnailUrl}
-                        alt="Thumbnail"
-                        className="w-full h-full object-cover transition-transform"
-                        draggable={false}
-                        onDragStart={(e) => e.preventDefault()}
-                      />
-                    ) : (
-                      <div className="flex w-full h-full items-center justify-center">
-                        {itemType === "file" ? (
-                          <FileIcon
-                            filename={itemDetails.filename || ''}
-                            mimeType={itemDetails.mimetype || ''}
-                            className="h-10 w-10 opacity-20"
+                        className={`rounded-2xl bg-white dark:bg-zinc-900 border shadow-sm flex items-center justify-center mb-4 overflow-hidden group ${isPreviewable ? 'cursor-pointer active:scale-[0.98]' : 'select-none pointer-events-none opacity-90'
+                          } transition-all`}
+                        style={{
+                          width: itemDetails?.width && itemDetails?.height
+                            ? (itemDetails.width > itemDetails.height ? '160px' : (itemDetails.width < itemDetails.height ? '96px' : '128px'))
+                            : '128px',
+                          height: itemDetails?.width && itemDetails?.height
+                            ? (itemDetails.width > itemDetails.height ? '90px' : (itemDetails.width < itemDetails.height ? '128px' : '128px'))
+                            : '128px',
+                        }}
+                        onClick={isPreviewable ? handlePreview : undefined}
+                      >
+                        {thumbnailUrl ? (
+                          <img
+                            src={thumbnailUrl}
+                            alt="Thumbnail"
+                            className="w-full h-full object-cover transition-transform"
+                            draggable={false}
+                            onDragStart={(e) => e.preventDefault()}
                           />
                         ) : (
-                          <FileIcon
-                            filename={itemDetails.filename || ''}
-                            mimeType="folder"
-                            className="h-10 w-10 opacity-20"
-                          />
+                          <div className="flex w-full h-full items-center justify-center">
+                            {itemType === "file" ? (
+                              <FileIcon
+                                filename={itemDetails.filename || ''}
+                                mimeType={itemDetails.mimetype || ''}
+                                className="h-10 w-10 opacity-20"
+                              />
+                            ) : (
+                              <FileIcon
+                                filename={itemDetails.filename || ''}
+                                mimeType="folder"
+                                className="h-10 w-10 opacity-20"
+                              />
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
-                  </div>
                     );
                   })()}
 
@@ -846,11 +745,6 @@ export function DetailsModal({
                       </>
                     ) : (
                       <span className="font-medium text-foreground">Folder</span>
-                    )}
-                    {shareId && (
-                      <Badge variant="secondary" className="px-1.5 h-4 text-[10px] ml-1">
-                        Shared
-                      </Badge>
                     )}
                   </p>
                 </div>
@@ -881,118 +775,112 @@ export function DetailsModal({
                     </div>
 
                     <div
-                      className={`flex flex-wrap gap-1.5 min-h-[2.5rem] p-2 rounded-lg border bg-muted/20 items-center ${!shareId ? 'focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all cursor-text' : 'opacity-80 cursor-default'
-                        }`}
+                      className={`flex flex-wrap gap-1.5 min-h-[2.5rem] p-2 rounded-lg border bg-muted/20 items-center focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all cursor-text`}
                       onClick={() => {
-                        if (!shareId && !openCombobox) setOpenCombobox(true);
+                        if (!openCombobox) setOpenCombobox(true);
                       }}
                     >
                       {tags.map((tag) => (
                         <Badge
                           key={tag.id}
                           variant="secondary"
-                          className={`pl-2 pr-1 h-7 flex items-center gap-1 group ${!shareId ? 'hover:bg-muted cursor-pointer' : ''}`}
+                          className={`pl-2 pr-1 h-7 flex items-center gap-1 group hover:bg-muted cursor-pointer`}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleTagClick(tag.decryptedName || "")
                           }}
                         >
                           <span className="max-w-[100px] truncate state-text-muted-foreground"># {tag.decryptedName}</span>
-                          {!shareId && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDetachTag(tag.id, tag.decryptedName || "");
-                              }}
-                              className="p-0.5 hover:bg-muted-foreground/20 rounded-full transition-colors opacity-60 hover:opacity-100"
-                            >
-                              <IconX className="h-3 w-3" />
-                            </button>
-                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDetachTag(tag.id, tag.decryptedName || "");
+                            }}
+                            className="p-0.5 hover:bg-muted-foreground/20 rounded-full transition-colors opacity-60 hover:opacity-100"
+                          >
+                            <IconX className="h-3 w-3" />
+                          </button>
                         </Badge>
                       ))}
 
-                      {!shareId ? (
-                        <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              role="combobox"
-                              aria-expanded={openCombobox}
-                              className="h-7 border-none bg-transparent hover:bg-muted/50 p-2 text-xs font-normal text-muted-foreground min-w-[2px] px-1 flex-grow justify-start"
-                            >
-                              {tags.length === 0 && !openCombobox && "Add tags..."}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[200px] p-0" align="start">
-                            <Command shouldFilter={false}>
-                              <CommandInput
-                                placeholder="Search or create tag..."
-                                value={tagInput}
-                                onValueChange={setTagInput}
-                              />
-                              <CommandList>
-                                {!tagInput && (
-                                  <div className="py-6 text-center text-xs text-muted-foreground px-2">
-                                    <p>Use words that will help you or teammates find this file.</p>
-                                  </div>
-                                )}
+                      <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            role="combobox"
+                            aria-expanded={openCombobox}
+                            className="h-7 border-none bg-transparent hover:bg-muted/50 p-2 text-xs font-normal text-muted-foreground min-w-[2px] px-1 flex-grow justify-start"
+                          >
+                            {tags.length === 0 && !openCombobox && "Add tags..."}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[200px] p-0" align="start">
+                          <Command shouldFilter={false}>
+                            <CommandInput
+                              placeholder="Search or create tag..."
+                              value={tagInput}
+                              onValueChange={setTagInput}
+                            />
+                            <CommandList>
+                              {!tagInput && (
+                                <div className="py-6 text-center text-xs text-muted-foreground px-2">
+                                  <p>Use words that will help you or teammates find this file.</p>
+                                </div>
+                              )}
 
-                                {tagInput && availableTags.length === 0 && (
-                                  <CommandEmpty>No matching tags found.</CommandEmpty>
-                                )}
+                              {tagInput && availableTags.length === 0 && (
+                                <CommandEmpty>No matching tags found.</CommandEmpty>
+                              )}
 
-                                {availableTags.length > 0 && (
-                                  <CommandGroup heading="Suggestions">
-                                    {availableTags
-                                      .filter((t) => !tags.some((existing) => existing.id === t.id))
-                                      .filter((t) => !tagInput || t.decryptedName?.toLowerCase().includes(tagInput.toLowerCase()))
-                                      .slice(0, 5)
-                                      .map((tag) => (
-                                        <CommandItem
-                                          key={tag.id}
-                                          value={tag.decryptedName || ""}
-                                          onSelect={() => {
-                                            handleAttachExistingTag(tag)
-                                            setTagInput("")
-                                            setOpenCombobox(false)
-                                          }}
-                                          className="text-xs"
-                                        >
-                                          <IconTag className="mr-2 h-3 w-3 opacity-50" />
-                                          # {tag.decryptedName}
-                                        </CommandItem>
-                                      ))}
-                                  </CommandGroup>
-                                )}
-
-                                {tagInput && (
-                                  <>
-                                    <CommandSeparator />
-                                    <CommandGroup>
+                              {availableTags.length > 0 && (
+                                <CommandGroup heading="Suggestions">
+                                  {availableTags
+                                    .filter((t) => !tags.some((existing) => existing.id === t.id))
+                                    .filter((t) => !tagInput || t.decryptedName?.toLowerCase().includes(tagInput.toLowerCase()))
+                                    .slice(0, 5)
+                                    .map((tag) => (
                                       <CommandItem
-                                        value={`create:${tagInput}`}
+                                        key={tag.id}
+                                        value={tag.decryptedName || ""}
                                         onSelect={() => {
-                                          handleAddTag(tagInput)
+                                          handleAttachExistingTag(tag)
                                           setTagInput("")
                                           setOpenCombobox(false)
                                         }}
                                         className="text-xs"
                                       >
-                                        <IconPlus className="mr-2 h-3 w-3" />
-                                        Create tag &quot;# {tagInput}&quot;
+                                        <IconTag className="mr-2 h-3 w-3 opacity-50" />
+                                        # {tag.decryptedName}
                                       </CommandItem>
-                                    </CommandGroup>
-                                  </>
-                                )}
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                      ) : (
-                        tags.length === 0 && <span className="text-xs text-muted-foreground px-1 italic">No tags</span>
-                      )}
+                                    ))}
+                                </CommandGroup>
+                              )}
+
+                              {tagInput && (
+                                <>
+                                  <CommandSeparator />
+                                  <CommandGroup>
+                                    <CommandItem
+                                      value={`create:${tagInput}`}
+                                      onSelect={() => {
+                                        handleAddTag(tagInput)
+                                        setTagInput("")
+                                        setOpenCombobox(false)
+                                      }}
+                                      className="text-xs"
+                                    >
+                                      <IconPlus className="mr-2 h-3 w-3" />
+                                      Create tag &quot;# {tagInput}&quot;
+                                    </CommandItem>
+                                  </CommandGroup>
+                                </>
+                              )}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      {tags.length === 0 && <span className="text-xs text-muted-foreground px-1 italic">No tags</span>}
                     </div>
                   </div>
 

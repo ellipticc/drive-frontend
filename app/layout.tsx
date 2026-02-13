@@ -7,7 +7,6 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 import { UserProvider } from "@/components/user-context";
 import { GlobalUploadProvider } from "@/components/global-upload-context";
 import { CurrentFolderProvider } from "@/components/current-folder-context";
-import { BillingProvider } from "@/components/billing-context";
 import { ConditionalLayout } from "@/components/layout/conditional-layout";
 
 import { NotificationProvider } from "@/components/notifications/notification-provider";
@@ -264,26 +263,24 @@ export default function RootLayout({
             <NotificationProvider>
               <CurrentFolderProvider>
                 <UserProvider>
-                  <BillingProvider>
-                    <LanguageProvider>
-                      <GlobalUploadProvider>
-                        <TooltipProvider>
-                          <ThemeConfiguration />
-                          <ServiceWorkerRegister />
+                  <LanguageProvider>
+                    <GlobalUploadProvider>
+                      <TooltipProvider>
+                        <ThemeConfiguration />
+                        <ServiceWorkerRegister />
 
-                          <ConditionalLayout>{children}</ConditionalLayout>
-                          <Toaster
-                            position="bottom-right"
-                            richColors
-                            duration={5000}
-                            style={{
-                              fontFamily: 'var(--font-roboto)',
-                            }}
-                          />
-                        </TooltipProvider>
-                      </GlobalUploadProvider>
-                    </LanguageProvider>
-                  </BillingProvider>
+                        <ConditionalLayout>{children}</ConditionalLayout>
+                        <Toaster
+                          position="bottom-right"
+                          richColors
+                          duration={5000}
+                          style={{
+                            fontFamily: 'var(--font-roboto)',
+                          }}
+                        />
+                      </TooltipProvider>
+                    </GlobalUploadProvider>
+                  </LanguageProvider>
                 </UserProvider>
               </CurrentFolderProvider>
             </NotificationProvider>

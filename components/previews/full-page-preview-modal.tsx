@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from "react"
-import { IconX as X, IconChevronLeft as ChevronLeft, IconChevronRight as ChevronRight, IconDownload as Download, IconInfoCircle as Info, IconShare as Share2, IconFileUnknown, IconLock } from "@tabler/icons-react"
+import { IconX as X, IconChevronLeft as ChevronLeft, IconChevronRight as ChevronRight, IconDownload as Download, IconInfoCircle as Info, IconFileUnknown, IconLock } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { AudioPreview } from "./audio-preview"
@@ -34,7 +34,6 @@ interface FullPagePreviewModalProps {
     onClose: () => void
     onNavigate: (direction: 'prev' | 'next') => void
     onDownload: (file: PreviewFileItem) => void
-    onShare?: (file: PreviewFileItem) => void
     onDetails?: (file: PreviewFileItem) => void
     hasPrev: boolean
     hasNext: boolean
@@ -48,7 +47,6 @@ export function FullPagePreviewModal({
     onClose,
     onNavigate,
     onDownload,
-    onShare,
     onDetails,
     hasPrev,
     hasNext,
@@ -269,17 +267,6 @@ export function FullPagePreviewModal({
                         </TooltipTrigger>
                         <TooltipContent>Download</TooltipContent>
                     </Tooltip>
-
-                    {onShare && (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={() => onShare(file)}>
-                                    <Share2 className="h-5 w-5" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Share</TooltipContent>
-                        </Tooltip>
-                    )}
 
                     {onDetails && (
                         <Tooltip>

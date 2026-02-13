@@ -304,18 +304,7 @@ export const Table01DividerLineSm = ({
     const searchParams = useSearchParams();
     const STORAGE_KEY = 'files-table-visible-columns';
 
-    const isFreePlan = (!user?.subscription) && user?.plan !== 'pro' && user?.plan !== 'plus' && user?.plan !== 'unlimited';
 
-    useEffect(() => {
-        if (searchQuery?.startsWith('#') && isFreePlan) {
-            toast.error("Advanced Tag Search is a paid feature!", {
-                action: {
-                    label: "Upgrade",
-                    onClick: () => router.push('/pricing')
-                }
-            });
-        }
-    }, [searchQuery, isFreePlan, router]);
 
     // Debounce search query to prevent excessive API calls
     const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
@@ -2359,9 +2348,6 @@ export const Table01DividerLineSm = ({
 
         // Tag search (#tag)
         if (query.startsWith('#')) {
-            if (isFreePlan) {
-                return sortedItems; // Paywall handled by useEffect
-            }
 
             const tagQuery = query.substring(1).trim();
             // console.log(`[TagSearch] Query: "${tagQuery}"`); 
@@ -2383,7 +2369,7 @@ export const Table01DividerLineSm = ({
         return sortedItems.filter(item =>
             item.name.toLowerCase().includes(query)
         );
-    }, [sortedItems, deferredQuery, isFreePlan]);
+    }, [sortedItems, deferredQuery]);
 
     // Preview navigation logic
     const getPreviewableFiles = useCallback(() => {
@@ -3297,7 +3283,7 @@ export const Table01DividerLineSm = ({
                                                 <Table.Head id="size" allowsSorting={true} align="right" className={`hidden md:table-cell w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.size")}</span>
                                                 </Table.Head>
-                                                <Table.Head id="shared" align="center" className={`hidden md:table-cell w-16 ${visibleColumns.has('shared') ? '' : '[&>*]:invisible pointer-events-none cursor-default'}`} />
+                                                
                                                 <Table.Head id="actions" align="right" className="w-12 px-2" />
                                             </Table.Header>
                                         )}

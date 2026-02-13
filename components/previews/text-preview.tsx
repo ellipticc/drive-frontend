@@ -4,43 +4,6 @@ import { useEffect, useState } from "react"
 import { IconLoader2 as Loader2, IconFileText as FileText, IconAlertCircle as AlertCircle } from "@tabler/icons-react"
 import { downloadEncryptedFileWithCEK, downloadEncryptedFile, DownloadProgress } from "@/lib/download"
 import { decryptData } from "@/lib/crypto"
-import type { ShareItem } from "@/lib/api"
-
-interface ShareContext extends Partial<ShareItem> {
-  is_folder?: boolean;
-  wrapped_cek?: string;
-  nonce_wrap?: string;
-  // Include ShareItem properties for dashboard compatibility
-  fileId?: string;
-  fileName?: string;
-  fileSize?: number;
-  createdAt?: string;
-  expiresAt?: string;
-  permissions?: 'read' | 'write' | 'admin';
-  revoked?: boolean;
-  linkSecret?: string;
-  views?: number;
-  maxViews?: number;
-  maxDownloads?: number;
-  downloads?: number;
-  folderPath?: string;
-  mimeType?: string;
-  encryptedFilename?: string;
-  filenameSalt?: string;
-  folderPathSalt?: string;
-  recipients?: Array<{
-    id: string;
-    userId?: string;
-    email?: string;
-    name?: string;
-    status: string;
-    createdAt: string;
-    revokedAt?: string;
-  }>;
-  has_password?: boolean;
-  comments_enabled?: boolean;
-  comments_locked?: boolean;
-}
 
 interface TextPreviewProps {
   fileId: string
@@ -50,8 +13,6 @@ interface TextPreviewProps {
   fileName?: string
   filename?: string
 
-  shareDetails?: ShareContext
-  onGetShareCEK?: () => Promise<Uint8Array>
 
   onProgress?: (progress: DownloadProgress) => void
   onError?: (error: string) => void
@@ -62,8 +23,6 @@ interface TextPreviewProps {
 
 export function TextPreview({
   fileId,
-  shareDetails,
-  onGetShareCEK,
   onProgress,
   onError,
   isLoading: externalIsLoading,
@@ -86,31 +45,8 @@ export function TextPreview({
         setIsLoading(true)
         setInternalError(null)
 
-        let result;
-
-        if (onGetShareCEK) {
-          // Shared link context - use CEK
-          const shareCekRaw = await onGetShareCEK()
-          const shareCek = new Uint8Array(shareCekRaw);
-
-          let fileCek = shareCek;
-
-          // Unwrap key logic
-          if (shareDetails) {
-            if (!shareDetails.is_folder && shareDetails.wrapped_cek && shareDetails.nonce_wrap) {
-              try {
-                fileCek = new Uint8Array(decryptData(shareDetails.wrapped_cek, shareCek, shareDetails.nonce_wrap));
-              } catch (e) {
-                console.error('Failed to unwrap file key:', e);
-              }
-            }
-          }
-
-          result = await downloadEncryptedFileWithCEK(fileId, fileCek, onProgress, abortController.signal)
-        } else {
-          // Dashboard context - use user keys
-          result = await downloadEncryptedFile(fileId, undefined, onProgress, abortController.signal)
-        }
+        // Dashboard context - use user keys
+        const result = await downloadEncryptedFile(fileId, undefined, onProgress, abortController.signal)
 
         if (!isMounted) return
 
@@ -133,7 +69,7 @@ export function TextPreview({
       isMounted = false
       abortController.abort()
     }
-  }, [fileId, onGetShareCEK, setIsLoading, onProgress, onError, shareDetails])
+  }, [fileId, setIsLoading, onProgress, onError])
 
   if (error) {
     return (
