@@ -402,8 +402,6 @@ export function NavMain({
               );
             }
 
-            /* attestations menu removed */
-
             if (item.id === 'assistant') {
               const { chats, renameChat, pinChat, deleteChat, archiveChat } = useAICrypto();
               const [isAssistantExpanded, setIsAssistantExpanded] = useState(() => {
@@ -467,13 +465,13 @@ export function NavMain({
                 sessionStorage.setItem("assistant-expanded", String(newState));
               }
 
-              const isAssistantActive = pathname.startsWith('/assistant');
+              const isAssistantActive = pathname.startsWith('/new');
               const currentConversationId = searchParams.get('conversationId');
 
               return (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
-                    onClick={() => handleNavigate('/assistant')}
+                    onClick={() => handleNavigate('/new')}
                     tooltip={item.title}
                     isActive={isAssistantActive && !currentConversationId && isAssistantExpanded}
                     className="group/assist-btn"
@@ -508,7 +506,7 @@ export function NavMain({
                         return (
                           <SidebarMenuSubItem key={chat.id}>
                             <SidebarMenuSubButton
-                              onClick={() => !isEditing && handleNavigate(`/assistant?conversationId=${chat.id}`)}
+                              onClick={() => !isEditing && handleNavigate(`/new?conversationId=${chat.id}`)}
                               isActive={currentConversationId === chat.id}
                               className="group/chat-item pr-1 h-8"
                             >

@@ -10,6 +10,7 @@ import {
   IconStack2,
   IconBubbleText,
   IconLayoutSidebar,
+  IconSearch,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -28,9 +29,18 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useUser } from "@/components/user-context"
+import { useAICrypto } from "@/hooks/use-ai-crypto"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { useLanguage } from "@/lib/i18n/language-context"
 
@@ -48,7 +58,21 @@ export const AppSidebar = React.memo(function AppSidebar({
   const { t } = useLanguage()
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
   const { user: contextUser, loading: userLoading } = useUser()
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, state, isMobile } = useSidebar()
+  const { chats, renameChat, pinChat, deleteChat, archiveChat } = useAICrypto();
+  const [searchOpen, setSearchOpen] = React.useState(false)
+
+  // Keyboard shortcut for search (Cmd+K)
+  React.useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        setSearchOpen((open) => !open)
+      }
+    }
+    document.addEventListener("keydown", down)
+    return () => document.removeEventListener("keydown", down)
+  }, [])
 
   const data = {
     user: contextUser ? {
@@ -195,14 +219,32 @@ export const AppSidebar = React.memo(function AppSidebar({
                   <span className="text-base font-geist-mono select-none break-all leading-none">ellipticc</span>
                 </a>
               </SidebarMenuButton>
-              <SidebarTrigger className="ml-1" />
+              <SidebarTrigger className="ml-1" tooltip={{
+                children: (
+                  <div className="flex items-center gap-2">
+                    {t("common.toggleSidebar") || "Toggle Sidebar"}
+                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                      <span className="text-xs">⌘</span>B
+                    </kbd>
+                  </div>
+                )
+              }} />
             </div>
 
             <div className="hidden w-full items-center justify-center group-data-[collapsible=icon]:flex">
               <SidebarMenuButton
                 className="size-7 p-0 flex items-center justify-center relative group/toggle-icon hover:bg-transparent"
                 onClick={toggleSidebar}
-                tooltip={t("common.toggleSidebar") || "Toggle Sidebar"}
+                tooltip={{
+                  children: (
+                    <div className="flex items-center gap-2">
+                      {t("common.toggleSidebar") || "Toggle Sidebar"}
+                      <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                        <span className="text-xs">⌘</span>B
+                      </kbd>
+                    </div>
+                  )
+                }}
               >
                 <IconCaretLeftRightFilled className="size-4 shrink-0 transition-opacity group-hover/toggle-icon:opacity-0" />
                 <IconLayoutSidebar className="size-4 shrink-0 absolute inset-0 m-auto opacity-0 transition-opacity group-hover/toggle-icon:opacity-100" />
@@ -210,7 +252,45 @@ export const AppSidebar = React.memo(function AppSidebar({
             </div>
           </SidebarMenuItem>
         </SidebarMenu>
-        <NavNew onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
+        <div className="px-2 mt-3 mb-1">
+          <NavNew />
+        </div>
+
+        <div className="px-2 mb-8">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => setSearchOpen(true)}
+                tooltip="Search Chats (Ctrl+K)"
+              >
+                <IconSearch className="size-4 shrink-0" />
+                <span>Search</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </div>
+
+        <CommandDialog open={searchOpen} onOpenChange={setSearchOpen}>
+          <CommandInput placeholder="Search chats..." />
+          <CommandList>
+            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandGroup heading="Recent Chats">
+              {chats.map(chat => (
+                <CommandItem
+                  key={chat.id}
+                  onSelect={() => {
+                    router.push(`/new?conversationId=${chat.id}`);
+                    setSearchOpen(false);
+                  }}
+                  className="cursor-pointer"
+                >
+                  <IconBubbleText className="mr-2 h-4 w-4" />
+                  <span>{chat.title}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </CommandDialog>
       </SidebarHeader>
       <SidebarContent>
         <>

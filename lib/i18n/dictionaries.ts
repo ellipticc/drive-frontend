@@ -8,6 +8,7 @@ export const dictionaries = {
             cancel: "Cancel",
             new: "New",
             copied: "Copied",
+            toggleSidebar: "Toggle Sidebar",
         },
         settings: {
             title: "Settings",
@@ -78,7 +79,7 @@ export const dictionaries = {
         },
 
         sidebar: {
-            myFiles: "My Files",
+            myFiles: "Vault",
             photos: "Photos & Videos",
             shared: "Shared",
             sharedWithMe: "Shared with me",
@@ -157,6 +158,7 @@ export const dictionaries = {
             cancel: "Annuler",
             new: "Nouveau",
             copied: "Copié",
+            toggleSidebar: "Basculer la barre latérale",
         },
         settings: {
             title: "Paramètres",
@@ -226,7 +228,7 @@ export const dictionaries = {
             ai: "IA",
         },
         sidebar: {
-            myFiles: "Mes Fichiers",
+            myFiles: "Coffre-fort",
             photos: "Photos et Vidéos",
             shared: "Partagés",
             sharedWithMe: "Partagé avec moi",
@@ -303,7 +305,9 @@ export const dictionaries = {
             save: "Guardar cambios",
             saved: "Guardado exitosamente",
             cancel: "Cancelar",
-            new: "Nuevo", copied: "Copiado",
+            new: "Nuevo",
+            copied: "Copiado",
+            toggleSidebar: "Alternar barra lateral",
         },
         settings: {
             title: "Configuración",
@@ -373,7 +377,7 @@ export const dictionaries = {
             ai: "IA",
         },
         sidebar: {
-            myFiles: "Mis Archivos",
+            myFiles: "Bóveda",
             photos: "Fotos y Videos",
             shared: "Compartidos",
             sharedWithMe: "Compartido conmigo",
@@ -449,7 +453,9 @@ export const dictionaries = {
             save: "Änderungen speichern",
             saved: "Erfolgreich gespeichert",
             cancel: "Abbrechen",
-            new: "Neu", copied: "Kopiert",
+            new: "Neu",
+            copied: "Kopiert",
+            toggleSidebar: "Seitenleiste umschalten",
         },
         settings: {
             title: "Einstellungen",
@@ -518,7 +524,7 @@ export const dictionaries = {
             ai: "KI",
         },
         sidebar: {
-            myFiles: "Meine Dateien",
+            myFiles: "Tresor",
             photos: "Fotos & Videos",
             shared: "Freigegeben",
             sharedWithMe: "Freigegeben mit mir",

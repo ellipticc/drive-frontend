@@ -201,9 +201,6 @@ export function NavUser({
                           <TooltipContent side="right">Change avatar</TooltipContent>
                         </Tooltip>
                         {hasUnread && <NotificationDot />}
-                        {user.is_checkmarked && user.show_checkmark !== false && (
-                          <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-5 fill-sky-500" />
-                        )}
                       </div>
                       <div className="grid flex-1 text-start text-sm leading-tight">
                         <span className="truncate font-medium">{displayName}</span>
@@ -234,9 +231,6 @@ export function NavUser({
                       <TooltipContent side="right">Change avatar</TooltipContent>
                     </Tooltip>
                     {hasUnread && <NotificationDot />}
-                    {user.is_checkmarked && user.show_checkmark !== false && (
-                      <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-5 fill-sky-500" />
-                    )}
                   </div>
                   <div className="grid flex-1 text-start text-sm leading-tight">
                     <span className="truncate font-medium">{displayName}</span>
@@ -285,8 +279,8 @@ export function NavUser({
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault()
                               handleEmailClick(e as any)
-                        }
-                      }}
+                            }
+                          }}
                           onMouseDown={(e) => e.stopPropagation()}
                           aria-label="Copy email to clipboard"
                         >
@@ -300,14 +294,6 @@ export function NavUser({
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => {
-                  // Upgrade Workspace
-                  window.location.href = '/pricing'
-                }}>
-                  <IconSparkles className="mr-2 h-4 w-4" />
-                  Upgrade Workspace
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => {
                   const tab = 'General';
                   window.location.hash = `#settings/${tab}`;
@@ -341,17 +327,17 @@ export function NavUser({
                     <DropdownMenuItem onClick={() => handleThemeChange("light")}>
                       <IconSun className="mr-2 h-4 w-4" />
                       <span>{t("theme.light", { defaultValue: "Light" })}</span>
-                      {theme === 'light' && <IconRosetteDiscountCheckFilled className="ml-auto h-4 w-4" />}
+                      {theme === 'light' && <div className="ml-auto h-4 w-4" />}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleThemeChange("dark")}>
                       <IconMoon className="mr-2 h-4 w-4" />
                       <span>{t("theme.dark", { defaultValue: "Dark" })}</span>
-                      {theme === 'dark' && <IconRosetteDiscountCheckFilled className="ml-auto h-4 w-4" />}
+                      {theme === 'dark' && <div className="ml-auto h-4 w-4" />}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleThemeChange("system")}>
                       <IconDeviceDesktop className="mr-2 h-4 w-4" />
                       <span>{t("theme.system", { defaultValue: "System" })}</span>
-                      {theme === 'system' && <IconRosetteDiscountCheckFilled className="ml-auto h-4 w-4" />}
+                      {theme === 'system' && <div className="ml-auto h-4 w-4" />}
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>

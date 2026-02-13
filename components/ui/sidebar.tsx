@@ -292,11 +292,14 @@ function Sidebar({
 function SidebarTrigger({
   className,
   onClick,
+  tooltip,
   ...props
-}: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar()
+}: React.ComponentProps<typeof Button> & {
+  tooltip?: string | React.ComponentProps<typeof TooltipContent>
+}) {
+  const { toggleSidebar, state, isMobile } = useSidebar()
 
-  return (
+  const button = (
     <Button
       data-sidebar="trigger"
       data-slot="sidebar-trigger"
@@ -312,6 +315,28 @@ function SidebarTrigger({
       <IconLayoutSidebar />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
+  )
+
+  if (!tooltip) {
+    return button
+  }
+
+  if (typeof tooltip === "string") {
+    tooltip = {
+      children: tooltip,
+    }
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent
+        side="right"
+        align="center"
+        hidden={state !== "collapsed" || isMobile}
+        {...tooltip}
+      />
+    </Tooltip>
   )
 }
 
@@ -350,8 +375,8 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
       data-slot="sidebar-inset"
       className={cn(
         "bg-background relative flex w-full flex-1 flex-col",
-        "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:rounded-2xl md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:border-border md:peer-data-[variant=floating]:m-2 md:peer-data-[variant=floating]:rounded-2xl md:peer-data-[variant=floating]:border md:peer-data-[variant=floating]:border-sidebar-border md:peer-data-[variant=floating]:shadow-sm",
-        "dark:md:peer-data-[variant=inset]:ring-1 dark:md:peer-data-[variant=inset]:ring-white/10 dark:md:peer-data-[variant=floating]:ring-1 dark:md:peer-data-[variant=floating]:ring-white/10",
+        "md:peer-data-[variant=inset]:m-0 md:peer-data-[variant=inset]:rounded-none md:peer-data-[variant=floating]:m-2 md:peer-data-[variant=floating]:rounded-2xl md:peer-data-[variant=floating]:border md:peer-data-[variant=floating]:border-sidebar-border md:peer-data-[variant=floating]:shadow-sm",
+        "dark:md:peer-data-[variant=floating]:ring-1 dark:md:peer-data-[variant=floating]:ring-white/10",
         "overflow-hidden",
         className
       )}
