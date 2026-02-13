@@ -164,19 +164,9 @@ export function FileBrowser({ filterMode = 'default', pageTitle = "My Files" }: 
         router.replace(`${pathname}?${params.toString()}`, { scroll: false })
     }
 
-    const handleFileUpload = () => {
-        fileInputRef.current?.click()
-    }
-
-    const handleFolderUpload = () => {
-        folderInputRef.current?.click()
-    }
-
     return (
         <div className="flex w-full h-full flex-col overflow-hidden">
             <SiteHeader
-                onFileUpload={handleFileUpload}
-                onFolderUpload={handleFolderUpload}
                 sticky
             />
             <main className="flex-1 overflow-y-auto">

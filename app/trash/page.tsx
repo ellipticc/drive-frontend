@@ -39,8 +39,6 @@ function TrashContent() {
   return (
     <div className="flex w-full h-full flex-col overflow-hidden">
       <SiteHeader
-        onFileUpload={handleFileUpload}
-        onFolderUpload={handleFolderUpload}
         sticky
       />
       <main className="flex-1 overflow-y-auto">

@@ -52,11 +52,11 @@ function useSidebar() {
     return {
       state: "expanded" as const,
       open: true,
-      setOpen: () => {},
+      setOpen: () => { },
       openMobile: false,
-      setOpenMobile: () => {},
+      setOpenMobile: () => { },
       isMobile: false,
-      toggleSidebar: () => {},
+      toggleSidebar: () => { },
     }
   }
 

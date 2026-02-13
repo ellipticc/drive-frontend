@@ -9,6 +9,7 @@ import {
   IconTrash,
   IconStack2,
   IconBubbleText,
+  IconLayoutSidebar,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -18,6 +19,7 @@ import { NavUser } from "@/components/layout/navigation/nav-user"
 import { NavNew } from "@/components/layout/navigation/nav-new"
 import {
   Sidebar,
+  SidebarTrigger,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
@@ -46,6 +48,7 @@ export const AppSidebar = React.memo(function AppSidebar({
   const { t } = useLanguage()
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
   const { user: contextUser, loading: userLoading } = useUser()
+  const { toggleSidebar } = useSidebar()
 
   const data = {
     user: contextUser ? {
@@ -185,14 +188,26 @@ export const AppSidebar = React.memo(function AppSidebar({
       <SidebarHeader className="gap-2 p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-            >
-              <a href="/" className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); router.push('/'); }}>
-                <IconCaretLeftRightFilled className="size-4 shrink-0" />
-                <span className="text-base font-geist-mono select-none break-all leading-none">ellipticc</span>
-              </a>
-            </SidebarMenuButton>
+            <div className="flex w-full items-center justify-between group-data-[collapsible=icon]:hidden">
+              <SidebarMenuButton asChild className="flex-1">
+                <a href="/" className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); router.push('/'); }}>
+                  <IconCaretLeftRightFilled className="size-4 shrink-0" />
+                  <span className="text-base font-geist-mono select-none break-all leading-none">ellipticc</span>
+                </a>
+              </SidebarMenuButton>
+              <SidebarTrigger className="ml-1" />
+            </div>
+
+            <div className="hidden w-full items-center justify-center group-data-[collapsible=icon]:flex">
+              <SidebarMenuButton
+                className="size-7 p-0 flex items-center justify-center relative group/toggle-icon hover:bg-transparent"
+                onClick={toggleSidebar}
+                tooltip={t("common.toggleSidebar") || "Toggle Sidebar"}
+              >
+                <IconCaretLeftRightFilled className="size-4 shrink-0 transition-opacity group-hover/toggle-icon:opacity-0" />
+                <IconLayoutSidebar className="size-4 shrink-0 absolute inset-0 m-auto opacity-0 transition-opacity group-hover/toggle-icon:opacity-100" />
+              </SidebarMenuButton>
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
         <NavNew onFileUpload={handleFileUpload} onFolderUpload={handleFolderUpload} />
