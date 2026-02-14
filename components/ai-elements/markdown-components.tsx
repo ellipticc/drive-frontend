@@ -21,8 +21,9 @@ export const CodeBlock = React.forwardRef<
     className?: string;
   }
 >(({ language = 'plain', code, children, className }, ref) => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const { theme, resolvedTheme } = useTheme();
+  // Prefer resolvedTheme so `system` follows the OS preference on first render
+  const isDark = (resolvedTheme || theme) === 'dark';
   const [copied, setCopied] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [highlightedHtml, setHighlightedHtml] = React.useState<string | null>(null);

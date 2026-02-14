@@ -267,7 +267,6 @@ export const AppSidebar = React.memo(function AppSidebar({
           open={searchOpen}
           onOpenChange={setSearchOpen}
           className="max-w-7xl"
-          commandClassName="**:data-[slot=command-input-wrapper]:justify-center [&_[cmdk-input]]:mx-auto [&_[cmdk-input]]:max-w-4xl **:data-[slot=command-input-wrapper]:px-6 [&_[cmdk-item]]:py-1.5"
         >
           <CommandInput placeholder="Search chats..." />
           <CommandList className="max-h-[500px]">

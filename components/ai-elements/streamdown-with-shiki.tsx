@@ -33,8 +33,8 @@ export const StreamdownWithShiki = React.forwardRef<
   HTMLDivElement,
   StreamdownWithShikiProps
 >(({ children, plugins, className }, ref) => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const { theme, resolvedTheme } = useTheme();
+  const isDark = (resolvedTheme || theme) === 'dark';
   const containerRef = React.useRef<HTMLDivElement>(null);
   const highlightedBlocksRef = React.useRef<WeakSet<HTMLElement>>(new WeakSet());
   const observerRef = React.useRef<MutationObserver | null>(null);

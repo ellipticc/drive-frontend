@@ -18,8 +18,8 @@ interface UseCodeHighlightProps {
 }
 
 export function useCodeHighlight({ code, language, elementRef }: UseCodeHighlightProps) {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const { theme, resolvedTheme } = useTheme();
+  const isDark = (resolvedTheme || theme) === 'dark';
   const highlightedRef = useRef(false);
 
   // Prefetch highlighter on mount (non-blocking)
