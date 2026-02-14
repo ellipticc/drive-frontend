@@ -216,7 +216,7 @@ export const AppSidebar = React.memo(function AppSidebar({
               <SidebarTrigger className="ml-1" tooltip={{
                 children: (
                   <div className="flex items-center gap-2">
-                    {t("common.toggleSidebar") || "Toggle Sidebar"}
+                    {state === "expanded" ? (t("common.collapseSidebar") ?? "Collapse sidebar") : (t("common.expandSidebar") ?? "Expand sidebar")}
                     <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                       <span className="text-xs">⌘</span>B
                     </kbd>
@@ -252,11 +252,11 @@ export const AppSidebar = React.memo(function AppSidebar({
             <SidebarMenuButton
               onClick={() => setSearchOpen(true)}
               tooltip="Search Chats (Ctrl+K)"
-              className="relative"
+              className="relative group/menu-button"
             >
               <IconSearch className="size-4 shrink-0" />
               <span>Search</span>
-              <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-100 transition-opacity group-data-[collapsible=icon]:hidden sm:flex">
+              <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-60 transition-opacity group-data-[collapsible=icon]:hidden sm:flex">
                 <span className="text-[10px]">Ctrl</span>K
               </kbd>
             </SidebarMenuButton>
