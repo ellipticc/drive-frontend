@@ -90,12 +90,6 @@ export const AppSidebar = React.memo(function AppSidebar({
         icon: IconStack2,
         id: "my-files",
       },
-      {
-        title: t("sidebar.trash"),
-        url: "/trash",
-        icon: IconTrash,
-        id: "trash",
-      },
     ],
     navSecondary: [
       {
@@ -214,7 +208,7 @@ export const AppSidebar = React.memo(function AppSidebar({
           <SidebarMenuItem>
             <div className="flex w-full items-center justify-between group-data-[collapsible=icon]:hidden">
               <SidebarMenuButton asChild className="flex-1">
-                <a href="/" className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); router.push('/'); }}>
+                <a href="/new" className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); router.push('/new'); }}>
                   <IconCaretLeftRightFilled className="size-4 shrink-0" />
                   <span className="text-base font-geist-mono select-none break-all leading-none">ellipticc</span>
                 </a>
@@ -252,23 +246,22 @@ export const AppSidebar = React.memo(function AppSidebar({
             </div>
           </SidebarMenuItem>
         </SidebarMenu>
-        <div className="px-2 mt-3 mb-1">
+        <SidebarMenu className="mt-3 mb-1">
           <NavNew />
-        </div>
-
-        <div className="px-2 mb-8">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={() => setSearchOpen(true)}
-                tooltip="Search Chats (Ctrl+K)"
-              >
-                <IconSearch className="size-4 shrink-0" />
-                <span>Search</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </div>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => setSearchOpen(true)}
+              tooltip="Search Chats (Ctrl+K)"
+              className="relative"
+            >
+              <IconSearch className="size-4 shrink-0" />
+              <span>Search</span>
+              <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-100 transition-opacity group-data-[collapsible=icon]:hidden sm:flex">
+                <span className="text-[10px]">Ctrl</span>K
+              </kbd>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
 
         <CommandDialog open={searchOpen} onOpenChange={setSearchOpen}>
           <CommandInput placeholder="Search chats..." />

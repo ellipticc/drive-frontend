@@ -1,12 +1,5 @@
-"use client"
-
-import { Suspense } from "react"
-import { FileBrowser } from "@/components/files/file-browser"
+import { redirect } from "next/navigation"
 
 export default function Home() {
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-svh" />}>
-      <FileBrowser />
-    </Suspense>
-  )
+  redirect('/new')
 }
