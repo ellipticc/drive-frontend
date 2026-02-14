@@ -333,7 +333,7 @@ function SidebarTrigger({
       <TooltipContent
         side="right"
         align="center"
-        hidden={isMobile}
+        hidden={state !== "collapsed" || isMobile}
         {...tooltip}
       />
     </Tooltip>
@@ -613,7 +613,7 @@ const SidebarMenuButton = React.forwardRef<
         <TooltipContent
           side="right"
           align="center"
-          hidden={isMobile}
+          hidden={state !== "collapsed" || isMobile}
           {...tooltip}
         />
       </Tooltip>

@@ -334,14 +334,13 @@ export function NavMain({
                 <SidebarMenuItem key={item.title} className="space-y-1">
                   <SidebarMenuButton
                     tooltip={item.title}
-                    isActive={pathname === item.url || (item.url === '/' && pathname === '/')}
+                    isActive={pathname === item.url}
                     onClick={(e) => {
-                      if (item.url === '/') {
-                        // Force simple navigation to root
-                        // If we are at root pathname but have a folderId, we still want to navigate to clear it
+                      if (item.url === '/vault') {
+                        // Force simple navigation to vault root
                         const hasFolderId = searchParams.get('folderId');
-                        if (pathname === '/' && !hasFolderId) return; // Already at real root
-                        handleNavigate('/');
+                        if (pathname === '/vault' && !hasFolderId) return;
+                        handleNavigate('/vault');
                       } else {
                         handleNavigate(item.url);
                       }
@@ -351,7 +350,7 @@ export function NavMain({
                     data-space-name={t("sidebar.myFiles")}
                   >
                     {(() => {
-                      const isActive = pathname === item.url || (item.url === '/' && pathname === '/')
+                      const isActive = pathname === item.url
                       const IconComponent = getIcon(item, isActive)
                       return IconComponent && <IconComponent className="shrink-0" />
                     })()}

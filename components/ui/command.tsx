@@ -34,12 +34,14 @@ function CommandDialog({
   description = "Search for a command to run...",
   children,
   className,
+  commandClassName,
   showCloseButton = false,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string
   description?: string
   className?: string
+  commandClassName?: string
   showCloseButton?: boolean
 }) {
   return (
@@ -49,10 +51,10 @@ function CommandDialog({
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <DialogContent
-        className={cn("overflow-hidden p-0 fixed top-[36%] translate-y-[-36%] sm:top-[32%] sm:translate-y-[-32%] max-w-4xl rounded-xl shadow-lg", className)}
+        className={cn("overflow-hidden p-0 fixed top-[20%] left-1/2 -translate-x-1/2 max-w-lg rounded-xl shadow-lg transition-all duration-300 ease-in-out", className)}
         showCloseButton={showCloseButton}
       >
-        <Command className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
+        <Command className={cn("[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5 transition-all duration-300 ease-in-out", commandClassName)}>
           {children}
         </Command>
       </DialogContent>

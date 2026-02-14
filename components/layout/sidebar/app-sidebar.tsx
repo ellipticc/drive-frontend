@@ -86,7 +86,7 @@ export const AppSidebar = React.memo(function AppSidebar({
     navMain: [
       {
         title: t("sidebar.myFiles"),
-        url: "/",
+        url: "/vault",
         icon: IconStack2,
         id: "my-files",
       },
@@ -263,9 +263,14 @@ export const AppSidebar = React.memo(function AppSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
 
-        <CommandDialog open={searchOpen} onOpenChange={setSearchOpen}>
+        <CommandDialog
+          open={searchOpen}
+          onOpenChange={setSearchOpen}
+          className="max-w-4xl"
+          commandClassName="**:data-[slot=command-input-wrapper]:h-14 [&_[cmdk-input]]:h-14 [&_[cmdk-item]]:py-4"
+        >
           <CommandInput placeholder="Search chats..." />
-          <CommandList>
+          <CommandList className="max-h-[500px]">
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup heading="Recent Chats">
               {chats.map(chat => (
