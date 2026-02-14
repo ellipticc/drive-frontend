@@ -225,7 +225,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
 
             {/* Message Content */}
             <div className={cn(
-                "flex flex-col flex-1",
+                "flex flex-col flex-1 min-w-0",
                 isUser ? "items-end" : "items-start"
             )}>
                 {isUser ? (

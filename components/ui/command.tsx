@@ -51,7 +51,7 @@ function CommandDialog({
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <DialogContent
-        className={cn("overflow-hidden p-0 fixed inset-x-2 sm:inset-x-4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-h-[90vh] max-w-6xl w-full sm:w-[calc(100%-2rem)] rounded-xl shadow-lg transition-all duration-300 ease-in-out", className)}
+        className={cn("overflow-hidden p-0 fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-6xl px-4 sm:px-6 max-h-[90vh] rounded-xl shadow-lg transition-all duration-300 ease-in-out", className)}
         showCloseButton={showCloseButton}
       >
 

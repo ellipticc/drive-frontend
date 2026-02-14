@@ -1300,22 +1300,10 @@ export default function AssistantPage() {
 
     return (
         <div className="flex flex-col h-full bg-background relative overflow-x-hidden">
-            {/* Mobile Header - Only visible on small screens */}
-            <div className="sticky top-0 z-50 md:hidden flex h-14 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-4 w-full justify-between">
-                <SidebarTrigger className="size-8" />
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    onClick={() => router.push('/new')}
-                    title="New Chat"
-                >
-                    <IconPlus className="size-4" />
-                </Button>
-            </div>
+
 
             {/* Header */}
-            <SiteHeader className="sticky top-14 md:top-0 z-40 border-b bg-background/80 backdrop-blur-sm" />
+            <SiteHeader className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm" />
 
             {/* Main Content Area */}
             <div className="flex-1 relative flex flex-col overflow-hidden">
@@ -1378,7 +1366,7 @@ export default function AssistantPage() {
                             <div className="flex flex-col items-center w-full min-h-full">
                                 {/* Loading skeleton when initial messages are fetching */}
                                 {isLoading && messages.length === 0 ? (
-                                    <div className="w-full max-w-3xl mx-auto py-8 space-y-4">
+                                    <div className="w-full max-w-4xl mx-auto py-8 space-y-4 break-words">
                                         <div className="text-center">
                                             <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
                                             <p className="text-sm text-muted-foreground">Loading chat…</p>

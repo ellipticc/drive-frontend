@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
+import { IconPlus } from "@tabler/icons-react"
 
 interface SiteHeaderProps {
   className?: string
@@ -10,6 +13,7 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ className, sticky = false, customTitle }: SiteHeaderProps) {
   const pathname = usePathname()
+  const router = useRouter()
 
   // Auto-enable sticky on common dashboard routes unless explicitly set
   const [autoSticky, setAutoSticky] = useState(false)
@@ -46,6 +50,10 @@ export function SiteHeader({ className, sticky = false, customTitle }: SiteHeade
     >
 
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
+        {/* Mobile: sidebar trigger */}
+        <div className="md:hidden mr-2">
+          <SidebarTrigger />
+        </div>
         {customTitle ? (
           <div className="flex items-center gap-2">
             {customTitle}
@@ -57,6 +65,12 @@ export function SiteHeader({ className, sticky = false, customTitle }: SiteHeade
           </div>
         )}
         <div className="ml-auto flex items-center gap-2">
+          {/* Mobile: new-chat button on top-right */}
+          <div className="md:hidden">
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => router.push('/new')} title="New Chat">
+              <IconPlus className="size-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </header>
