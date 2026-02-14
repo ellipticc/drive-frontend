@@ -216,7 +216,7 @@ export const AppSidebar = React.memo(function AppSidebar({
               <SidebarTrigger className="ml-1" tooltip={{
                 children: (
                   <div className="flex items-center gap-2">
-                    {state === "expanded" ? (t("common.collapseSidebar") ?? "Collapse sidebar") : (t("common.expandSidebar") ?? "Expand sidebar")}
+                    {state === "expanded" ? "Collapse" : "Expand"}
                     <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
                       <span className="text-xs">⌘</span>B
                     </kbd>
@@ -266,8 +266,8 @@ export const AppSidebar = React.memo(function AppSidebar({
         <CommandDialog
           open={searchOpen}
           onOpenChange={setSearchOpen}
-          className="max-w-4xl"
-          commandClassName="**:data-[slot=command-input-wrapper]:h-14 [&_[cmdk-input]]:h-14 [&_[cmdk-item]]:py-4"
+          className="max-w-7xl"
+          commandClassName="**:data-[slot=command-input-wrapper]:justify-center [&_[cmdk-input]]:mx-auto [&_[cmdk-input]]:max-w-4xl **:data-[slot=command-input-wrapper]:px-6 [&_[cmdk-item]]:py-1.5"
         >
           <CommandInput placeholder="Search chats..." />
           <CommandList className="max-h-[500px]">

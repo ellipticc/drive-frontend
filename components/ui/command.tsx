@@ -51,7 +51,7 @@ function CommandDialog({
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <DialogContent
-        className={cn("overflow-hidden p-0 fixed top-[20%] left-1/2 -translate-x-1/2 max-w-4xl rounded-xl shadow-lg transition-all duration-300 ease-in-out", className)}
+        className={cn("overflow-hidden p-0 fixed inset-x-2 sm:inset-x-4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-h-[90vh] max-w-6xl w-full sm:w-[calc(100%-2rem)] rounded-xl shadow-lg transition-all duration-300 ease-in-out", className)}
         showCloseButton={showCloseButton}
       >
 
@@ -76,7 +76,7 @@ function CommandInput({
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(
-          "placeholder:text-muted-foreground flex h-10 w-full max-w-3xl rounded-md bg-transparent py-2 text-sm outline-hidden transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 mx-auto",
+          "placeholder:text-muted-foreground flex h-9 w-full max-w-4xl rounded-md bg-transparent py-2 text-sm outline-hidden transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 mx-auto",
           className
         )}
         {...props}
@@ -93,7 +93,7 @@ function CommandList({
     <CommandPrimitive.List
       data-slot="command-list"
       className={cn(
-        "max-h-[500px] scroll-py-1 overflow-x-hidden overflow-y-auto",
+        "max-h-[400px] sm:max-h-[500px] scroll-py-1 overflow-x-hidden overflow-y-auto",
         className
       )}
       {...props}
@@ -150,7 +150,7 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-3 rounded-sm px-3 py-1 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 transition-[background-color,box-shadow,border-radius,opacity] duration-150 ease-in-out hover:rounded-md hover:shadow-sm hover:bg-accent/5 hover:opacity-100 first:opacity-40 first:text-muted-foreground first:hover:opacity-55",
+        "data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-2 rounded-sm px-3 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 transition-[background-color,box-shadow,border-radius] duration-150 ease-in-out hover:rounded-md hover:shadow-sm hover:bg-accent/5 first:opacity-25 first:text-muted-foreground first:hover:opacity-55 first:hover:text-muted-foreground/70",
         className
       )}
       {...props}

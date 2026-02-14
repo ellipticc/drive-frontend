@@ -9,6 +9,8 @@ export const dictionaries = {
             new: "New",
             copied: "Copied",
             toggleSidebar: "Toggle Sidebar",
+            collapseSidebar: "Collapse sidebar",
+            expandSidebar: "Expand sidebar",
         },
         settings: {
             title: "Settings",
@@ -159,6 +161,8 @@ export const dictionaries = {
             new: "Nouveau",
             copied: "Copié",
             toggleSidebar: "Basculer la barre latérale",
+            collapseSidebar: "Réduire la barre",
+            expandSidebar: "Développer la barre",
         },
         settings: {
             title: "Paramètres",
@@ -308,6 +312,8 @@ export const dictionaries = {
             new: "Nuevo",
             copied: "Copiado",
             toggleSidebar: "Alternar barra lateral",
+            collapseSidebar: "Colapsar barra lateral",
+            expandSidebar: "Expandir barra lateral",
         },
         settings: {
             title: "Configuración",
@@ -455,8 +461,8 @@ export const dictionaries = {
             cancel: "Abbrechen",
             new: "Neu",
             copied: "Kopiert",
-            toggleSidebar: "Seitenleiste umschalten",
-        },
+            toggleSidebar: "Seitenleiste umschalten",            collapseSidebar: "Seitenleiste einklappen",
+            expandSidebar: "Seitenleiste erweitern",        },
         settings: {
             title: "Einstellungen",
             general: "Allgemein",

@@ -359,7 +359,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             <div className="text-sm text-muted-foreground italic">Thought for {message.reasoningDuration}s</div>
                         )}
 
-                        <div className="w-full">
+                        <div className="w-full max-w-full break-words overflow-hidden">
                             {/* Use inline-citation component from ai-elements if sources exist */}
                             {message.sources && message.sources.length > 0 ? (
                                 <InlineCitationRenderer content={message.content} sources={message.sources} />

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useUser } from "@/components/user-context"
-import { IconSparkles, IconBookmark, IconRotateClockwise } from "@tabler/icons-react"
+import { IconSparkles, IconBookmark, IconRotateClockwise, IconPlus } from "@tabler/icons-react"
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
 
@@ -17,6 +17,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { ChatMessage } from "@/components/ai-elements/chat-message"
 import { ChatScrollNavigation } from "@/components/ai-elements/chat-navigation"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
 interface MessageVersion {
@@ -1297,9 +1299,23 @@ export default function AssistantPage() {
 
 
     return (
-        <div className="flex flex-col h-full bg-background relative">
+        <div className="flex flex-col h-full bg-background relative overflow-x-hidden">
+            {/* Mobile Header - Only visible on small screens */}
+            <div className="sticky top-0 z-50 md:hidden flex h-14 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-4 w-full justify-between">
+                <SidebarTrigger className="size-8" />
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    onClick={() => router.push('/new')}
+                    title="New Chat"
+                >
+                    <IconPlus className="size-4" />
+                </Button>
+            </div>
+
             {/* Header */}
-            <SiteHeader className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm" />
+            <SiteHeader className="sticky top-14 md:top-0 z-40 border-b bg-background/80 backdrop-blur-sm" />
 
             {/* Main Content Area */}
             <div className="flex-1 relative flex flex-col overflow-hidden">
@@ -1356,7 +1372,7 @@ export default function AssistantPage() {
                         {/* Messages Container - Virtual List for Performance */}
                         <div
                             ref={scrollContainerRef}
-                            className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth"
+                            className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth min-h-0 max-w-full overflow-x-hidden"
                         >
                             {/* Standard List Rendering */}
                             <div className="flex flex-col items-center w-full min-h-full">
