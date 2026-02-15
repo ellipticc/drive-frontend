@@ -508,11 +508,12 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         )}
                         {/* Suggestions */}
                         {message.suggestions && message.suggestions.length > 0 && (
-                            <Suggestions>
+                            <Suggestions variant="row">
                                 {message.suggestions.map((s, i) => (
                                     <Suggestion
                                         key={i}
                                         suggestion={s}
+                                        variant="chip"
                                         onClick={onSuggestionClick}
                                     />
                                 ))}

@@ -3106,16 +3106,7 @@ class ApiClient {
     });
   }
 
-  async getAISuggestions(
-    lastUserMessage: string,
-    lastAssistantMessage: string,
-    summary?: string
-  ): Promise<ApiResponse<{ suggestions: string[] }>> {
-    return this.request('/ai/suggestions', {
-      method: 'POST',
-      body: JSON.stringify({ lastUserMessage, lastAssistantMessage, summary }),
-    });
-  }
+
 
   async getAIChatMessages(
     conversationId: string,

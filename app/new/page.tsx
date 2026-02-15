@@ -709,6 +709,19 @@ export default function AssistantPage() {
                                     );
                                     contentToAppend = decrypted;
                                     currentSessionKey = sessionKey;
+                                } else if (data.suggestions) {
+                                    setMessages(prev => {
+                                        const newMessages = [...prev];
+                                        const lastIdx = newMessages.length - 1;
+                                        const lastMessage = newMessages[lastIdx];
+                                        if (lastMessage && lastMessage.role === 'assistant') {
+                                            newMessages[lastIdx] = {
+                                                ...lastMessage,
+                                                suggestions: data.suggestions
+                                            };
+                                        }
+                                        return newMessages;
+                                    });
                                 } else if (data.content) {
                                     contentToAppend = data.content;
                                 }
@@ -884,30 +897,7 @@ export default function AssistantPage() {
                 });
                 console.log('[Stream Final] setState completed');
 
-                // Trigger Smart Suggestions
-                // Only if the last message was assistant and not stopped
-                if (!isCancelling && !abortControllerRef.current?.signal.aborted && answerBuffer.trim().length > 0) {
-                    // Run in background, don't await
-                    apiClient.getAISuggestions(
-                        fullPayload[fullPayload.length - 1].content, // Last user message
-                        answerBuffer.trim(), // Assistant response
-                        // Optional: pass summary if we had one (not easily available here without state, but strict recent context is okay)
-                    ).then(res => {
-                        if (res.success && res.data?.suggestions) {
-                            setMessages(prev => {
-                                const newMessages = [...prev];
-                                const lastIdx = newMessages.length - 1;
-                                if (newMessages[lastIdx].role === 'assistant') {
-                                    newMessages[lastIdx] = {
-                                        ...newMessages[lastIdx],
-                                        suggestions: res.data!.suggestions
-                                    };
-                                }
-                                return newMessages;
-                            });
-                        }
-                    }).catch(err => console.error("Failed to fetch suggestions", err));
-                }
+
 
                 // Force scroll to bottom if user was following along
                 if (shouldAutoScrollRef.current) {
