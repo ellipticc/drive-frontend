@@ -26,6 +26,7 @@ import {
     InlineCitationSource,
 } from "@/components/ai-elements/inline-citation"
 import { MarkdownRenderer } from "@/components/ai-elements/markdown-renderer"
+import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 
 export interface ToolCall {
     id: string;
@@ -60,6 +61,7 @@ export interface Message {
     checkpointId?: string;
     reasoning?: string; // Content inside <think> tags
     reasoningDuration?: number; // Duration of thinking in seconds
+    suggestions?: string[];
 }
 
 interface ChatMessageProps {
@@ -75,6 +77,7 @@ interface ChatMessageProps {
     availableModels?: { id: string; name: string }[];
     onRerunSystemWithModel?: (messageId: string, modelId: string) => void;
     onAddToChat?: (text: string) => void;
+    onSuggestionClick?: (text: string) => void;
 }
 
 // Helper component to render content with inline citations using ai-elements
@@ -157,7 +160,7 @@ function InlineCitationRenderer({ content, sources = [] }: { content: string; so
 }
 
 
-export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint, availableModels = [], onRerunSystemWithModel, onAddToChat }: ChatMessageProps) {
+export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint, availableModels = [], onRerunSystemWithModel, onAddToChat, onSuggestionClick }: ChatMessageProps) {
     // ... existing state ...
     const isUser = message.role === 'user';
     const isAssistant = message.role === 'assistant';
@@ -502,6 +505,18 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                 </Popover>
                                 */}
                             </div>
+                        )}
+                        {/* Suggestions */}
+                        {message.suggestions && message.suggestions.length > 0 && (
+                            <Suggestions>
+                                {message.suggestions.map((s, i) => (
+                                    <Suggestion
+                                        key={i}
+                                        suggestion={s}
+                                        onClick={onSuggestionClick}
+                                    />
+                                ))}
+                            </Suggestions>
                         )}
                     </div>
                 )}

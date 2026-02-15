@@ -44,6 +44,7 @@ interface Message {
     isCheckpoint?: boolean;
     reasoning?: string;
     reasoningDuration?: number;
+    suggestions?: string[];
 }
 
 
@@ -883,6 +884,31 @@ export default function AssistantPage() {
                 });
                 console.log('[Stream Final] setState completed');
 
+                // Trigger Smart Suggestions
+                // Only if the last message was assistant and not stopped
+                if (!isCancelling && !abortControllerRef.current?.signal.aborted && answerBuffer.trim().length > 0) {
+                    // Run in background, don't await
+                    apiClient.getAISuggestions(
+                        fullPayload[fullPayload.length - 1].content, // Last user message
+                        answerBuffer.trim(), // Assistant response
+                        // Optional: pass summary if we had one (not easily available here without state, but strict recent context is okay)
+                    ).then(res => {
+                        if (res.success && res.data?.suggestions) {
+                            setMessages(prev => {
+                                const newMessages = [...prev];
+                                const lastIdx = newMessages.length - 1;
+                                if (newMessages[lastIdx].role === 'assistant') {
+                                    newMessages[lastIdx] = {
+                                        ...newMessages[lastIdx],
+                                        suggestions: res.data!.suggestions
+                                    };
+                                }
+                                return newMessages;
+                            });
+                        }
+                    }).catch(err => console.error("Failed to fetch suggestions", err));
+                }
+
                 // Force scroll to bottom if user was following along
                 if (shouldAutoScrollRef.current) {
                     setTimeout(() => scrollToBottom('smooth'), 10);
@@ -1340,13 +1366,13 @@ export default function AssistantPage() {
 
                             {/* Suggestions */}
                             <div className="pt-2">
-                                <Suggestions>
+                                <Suggestions variant="row" label={undefined}>
                                     {suggestions.map((s, i) => (
                                         <Suggestion
                                             key={i}
                                             suggestion={s}
+                                            variant="chip"
                                             onClick={handleSuggestionClick}
-                                            className="bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground border-transparent hover:border-border transition-all"
                                         />
                                     ))}
                                 </Suggestions>
@@ -1428,6 +1454,7 @@ export default function AssistantPage() {
                                                             const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
                                                             if (inputRef) inputRef.focus();
                                                         }}
+                                                        onSuggestionClick={(text) => handleSubmit(text)}
                                                     />
                                                 )}
                                             </div>
