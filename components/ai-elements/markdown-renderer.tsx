@@ -97,13 +97,6 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         const language = codeClassName
           ? codeClassName.match(/language-(\w+)/)?.[1]
           : undefined;
-        const hasLanguageHint = !!language;
-
-        // Heuristic: if NO language hint and single-line and reasonable length (≤150 chars),
-        // it's likely backtick code that was misparsed as a fenced block
-        if (!hasLanguageHint && !content.includes('\n') && content.length <= 150) {
-          return <InlineCode>{content}</InlineCode>;
-        }
 
         return (
           <div className="w-full max-w-full overflow-hidden my-4 rounded-lg">
@@ -115,6 +108,12 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             />
           </div>
         );
+      },
+
+      // Prevent default <pre> from wrapping our CodeBlock div (fixes broken rendering in lists)
+      pre: (props: any) => {
+        const { children } = props;
+        return <>{children}</>;
       },
 
       // Headings

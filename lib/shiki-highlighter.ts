@@ -45,7 +45,7 @@ async function getShiki(): Promise<any> {
  * Map Tailwind theme to Shiki theme
  */
 function mapToShikiTheme(isDark: boolean): string {
-  return isDark ? 'github-dark' : 'github-light';
+  return isDark ? 'dark-plus' : 'light-plus';
 }
 
 /**
