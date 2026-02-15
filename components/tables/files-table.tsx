@@ -1437,8 +1437,11 @@ export const Table01DividerLineSm = ({
 
     // Load files when folder or page changes, or when search query changes
     useEffect(() => {
-        // Prevent root fetch if we are not on the root page
-        if (currentFolderId === 'root' && pathname !== '/' && filterMode === 'default') {
+        // Treat `/vault` as the app's root folder view — allow root fetch on / or /vault
+        const isVaultRoute = pathname === '/vault' || pathname?.startsWith('/vault');
+
+        // Prevent root fetch if we are not on the root page (but allow /vault)
+        if (currentFolderId === 'root' && !isVaultRoute && pathname !== '/' && filterMode === 'default') {
             // console.log(`Skipping root fetch because pathname is ${pathname}`);
             return;
         }
