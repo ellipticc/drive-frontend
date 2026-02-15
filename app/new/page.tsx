@@ -501,6 +501,7 @@ export default function AssistantPage() {
             let currentSessionKey: Uint8Array | undefined;
             let buffer = ""; // Buffer for incomplete SSE events
             let pendingRafId: number | null = null; // requestAnimationFrame ID for batched UI updates
+            let currentSuggestions: string[] = []; // Track suggestions locally to survive state batching
 
             try {
                 while (true) {
@@ -710,6 +711,7 @@ export default function AssistantPage() {
                                     contentToAppend = decrypted;
                                     currentSessionKey = sessionKey;
                                 } else if (data.suggestions) {
+                                    currentSuggestions = data.suggestions; // Update local tracker
                                     setMessages(prev => {
                                         const newMessages = [...prev];
                                         const lastIdx = newMessages.length - 1;
@@ -835,6 +837,9 @@ export default function AssistantPage() {
                                 );
                                 contentToAppend = decrypted;
                                 currentSessionKey = sessionKey;
+                            } else if (data.suggestions) {
+                                currentSuggestions = data.suggestions; // Update local tracker
+                                console.log('[Stream] Found suggestions in final buffer');
                             } else if (data.content) {
                                 contentToAppend = data.content;
                             }
@@ -890,7 +895,7 @@ export default function AssistantPage() {
                             versions: lastMessage.versions,
                             currentVersionIndex: lastMessage.currentVersionIndex,
                             reasoningDuration: lastMessage.reasoningDuration,
-                            suggestions: lastMessage.suggestions,
+                            suggestions: currentSuggestions.length > 0 ? currentSuggestions : lastMessage.suggestions,
                         };
                         console.log('[Stream Final] Updated lastMessage, new content.length:', newMessages[lastIdx].content.length, 'sources:', messageSources.length);
                     }
