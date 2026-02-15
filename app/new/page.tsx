@@ -890,6 +890,7 @@ export default function AssistantPage() {
                             versions: lastMessage.versions,
                             currentVersionIndex: lastMessage.currentVersionIndex,
                             reasoningDuration: lastMessage.reasoningDuration,
+                            suggestions: lastMessage.suggestions,
                         };
                         console.log('[Stream Final] Updated lastMessage, new content.length:', newMessages[lastIdx].content.length, 'sources:', messageSources.length);
                     }
