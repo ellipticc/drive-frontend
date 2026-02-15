@@ -302,12 +302,21 @@ export function useAICrypto(): UseAICryptoReturn {
                             decryptedReasoning
                         );
 
+                        // Parse suggestions JSON if present
+                        let suggestions: string[] | undefined;
+                        if (msg.suggestions) {
+                            try {
+                                suggestions = JSON.parse(msg.suggestions);
+                            } catch { /* ignore parse errors */ }
+                        }
+
                         return {
                             ...msg,
                             role: msg.role,
                             content: cleanContent,
                             reasoning: parsedReasoning,
-                            reasoningDuration: msg.reasoning_duration
+                            reasoningDuration: msg.reasoning_duration,
+                            suggestions,
                         };
                     }
 

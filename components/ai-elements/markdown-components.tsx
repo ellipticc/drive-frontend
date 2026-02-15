@@ -222,8 +222,8 @@ export const InlineCode: React.FC<{
   <code
     className={cn(
       'inline align-baseline px-1.5 py-0.5 rounded-md break-words',
-      'bg-muted/50 text-xs font-mono text-foreground/90',
-      'border border-border/50',
+      'bg-muted text-xs font-mono text-foreground',
+      'border border-border',
       'mx-0.5',
       className
     )}

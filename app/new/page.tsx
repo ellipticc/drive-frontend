@@ -359,9 +359,14 @@ export default function AssistantPage() {
         };
         setMessages(prev => [...prev, tempUserMessage]);
 
-        // Force scroll to bottom on new message
+        // Scroll the new user message to the top of the viewport for better focus
         shouldAutoScrollRef.current = true;
-        setTimeout(() => scrollToMessage(tempId, 'smooth'), 10);
+        setTimeout(() => {
+            const element = document.getElementById(`message-${tempId}`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
 
         // Add Thinking State & Reset auto-scroll
         const assistantMessageId = crypto.randomUUID();
@@ -1345,20 +1350,19 @@ export default function AssistantPage() {
                                     onModelChange={setModel}
                                     isLoading={!isReady}
                                 />
-                            </div>
 
-                            {/* Suggestions */}
-                            <div className="pt-2">
-                                <Suggestions variant="row" label={undefined}>
-                                    {suggestions.map((s, i) => (
-                                        <Suggestion
-                                            key={i}
-                                            suggestion={s}
-                                            variant="chip"
-                                            onClick={handleSuggestionClick}
-                                        />
-                                    ))}
-                                </Suggestions>
+                                {/* Suggestions */}
+                                <div className="pt-2">
+                                    <Suggestions>
+                                        {suggestions.map((s, i) => (
+                                            <Suggestion
+                                                key={i}
+                                                suggestion={s}
+                                                onClick={handleSuggestionClick}
+                                            />
+                                        ))}
+                                    </Suggestions>
+                                </div>
                             </div>
                         </div>
                     </div>
