@@ -290,13 +290,10 @@ export const AppSidebar = React.memo(function AppSidebar({
         </CommandDialog>
       </SidebarHeader>
       <SidebarContent>
-        <>
-          <NavMain items={data.navMain} />
-          {/* spaces placeholder */}
-          <NavSecondary items={data.navSecondary} className="mt-auto" />
-        </>
+        <NavMain items={data.navMain} />
       </SidebarContent>
       <SidebarFooter>
+        <NavSecondary items={data.navSecondary} />
         <NavUser user={data.user} />
       </SidebarFooter>
     </Sidebar>

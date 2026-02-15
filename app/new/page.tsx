@@ -129,13 +129,6 @@ export default function AssistantPage() {
         scrollEndRef.current?.scrollIntoView({ behavior, block: 'end' });
     }, []);
 
-    // Effect to auto-scroll when messages change and we are "sticking" to bottom
-    React.useEffect(() => {
-        if (shouldAutoScrollRef.current) {
-            scrollToBottom('smooth');
-        }
-    }, [messages, scrollToBottom]);
-
     const handleVersionChange = (messageId: string, direction: 'prev' | 'next') => {
         setMessages(prev => {
             const newMessages = [...prev];
@@ -903,13 +896,7 @@ export default function AssistantPage() {
                 });
                 console.log('[Stream Final] setState completed');
 
-
-
-                // Force scroll to bottom if user was following along
-                if (shouldAutoScrollRef.current) {
-                    setTimeout(() => scrollToBottom('smooth'), 10);
-                    setShowScrollToBottom(false);
-                }
+                // No auto-scroll after stream completion — user controls scroll position
 
             } catch (streamError) {
                 // Catch stream reading errors (abort, timeout, connection loss, etc.)

@@ -84,36 +84,44 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   // Components mapping for react-markdown
   const components = useMemo(
     () => ({
-      // Code blocks with Shiki highlighting
+      // Inline code only — bare `code` elements (backtick `code`)
       code: (props: any) => {
-        const { inline, className: codeClassName, children } = props;
-        const content = typeof children === 'string' ? children : String(children || '');
-
-        if (inline) {
-          return <InlineCode>{children}</InlineCode>;
-        }
-
-        // Extract language hint from className
-        const language = codeClassName
-          ? codeClassName.match(/language-(\w+)/)?.[1]
-          : undefined;
-
-        return (
-          <div className="w-full max-w-full overflow-hidden my-4 rounded-lg">
-            <CodeBlock
-              language={language || 'plain'}
-              code={content}
-              className="my-0 w-full max-w-full"
-              isStreaming={isStreaming}
-            />
-          </div>
-        );
+        const { children } = props;
+        return <InlineCode>{children}</InlineCode>;
       },
 
-      // Prevent default <pre> from wrapping our CodeBlock div (fixes broken rendering in lists)
+      // Fenced code blocks — `pre` wraps `code` in react-markdown AST
+      // Extract the child <code> element, read its language + content, render CodeBlock
       pre: (props: any) => {
         const { children } = props;
-        return <>{children}</>;
+        // react-markdown renders <pre><code className="language-X">...</code></pre>
+        const codeChild = React.Children.toArray(children).find(
+          (child: any) => child?.type === 'code' || child?.props?.className
+        ) as React.ReactElement<any> | undefined;
+
+        if (codeChild?.props) {
+          const { className: codeClassName, children: codeChildren } = codeChild.props;
+          const language = codeClassName
+            ? codeClassName.match(/language-(\w+)/)?.[1]
+            : undefined;
+          const content = typeof codeChildren === 'string'
+            ? codeChildren
+            : String(codeChildren || '');
+
+          return (
+            <div className="w-full max-w-full overflow-hidden my-4 rounded-lg">
+              <CodeBlock
+                language={language || 'plain'}
+                code={content}
+                className="my-0 w-full max-w-full"
+                isStreaming={isStreaming}
+              />
+            </div>
+          );
+        }
+
+        // Fallback: render as-is if no code child found
+        return <pre>{children}</pre>;
       },
 
       // Headings
