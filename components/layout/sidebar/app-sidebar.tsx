@@ -227,7 +227,7 @@ export const AppSidebar = React.memo(function AppSidebar({
 
             <div className="hidden w-full items-center justify-center group-data-[collapsible=icon]:flex">
               <SidebarMenuButton
-                className="size-7 p-0 flex items-center justify-center relative group/toggle-icon hover:bg-transparent"
+                className="size-8 p-0 flex items-center justify-center relative group/toggle-icon hover:bg-transparent"
                 onClick={toggleSidebar}
                 tooltip={{
                   children: (

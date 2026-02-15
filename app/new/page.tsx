@@ -217,7 +217,7 @@ export default function AssistantPage() {
                 })
                 .catch((err: Error) => {
                     console.error("History load error:", err);
-                    router.push('/assistant');
+                    router.push('/new');
                 })
                 .finally(() => setIsLoading(false));
         } else {
@@ -972,12 +972,8 @@ export default function AssistantPage() {
     }
 
     // Suggestion Chips
-    const suggestions = [
-        "Explain quantum physics",
-        "Debug a React component",
-        "Write a short story",
-        "Plan a 3-day trip to Paris"
-    ];
+    // Suggestion Chips
+    const suggestions: string[] = [];
 
     const handleSuggestionClick = (text: string) => {
         handleSubmit(text, []);
@@ -1371,17 +1367,19 @@ export default function AssistantPage() {
                                 />
 
                                 {/* Suggestions */}
-                                <div className="pt-2">
-                                    <Suggestions>
-                                        {suggestions.map((s, i) => (
-                                            <Suggestion
-                                                key={i}
-                                                suggestion={s}
-                                                onClick={handleSuggestionClick}
-                                            />
-                                        ))}
-                                    </Suggestions>
-                                </div>
+                                {suggestions.length > 0 && (
+                                    <div className="pt-2">
+                                        <Suggestions>
+                                            {suggestions.map((s, i) => (
+                                                <Suggestion
+                                                    key={i}
+                                                    suggestion={s}
+                                                    onClick={handleSuggestionClick}
+                                                />
+                                            ))}
+                                        </Suggestions>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

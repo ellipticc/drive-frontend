@@ -372,7 +372,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         </div>
 
                         {/* Text Selection Menu for adding to chat */}
-                        {onAddToChat && <TextSelectionMenu onAddToChat={onAddToChat} />}
+                        {/* {onAddToChat && <TextSelectionMenu onAddToChat={onAddToChat} />} */}
 
                         {/* References Footer */}
                         {message.sources && message.sources.length > 0 && (

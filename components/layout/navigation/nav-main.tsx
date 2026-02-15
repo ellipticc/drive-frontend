@@ -345,7 +345,10 @@ export function NavMain({
                         handleNavigate(item.url);
                       }
                     }}
-                    className="cursor-pointer relative pr-8"
+                    className={cn(
+                      "cursor-pointer relative",
+                      state === 'collapsed' ? "" : "pr-8"
+                    )}
                     data-space-id="root"
                     data-space-name={t("sidebar.myFiles")}
                   >
