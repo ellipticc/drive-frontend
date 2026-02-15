@@ -61,11 +61,8 @@ interface MarkdownRendererProps {
  * - Remark + Rehype for proper Markdown AST parsing
  * - GFM support (tables, strikethrough, task lists)
  * - Math support (KaTeX)
- * - Shiki syntax highlighting for code blocks
- * - Fully streaming-safe (handles incomplete Markdown)
- * - Custom design system components for all elements
  */
-export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
+const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   content,
   className,
   compact = false,
@@ -200,3 +197,5 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     </div>
   );
 };
+
+export const MarkdownRenderer = React.memo(InternalMarkdownRenderer);

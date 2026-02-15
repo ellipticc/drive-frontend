@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
  * CodeBlock Component
  * Renders fenced code blocks with Shiki highlighting, lowercase language label, hover-only copy button
  */
-export const CodeBlock = React.forwardRef<
+const InternalCodeBlock = React.forwardRef<
   HTMLDivElement,
   {
     language?: string;
@@ -200,7 +200,11 @@ export const CodeBlock = React.forwardRef<
   );
 });
 
-CodeBlock.displayName = 'CodeBlock';
+InternalCodeBlock.displayName = 'CodeBlock';
+
+export const CodeBlock = React.memo(InternalCodeBlock, (prev, next) => {
+  return prev.code === next.code && prev.language === next.language && prev.children === next.children;
+});
 
 /**
  * InlineCode Component
@@ -452,7 +456,7 @@ export const TableRow: React.FC<{
   </tr>
 );
 
-export const TableCell: React.FC<{
+export const InternalTableCell: React.FC<{
   children?: React.ReactNode;
   className?: string;
   isHeader?: boolean;
@@ -473,11 +477,12 @@ export const TableCell: React.FC<{
   }
 
   return (
-    <td className={cn('px-4 py-3', alignClass, className)}>
+    <td className={cn('px-4 py-3 align-top', alignClass, className)}>
       {children}
     </td>
   );
 };
+export const TableCell = React.memo(InternalTableCell);
 
 /**
  * Link Component
