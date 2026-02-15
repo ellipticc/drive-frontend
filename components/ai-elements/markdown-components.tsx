@@ -19,8 +19,9 @@ const InternalCodeBlock = React.forwardRef<
     code?: string;
     children?: React.ReactNode;
     className?: string;
+    isStreaming?: boolean;
   }
->(({ language = 'plain', code, children, className }, ref) => {
+>(({ language = 'plain', code, children, className, isStreaming = false }, ref) => {
   const { theme, resolvedTheme } = useTheme();
   // Prefer resolvedTheme so `system` follows the OS preference on first render
   const isDark = (resolvedTheme || theme) === 'dark';
@@ -34,22 +35,26 @@ const InternalCodeBlock = React.forwardRef<
   // Get code content
   const codeContent = code || (typeof children === 'string' ? children : String(children || ''));
 
-  // Highlight code asynchronously
+  // Highlight code live — always run, never clear previous output while loading
   React.useEffect(() => {
     if (!codeContent.trim()) return;
 
-    setIsLoading(true);
+    let cancelled = false;
     (async () => {
       try {
         const html = await highlightCode(codeContent, language, isDark);
-        setHighlightedHtml(html);
+        if (!cancelled) {
+          setHighlightedHtml(html);
+          setIsLoading(false);
+        }
       } catch (error) {
         console.warn(`Failed to highlight code (${language}):`, error);
-        setHighlightedHtml(null);
-      } finally {
-        setIsLoading(false);
+        // Don't clear highlightedHtml on error — keep showing stale version
+        if (!cancelled) setIsLoading(false);
       }
     })();
+
+    return () => { cancelled = true; };
   }, [codeContent, language, isDark]);
 
   const handleCopy = async () => {
@@ -108,7 +113,7 @@ const InternalCodeBlock = React.forwardRef<
 
       {/* Code Content - Direct Scroll with Strict Width */}
       <div className="overflow-x-auto w-full" style={{ backgroundColor: bgColor }}>
-        {!isLoading && highlightedHtml ? (
+        {highlightedHtml ? (
           <div className="p-0">
             <div
               className={cn(
@@ -168,7 +173,7 @@ const InternalCodeBlock = React.forwardRef<
 
             {/* Preview Content */}
             <div className="flex-1 overflow-x-auto" style={{ backgroundColor: '#171717', maxWidth: '100%' }}>
-              {!isLoading && highlightedHtml ? (
+              {highlightedHtml ? (
                 <div className="p-0">
                   <div
                     className={cn(
@@ -203,7 +208,7 @@ const InternalCodeBlock = React.forwardRef<
 InternalCodeBlock.displayName = 'CodeBlock';
 
 export const CodeBlock = React.memo(InternalCodeBlock, (prev, next) => {
-  return prev.code === next.code && prev.language === next.language && prev.children === next.children;
+  return prev.code === next.code && prev.language === next.language && prev.children === next.children && prev.isStreaming === next.isStreaming;
 });
 
 /**

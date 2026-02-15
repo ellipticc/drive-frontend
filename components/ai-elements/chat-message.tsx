@@ -81,9 +81,9 @@ interface ChatMessageProps {
 }
 
 // Helper component to render content with inline citations using ai-elements
-function InlineCitationRenderer({ content, sources = [] }: { content: string; sources: { title: string; url: string; content?: string }[] }) {
+function InlineCitationRenderer({ content, sources = [], isStreaming = false }: { content: string; sources: { title: string; url: string; content?: string }[]; isStreaming?: boolean }) {
     if (!sources.length) {
-        return <MarkdownRenderer content={content} compact={false} />;
+        return <MarkdownRenderer content={content} compact={false} isStreaming={isStreaming} />;
     }
 
     // Split content by citation markers [N] or 【N】
@@ -103,6 +103,7 @@ function InlineCitationRenderer({ content, sources = [] }: { content: string; so
                     key={`text-${lastIndex}`}
                     content={content.substring(lastIndex, match.index)}
                     compact={true}
+                    isStreaming={isStreaming}
                 />
             );
         }
@@ -152,6 +153,7 @@ function InlineCitationRenderer({ content, sources = [] }: { content: string; so
                 key={`text-${lastIndex}`}
                 content={content.substring(lastIndex)}
                 compact={false}
+                isStreaming={isStreaming}
             />
         );
     }
@@ -365,9 +367,9 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         <div className="w-full max-w-full break-words overflow-hidden">
                             {/* Use inline-citation component from ai-elements if sources exist */}
                             {message.sources && message.sources.length > 0 ? (
-                                <InlineCitationRenderer content={message.content} sources={message.sources} />
+                                <InlineCitationRenderer content={message.content} sources={message.sources} isStreaming={isLast && !!message.isThinking} />
                             ) : (
-                                <MarkdownRenderer content={message.content} compact={false} />
+                                <MarkdownRenderer content={message.content} compact={false} isStreaming={isLast && !!message.isThinking} />
                             )}
                         </div>
 

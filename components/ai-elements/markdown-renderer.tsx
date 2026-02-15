@@ -51,6 +51,10 @@ interface MarkdownRendererProps {
    * Whether to use tighter spacing (for chat messages)
    */
   compact?: boolean;
+  /**
+   * Whether content is actively being streamed — skips syntax highlighting
+   */
+  isStreaming?: boolean;
 }
 
 /**
@@ -66,6 +70,7 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   content,
   className,
   compact = false,
+  isStreaming = false,
 }) => {
   // Normalize problematic unicode characters and HTML line breaks
   const safeContent = React.useMemo(() => {
@@ -106,6 +111,7 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               language={language || 'plain'}
               code={content}
               className="my-0 w-full max-w-full"
+              isStreaming={isStreaming}
             />
           </div>
         );
