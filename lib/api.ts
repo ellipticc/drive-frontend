@@ -1119,10 +1119,22 @@ class ApiClient {
     });
   }
 
-  async submitAIFeedback(messageId: string, feedback: 'like' | 'dislike'): Promise<ApiResponse> {
-    return this.request('/ai/message/' + messageId + '/feedback', {
-      method: 'POST',
-      body: JSON.stringify({ feedback }),
+
+
+  /**
+   * Submit detailed feedback for an AI message
+   */
+  async submitDetailedFeedback(data: {
+    messageId: string;
+    rating: "like" | "dislike";
+    reasons?: string[];
+    details?: string;
+    promptContext?: string;
+    responseContext?: string;
+  }) {
+    return this.request("/ai/feedback", {
+      method: "POST",
+      body: JSON.stringify(data),
     });
   }
 

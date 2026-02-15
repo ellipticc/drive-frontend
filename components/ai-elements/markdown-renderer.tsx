@@ -35,6 +35,7 @@ import {
 // Plugins for extended Markdown support
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import remarkBreaks from 'remark-breaks';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 
@@ -163,7 +164,7 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
   // Remark plugins for Markdown parsing
   const remarkPlugins = useMemo(
-    () => [remarkGfm, remarkMath],
+    () => [remarkGfm, remarkMath, remarkBreaks],
     []
   );
 

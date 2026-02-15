@@ -15,6 +15,8 @@ import { useAICrypto } from "@/hooks/use-ai-crypto";
 import { parseFile } from "@/lib/file-parser";
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
+import { MarkdownRenderer } from "@/components/ai-elements/markdown-renderer";
+import { FeedbackModal } from "@/components/ai-elements/feedback-modal";
 import { ChatMessage } from "@/components/ai-elements/chat-message"
 import { ChatScrollNavigation } from "@/components/ai-elements/chat-navigation"
 import { SidebarTrigger } from "@/components/ui/sidebar"
@@ -55,7 +57,12 @@ export default function AssistantPage() {
 
     const [messages, setMessages] = React.useState<Message[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
-    const [isCancelling, setIsCancelling] = React.useState(false)
+    const [isCancelling, setIsCancelling] = React.useState(false);
+    const [isFeedbackModalOpen, setIsFeedbackModalOpen] = React.useState(false);
+    const [feedbackMessageId, setFeedbackMessageId] = React.useState<string>("");
+    const [feedbackRating, setFeedbackRating] = React.useState<"like" | "dislike" | null>(null);
+    const [feedbackPromptContext, setFeedbackPromptContext] = React.useState<string>("");
+    const [feedbackResponseContext, setFeedbackResponseContext] = React.useState<string>("");
     const abortControllerRef = React.useRef<AbortController | null>(null)
     const [model, setModel] = React.useState("llama-3.3-70b-versatile")
     const [isWebSearchEnabled, setIsWebSearchEnabled] = React.useState(false);
@@ -1247,23 +1254,35 @@ export default function AssistantPage() {
     };
 
     const handleFeedback = async (messageId: string, feedback: 'like' | 'dislike') => {
+        // Optimistic UI Update
+        setMessages(prev => prev.map(msg =>
+            msg.id === messageId ? { ...msg, feedback } : msg
+        ));
+
         try {
-            // Check if message already has feedback
-            const message = messages.find(m => m.id === messageId);
-            if (message?.feedback) {
-                toast.info("You've already provided feedback on this message");
-                return;
+            // Find message and context for modal
+            const msgIndex = messages.findIndex(m => m.id === messageId);
+            if (msgIndex !== -1) {
+                const msg = messages[msgIndex];
+                const prevMsg = messages[msgIndex - 1]; // Try to get prompt context
+
+                setFeedbackMessageId(messageId);
+                setFeedbackRating(feedback);
+                setFeedbackResponseContext(msg.content);
+                setFeedbackPromptContext(prevMsg?.role === 'user' ? prevMsg.content : "Context unavailable");
+                setIsFeedbackModalOpen(true);
             }
 
-            // Update UI immediately without scrolling (by updating state first)
-            setMessages(prev => prev.map(m => m.id === messageId ? { ...m, feedback } : m));
+            // Save simple feedback immediately
+            await apiClient.submitDetailedFeedback({
+                messageId,
+                rating: feedback
+            });
 
-            // Then submit to API
-            await apiClient.submitAIFeedback(messageId, feedback);
-            toast.success("Thanks for your feedback!");
+            toast.success("Feedback saved");
         } catch (error) {
-            console.error("Feedback error:", error);
-            toast.error("Failed to submit feedback");
+            console.error("Failed to submit feedback", error);
+            toast.error("Failed to save feedback");
         }
     };
 
@@ -1498,6 +1517,15 @@ export default function AssistantPage() {
                     </div>
                 )}
                 <ChatScrollNavigation messages={messages} />
+
+                <FeedbackModal
+                    isOpen={isFeedbackModalOpen}
+                    onOpenChange={setIsFeedbackModalOpen}
+                    messageId={feedbackMessageId}
+                    initialRating={feedbackRating}
+                    promptContext={feedbackPromptContext}
+                    responseContext={feedbackResponseContext}
+                />
             </div>
         </div >
     );

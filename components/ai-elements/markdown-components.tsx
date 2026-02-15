@@ -365,8 +365,8 @@ export const UnorderedList: React.FC<{
 }> = ({ children, className }) => (
   <ul
     className={cn(
-      'list-disc list-inside',
-      'my-3 space-y-1.5 ml-2',
+      'list-disc list-outside', // Changed to outside
+      'my-3 space-y-1.5 ml-4 pl-1', // Added ml-4 and pl-1 for alignment
       'text-foreground text-base',
       className
     )}
@@ -381,8 +381,8 @@ export const OrderedList: React.FC<{
 }> = ({ children, className }) => (
   <ol
     className={cn(
-      'list-decimal list-inside',
-      'my-3 space-y-1.5 ml-2',
+      'list-decimal list-outside', // Changed to outside
+      'my-3 space-y-1.5 ml-4 pl-1', // Added ml-4 and pl-1 for alignment
       'text-foreground text-base',
       className
     )}

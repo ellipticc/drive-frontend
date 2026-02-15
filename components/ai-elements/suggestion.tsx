@@ -2,7 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
-import { IconCornerDownLeft } from "@tabler/icons-react";
+import { IconArrowForward } from "@tabler/icons-react";
 
 export type SuggestionsProps = ComponentProps<"div"> & {
   label?: string;
@@ -16,7 +16,7 @@ export const Suggestions = ({
 }: SuggestionsProps) => (
   <div className={cn("w-full mt-6", className)} {...props}>
     {label && (
-      <span className="text-sm font-semibold text-foreground mb-2 block">
+      <span className="text-lg font-semibold text-foreground mb-3 block">
         {label}
       </span>
     )}
@@ -40,9 +40,9 @@ export const Suggestion = ({
 }: SuggestionProps) => (
   <div
     className={cn(
-      "group flex w-full items-center gap-3 px-1 py-3 cursor-pointer border-b border-border/60",
-      "text-muted-foreground transition-colors duration-150",
-      "hover:text-foreground",
+      "group/item flex w-full items-center gap-3 px-1 py-4 cursor-pointer border-b border-border/60",
+      "text-muted-foreground transition-colors duration-200",
+      "hover:text-foreground hover:bg-muted/10 dark:hover:bg-muted/5",
       className
     )}
     onClick={() => onClick?.(suggestion)}
@@ -56,9 +56,9 @@ export const Suggestion = ({
     }}
     {...props}
   >
-    <span className="shrink-0 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors duration-150">
-      <IconCornerDownLeft className="size-4" />
+    <span className="shrink-0 text-muted-foreground/60 group-hover/item:text-foreground transition-colors duration-200">
+      <IconArrowForward className="h-5 w-5" stroke={1.5} />
     </span>
-    <span className="text-sm leading-snug break-words">{children || suggestion}</span>
+    <span className="text-base leading-snug break-words">{children || suggestion}</span>
   </div>
 );
