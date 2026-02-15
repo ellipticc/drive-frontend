@@ -227,6 +227,8 @@ export function NavMain({
         return IconHelpCircleFilled
       case 'feedback':
         return IconBubbleTextFilled
+      case 'draft':
+        return IconWritingSignFilled
 
       default:
         return item.icon

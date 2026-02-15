@@ -71,6 +71,8 @@ export default function AssistantPage() {
     const [isLoadingOlder, setIsLoadingOlder] = React.useState(false)
     const [pagination, setPagination] = React.useState({ offset: 0, limit: 50, total: 0, hasMore: false })
     const isLoadingOlderRef = React.useRef(false)
+    const hasScrolledRef = React.useRef(false);
+    const shouldAutoScrollRef = React.useRef(true);
 
     const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats, chats } = useAICrypto();
 
@@ -209,9 +211,10 @@ export default function AssistantPage() {
 
                     // Scroll to last user message after render
                     setTimeout(() => {
-                        const lastUserMsg = msgs.slice().reverse().find(m => m.role === 'user');
-                        if (lastUserMsg && lastUserMsg.id) {
-                            scrollToMessage(lastUserMsg.id, 'auto'); // Instant jump on load
+                        const lastUserMessage = msgs.slice().reverse().find(m => m.role === 'user');
+                        if (lastUserMessage && lastUserMessage.id) {
+                            scrollToMessage(lastUserMessage.id, 'instant');
+                            hasScrolledRef.current = true;
                         }
                     }, 100);
                 })
@@ -229,11 +232,6 @@ export default function AssistantPage() {
     }, [conversationId, isReady, decryptHistory, router]);
 
     const [contextItems, setContextItems] = React.useState<Array<{ id: string; type: 'text' | 'code'; content: string }>>([]);
-
-    // We use a ref to track if we should auto-scroll, to avoid state updates causing re-renders/race conditions during scroll events
-    const shouldAutoScrollRef = React.useRef(true);
-
-
 
     // Keyboard shortcut: Esc to stop active generation
     React.useEffect(() => {
@@ -369,10 +367,7 @@ export default function AssistantPage() {
         // Scroll the new user message to the top of the viewport for better focus
         shouldAutoScrollRef.current = true;
         setTimeout(() => {
-            const element = document.getElementById(`message-${tempId}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+            scrollToMessage(tempId, 'smooth');
         }, 100);
 
         // Add Thinking State & Reset auto-scroll
@@ -1512,9 +1507,13 @@ export default function AssistantPage() {
                                 </div>
                             </div>
                         </div>
+                        {/* Chat Navigation (DeepSeek Style) */}
+                        <ChatScrollNavigation
+                            messages={messages}
+                            scrollToMessage={scrollToMessage}
+                        />
                     </div>
                 )}
-                <ChatScrollNavigation messages={messages} />
 
                 <FeedbackModal
                     isOpen={isFeedbackModalOpen}

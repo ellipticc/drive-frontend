@@ -6,11 +6,11 @@ import {
   IconHelpCircle,
   IconCaretLeftRightFilled,
   IconAdjustments,
-  IconTrash,
   IconStack2,
   IconBubbleText,
   IconLayoutSidebar,
   IconSearch,
+  IconWritingSign,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
@@ -89,6 +89,12 @@ export const AppSidebar = React.memo(function AppSidebar({
         url: "/vault",
         icon: IconStack2,
         id: "my-files",
+      },
+      {
+        title: "Draft", // Hardcoded for now, or t("sidebar.draft") if available? I'll use "Draft" as requested.
+        url: "/paper/new",
+        icon: IconWritingSign,
+        id: "draft",
       },
     ],
     navSecondary: [

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { IconMessage, IconArrowUp, IconArrowDown } from '@tabler/icons-react';
+import { Card } from '@/components/ui/card';
 
 interface Message {
     id?: string;
@@ -12,102 +12,139 @@ interface Message {
 
 interface ChatScrollNavigationProps {
     messages: Message[];
+    scrollToMessage?: (id: string, behavior?: ScrollBehavior) => void;
 }
 
-export function ChatScrollNavigation({ messages }: ChatScrollNavigationProps) {
+export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNavigationProps) {
     const [activeId, setActiveId] = useState<string | null>(null);
     const [isHovered, setIsHovered] = useState(false);
-
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+    const observerRef = useRef<IntersectionObserver | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     // Filter only user messages that have IDs
     const userMessages = messages.filter(m => m.role === 'user' && m.id && m.content);
 
-    // Determine if we should render content based on hydration state
-    const shouldRender = mounted && userMessages.length > 0;
-
-    const handleScrollTo = (id: string) => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            setActiveId(id);
+    // Handle Scroll logic (DeepSeek style: Exact Top)
+    const handleNavigationInfo = (id: string) => {
+        if (scrollToMessage) {
+            scrollToMessage(id, 'smooth');
+        } else {
+            // Fallback if prop not provided
+            const element = document.getElementById(`message-${id}`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         }
+        setActiveId(id);
     };
 
-    // Optional: Track active message based on scroll position
+    // Intersection Observer for Active Highlight
     useEffect(() => {
-        const handleScroll = () => {
-            // Simple debounce or throttle could be added here
-            let currentActiveId = null;
-            for (const msg of userMessages) {
-                if (!msg.id) continue;
-                const el = document.getElementById(msg.id);
-                if (el) {
-                    const rect = el.getBoundingClientRect();
-                    if (rect.top >= 0 && rect.top <= window.innerHeight / 2) {
-                        currentActiveId = msg.id;
-                    }
-                }
-            }
-            if (currentActiveId) setActiveId(currentActiveId);
+        if (userMessages.length === 0) return;
+
+        // Cleanup previous observer
+        if (observerRef.current) {
+            observerRef.current.disconnect();
+        }
+
+        const options = {
+            root: null, // viewport
+            rootMargin: '-10% 0px -80% 0px', // Highlight when near top
+            threshold: 0
         };
 
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, [userMessages]);
+        const callback: IntersectionObserverCallback = (entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    // Extract ID from message-{id}
+                    const id = entry.target.id.replace('message-', '');
+                    setActiveId(id);
+                }
+            });
+        };
+
+        observerRef.current = new IntersectionObserver(callback, options);
+
+        // Observe all user messages
+        userMessages.forEach(msg => {
+            if (msg.id) {
+                const el = document.getElementById(`message-${msg.id}`);
+                if (el) observerRef.current?.observe(el);
+            }
+        });
+
+        return () => observerRef.current?.disconnect();
+    }, [userMessages.length]); // Re-run when message count changes
+
+    if (userMessages.length === 0) return null;
 
     return (
         <div
+            ref={containerRef}
             className={cn(
-                "fixed right-0 top-1/2 -translate-y-1/2 z-40 flex items-center justify-end pr-2 pl-8 py-8 transition-all duration-300",
-                "h-[80vh] w-auto max-w-[300px]",
-                shouldRender && isHovered ? "bg-gradient-to-l from-background via-background/90 to-transparent" : "pointer-events-none",
-                !shouldRender && "hidden pointer-events-none"
+                "fixed right-4 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-1 transition-all duration-300",
+                "max-h-[80vh] w-[260px]", // Fixed width for alignment
+                !isHovered && "pointer-events-none" // Allow clicking through when not hovered
             )}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            {shouldRender && (
-                <div
-                    className={cn(
-                        "flex flex-col gap-1 items-end transition-all duration-300 pointer-events-auto",
-                        isHovered ? "opacity-100 translate-x-0" : "opacity-30 translate-x-4 hover:opacity-100 hover:translate-x-0"
-                    )}
-                >
-                    {userMessages.map((msg, idx) => (
-                        <button
-                            key={msg.id || idx}
-                            onClick={() => msg.id && handleScrollTo(msg.id)}
-                            className={cn(
-                                "group flex items-center gap-3 py-1 pl-4 pr-1 transition-all rounded-l-full",
-                                "hover:bg-muted/50",
-                                activeId === msg.id ? "opacity-100" : "opacity-40 hover:opacity-100"
-                            )}
-                        >
-                            <span
-                                className={cn(
-                                    "text-xs font-medium truncate max-w-[200px] text-right transition-all duration-300 hidden sm:block",
-                                    isHovered ? "w-auto opacity-100 scale-100" : "w-0 opacity-0 scale-95 origin-right overflow-hidden"
-                                )}
-                            >
-                                {msg.content.slice(0, 30)}{msg.content.length > 30 ? '...' : ''}
-                            </span>
-                            <div
-                                className={cn(
-                                    "w-1.5 h-1.5 rounded-full transition-all duration-300 shadow-sm",
-                                    activeId === msg.id
-                                        ? "bg-primary scale-125"
-                                        : "bg-muted-foreground/40 group-hover:bg-primary/70"
-                                )}
-                            />
-                        </button>
-                    ))}
-                </div>
-            )}
+            {/* 
+                Blur Effect Layer (Underlay) 
+                Applies ONLY when NOT hovering 
+            */}
+            <div
+                className={cn(
+                    "absolute inset-0 bg-background/0 transition-all duration-300 rounded-xl",
+                    !isHovered && "backdrop-blur-[1px] opacity-100" // Subtle blur when inactive
+                )}
+            />
+
+            {/* Scroll Container */}
+            <div
+                className={cn(
+                    "flex flex-col gap-1.5 overflow-y-auto pr-2 py-4 pl-4 transition-all duration-300",
+                    "scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/50", // Custom scrollbar
+                    isHovered ? "opacity-100 translate-x-0 pointer-events-auto" : "opacity-30 translate-x-8 pointer-events-auto" // Slide out partially
+                )}
+                style={{
+                    maskImage: isHovered ? 'none' : 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)'
+                }}
+            >
+                {userMessages.map((msg) => (
+                    <div
+                        key={msg.id}
+                        onClick={() => msg.id && handleNavigationInfo(msg.id)}
+                        className={cn(
+                            "cursor-pointer transition-all duration-200 group relative",
+                            // Hover state transform/card
+                            isHovered ? "bg-card/80 border border-border/40 hover:bg-muted/80 shadow-sm rounded-lg p-3" : "py-1 text-right pr-2"
+                        )}
+                        role="button"
+                    >
+                        {/* Active Indicator Line (Left of card) */}
+                        {activeId === msg.id && isHovered && (
+                            <div className="absolute left-0 top-3 bottom-3 w-1 bg-primary rounded-r full" />
+                        )}
+
+                        {/* Content */}
+                        <div className={cn(
+                            "text-sm font-medium truncate transition-colors",
+                            activeId === msg.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
+                            !isHovered && "text-xs opacity-60"
+                        )}>
+                            {/* Extract First Line & Truncate */}
+                            {msg.content.split('\n')[0].slice(0, 60)}
+                            {msg.content.split('\n')[0].length > 60 || msg.content.includes('\n') ? '...' : ''}
+                        </div>
+
+                        {/* Active Dot (When collapsed/not hovered) */}
+                        {!isHovered && activeId === msg.id && (
+                            <div className="absolute right-[-8px] top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
+                        )}
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
