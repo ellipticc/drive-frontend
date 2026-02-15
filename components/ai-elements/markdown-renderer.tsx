@@ -73,13 +73,11 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   compact = false,
   isStreaming = false,
 }) => {
-  // Normalize problematic unicode characters and HTML line breaks
+  // Normalize problematic unicode characters
   const safeContent = React.useMemo(() => {
     if (!content) return content;
-    // Replace <br>, <br/>, <br /> with newlines
-    let processed = content.replace(/<br\s*\/?>/gi, '\n');
     // Normalize dashes
-    return processed.replace(/\u2013|\u2014/g, '-');
+    return content.replace(/\u2013|\u2014/g, '-');
   }, [content]);
 
   // Components mapping for react-markdown

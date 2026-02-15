@@ -194,10 +194,8 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
     };
 
     const handleFeedback = (feedback: 'like' | 'dislike') => {
-        if (!feedbackGiven) {
-            setFeedbackGiven(true);
-            onFeedback?.(message.id || '', feedback);
-        }
+        setFeedbackGiven(true);
+        onFeedback?.(message.id || '', feedback);
     };
 
     const handleEditPromptSubmit = () => {
@@ -410,7 +408,6 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                 size="icon"
                                                 className={cn("h-6 w-6", feedbackGiven && message.feedback === 'like' ? "text-green-500" : "text-muted-foreground hover:text-green-500")}
                                                 onClick={() => handleFeedback('like')}
-                                                disabled={feedbackGiven}
                                             >
                                                 <IconThumbUp className="size-3.5" />
                                             </Button>
@@ -426,7 +423,6 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                 size="icon"
                                                 className={cn("h-6 w-6", feedbackGiven && message.feedback === 'dislike' ? "text-red-500" : "text-muted-foreground hover:text-red-500")}
                                                 onClick={() => handleFeedback('dislike')}
-                                                disabled={feedbackGiven}
                                             >
                                                 <IconThumbDown className="size-3.5" />
                                             </Button>
