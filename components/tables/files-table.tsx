@@ -795,9 +795,9 @@ export const Table01DividerLineSm = ({
 
     // Build URL path from folder path
     const buildUrlPath = (folderPath: Array<{ id: string, name: string }>): string => {
-        if (folderPath.length <= 1) return '/';
+        if (folderPath.length <= 1) return '/vault';
         const lastFolder = folderPath[folderPath.length - 1];
-        return '/?folderId=' + lastFolder.id;
+        return '/vault?folderId=' + lastFolder.id;
     };
 
     // Truncate breadcrumb names that are too long (encrypted names)
