@@ -32,6 +32,7 @@ import { decryptFilename } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
 import { toast } from "sonner"
 import { NavFolder } from "./nav-folder"
+import { NavDrafts } from "./nav-drafts"
 import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
@@ -630,6 +631,10 @@ export function NavMain({
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );
+            }
+
+            if (item.id === 'draft') {
+              return <NavDrafts key={item.title} item={item} />
             }
 
             if (item.id === "settings") {

@@ -67,12 +67,12 @@ export function NavSecondary({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <DropdownMenuTrigger asChild>
-                            <SidebarMenuButton isActive={helpOpen}>
+                            <SidebarMenuButton isActive={helpOpen} className="size-8 justify-center p-0">
                               {(() => {
                                 const IconComponent = getIcon(item, helpOpen)
-                                return <IconComponent />
+                                return <IconComponent className="size-4" />
                               })()}
-                              <span>{item.title}</span>
+                              <span className="sr-only">{item.title}</span>
                             </SidebarMenuButton>
                           </DropdownMenuTrigger>
                         </TooltipTrigger>
@@ -80,7 +80,7 @@ export function NavSecondary({
                       </Tooltip>
                     ) : (
                       <DropdownMenuTrigger asChild>
-                        <SidebarMenuButton isActive={helpOpen}>
+                        <SidebarMenuButton isActive={helpOpen} className="pr-8">
                           {(() => {
                             const IconComponent = getIcon(item, helpOpen)
                             return <IconComponent />
@@ -135,12 +135,13 @@ export function NavSecondary({
                             window.location.hash = `#settings/${tab}`;
                           }}
                           isActive={settingsOpen}
+                          className="size-8 justify-center p-0"
                         >
                           {(() => {
                             const IconComponent = getIcon(item, settingsOpen)
-                            return <IconComponent />
+                            return <IconComponent className="size-4" />
                           })()}
-                          <span>{item.title}</span>
+                          <span className="sr-only">{item.title}</span>
                         </SidebarMenuButton>
                       </TooltipTrigger>
                       <TooltipContent side="right">{item.title}</TooltipContent>
@@ -152,6 +153,7 @@ export function NavSecondary({
                         window.location.hash = `#settings/${tab}`;
                       }}
                       isActive={settingsOpen}
+                      className="pr-8"
                     >
                       {(() => {
                         const IconComponent = getIcon(item, settingsOpen)
@@ -165,15 +167,12 @@ export function NavSecondary({
                     <Tooltip>
                       <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
                         <TooltipTrigger asChild>
-                          <SidebarMenuButton isActive={feedbackOpen}>
+                          <SidebarMenuButton isActive={feedbackOpen} className="size-8 justify-center p-0">
                             {(() => {
                               const IconComponent = getIcon(item, feedbackOpen)
-                              return <IconComponent />
+                              return <IconComponent className="size-4" />
                             })()}
-                            <span>{item.title}</span>
-                            <div className="ms-auto">
-                              <Kbd>F</Kbd>
-                            </div>
+                            <span className="sr-only">{item.title}</span>
                           </SidebarMenuButton>
                         </TooltipTrigger>
                       </FeedbackPopover>
@@ -181,7 +180,7 @@ export function NavSecondary({
                     </Tooltip>
                   ) : (
                     <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
-                      <SidebarMenuButton isActive={feedbackOpen}>
+                      <SidebarMenuButton isActive={feedbackOpen} className="pr-8">
                         {(() => {
                           const IconComponent = getIcon(item, feedbackOpen)
                           return <IconComponent />
@@ -197,17 +196,17 @@ export function NavSecondary({
                   state === 'collapsed' ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <SidebarMenuButton asChild>
+                        <SidebarMenuButton asChild className="size-8 justify-center p-0">
                           <a href={item.url}>
-                            <item.icon />
-                            <span>{item.title}</span>
+                            <item.icon className="size-4" />
+                            <span className="sr-only">{item.title}</span>
                           </a>
                         </SidebarMenuButton>
                       </TooltipTrigger>
                       <TooltipContent side="right">{item.title}</TooltipContent>
                     </Tooltip>
                   ) : (
-                    <SidebarMenuButton asChild>
+                    <SidebarMenuButton asChild className="pr-8">
                       <a href={item.url}>
                         <item.icon />
                         <span>{item.title}</span>

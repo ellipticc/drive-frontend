@@ -11,7 +11,7 @@ import { ConditionalLayout } from "@/components/layout/conditional-layout";
 
 import { NotificationProvider } from "@/components/notifications/notification-provider";
 import { LanguageProvider } from "@/lib/i18n/language-context";
-import { ThemeConfiguration } from "@/components/theme-configuration";
+
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { IconLoader2 as Loader2 } from "@tabler/icons-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -217,23 +217,7 @@ export default function RootLayout({
       <body
         className={`${spaceGrotesk.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} antialiased`}
       >
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var cookie = document.cookie.split('; ').find(row => row.startsWith('appearance_theme='));
-                  if (cookie) {
-                    var theme = cookie.split('=')[1];
-                    if (theme && theme !== 'default') {
-                      document.documentElement.classList.add(theme);
-                    }
-                  }
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
+
         <div
           id="initial-loading-overlay"
           style={{
@@ -266,7 +250,7 @@ export default function RootLayout({
                   <LanguageProvider>
                     <GlobalUploadProvider>
                       <TooltipProvider>
-                        <ThemeConfiguration />
+
                         <ServiceWorkerRegister />
 
                         <ConditionalLayout>{children}</ConditionalLayout>

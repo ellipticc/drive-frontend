@@ -1,7 +1,7 @@
 @theme {
     /* FONT FAMILY */
-    --font-body: var(--font-sharp-grotesk, "Space Grotesk"), -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    --font-display: var(--font-sharp-grotesk, "Space Grotesk"), -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --font-body: var(--font-google-sans, "Google Sans"), var(--font-inter, "Inter"), -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --font-display: var(--font-google-sans, "Google Sans"), var(--font-inter, "Inter"), -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     --font-mono: ui-monospace, "Roboto Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
     /* FONT SIZE */
@@ -95,16 +95,19 @@
         0% {
             transform: translateX(0);
         }
+
         100% {
             transform: translateX(-100%);
         }
     }
 
     @keyframes caret-blink {
+
         0%,
         50% {
             opacity: 1;
         }
+
         51%,
         100% {
             opacity: 0;
@@ -1336,26 +1339,26 @@
 .star-dnd-over {
     outline: 2px solid var(--color-brand-500, #2563eb);
     outline-offset: -2px;
-    background-color: rgba(37,99,235,0.08);
+    background-color: rgba(37, 99, 235, 0.08);
     border-radius: 6px;
-    box-shadow: 0 6px 18px rgba(37,99,235,0.08), inset 0 0 0 1px rgba(37,99,235,0.06);
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.08), inset 0 0 0 1px rgba(37, 99, 235, 0.06);
     transition: box-shadow 120ms ease, background-color 120ms ease, outline-color 120ms ease;
 }
 
 .star-dnd-success {
-    outline: 2px solid rgba(16,185,129,0.95) !important; /* emerald-500 */
-    background-color: rgba(16,185,129,0.06);
-    box-shadow: 0 10px 30px rgba(16,185,129,0.08), inset 0 0 0 1px rgba(16,185,129,0.06);
+    outline: 2px solid rgba(16, 185, 129, 0.95) !important;
+    /* emerald-500 */
+    background-color: rgba(16, 185, 129, 0.06);
+    box-shadow: 0 10px 30px rgba(16, 185, 129, 0.08), inset 0 0 0 1px rgba(16, 185, 129, 0.06);
     transition: box-shadow 240ms ease, background-color 240ms ease, outline-color 240ms ease;
 }
 
 /* Prevent sticky headers (like table header) from hiding behind the site header */
-header[data-sticky="true"] + main {
+header[data-sticky="true"]+main {
     padding-top: var(--header-height);
 }
 
-header[data-sticky="true"] + main .group.sticky,
-header[data-sticky="true"] ~ main .group.sticky {
+header[data-sticky="true"]+main .group.sticky,
+header[data-sticky="true"]~main .group.sticky {
     top: var(--header-height) !important;
 }
-

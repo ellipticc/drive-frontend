@@ -1,8 +1,7 @@
 "use client"
 
-import React, { useState, useRef, useEffect, useCallback } from "react"
+import React, { useState, useRef, useCallback } from "react"
 import {
-  IconCreditCard,
   IconDotsVertical,
   IconLogout,
   IconBellRinging,
@@ -13,7 +12,6 @@ import {
   IconDeviceDesktop,
   IconDeviceMobile,
   IconBrightnessFilled,
-  IconSparkles
 } from "@tabler/icons-react"
 
 import {
@@ -146,19 +144,8 @@ export function NavUser({
     }
   }
 
-  const handleThemeChange = async (newTheme: string) => {
+  const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme)
-
-    // If sync is on, disable it because user is making a manual choice
-    if (user.id) { // Simple check, assumption is theme_sync might be on
-      try {
-        // We interact with useUser's updateUser/refetch if available, checking API logic from ThemeToggle
-        await apiClient.updateProfile({ theme_sync: false });
-        await refetch();
-      } catch (err) {
-        console.error("Failed to disable theme sync:", err);
-      }
-    }
   }
 
   const handleLogout = async () => {

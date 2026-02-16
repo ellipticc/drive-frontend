@@ -63,20 +63,6 @@ export function GeneralTab({
 }: GeneralTabProps) {
     const { t } = useLanguage()
 
-    const themes = [
-        { id: 'default', name: 'Default', colors: ['#ffffff', '#000000', '#f3f4f6'] },
-        { id: 'mocha-mousse', name: 'Mocha Mousse', colors: ['#f3f0e9', '#a67c52', '#d9c8a9'] },
-        { id: 'quantum-rose', name: 'Quantum Rose', colors: ['#fcecf1', '#e91e63', '#f8bbd0'] },
-        { id: 'cosmic-night', name: 'Cosmic Night', colors: ['#922137', '#17223b', '#2e3a59'] },
-        { id: 'claude', name: 'Claude', colors: ['#981805', '#267966', '#f8f1e7'] },
-        { id: 'mono', name: 'Mono', colors: ['#000000', '#ffffff', '#709090'] },
-        { id: 'caffeine', name: 'Caffeine', colors: ['#6f5d54', '#ffffff', '#f2f0ef'] },
-        { id: 'neo-brutalism', name: 'Neo Brutalism', colors: ['#ff0000', '#ffffff', '#f4f4f4'] },
-        { id: 'perpetuity', name: 'Perpetuity', colors: ['#4a8b9e', '#f2f6f7', '#edf2f3'] },
-        { id: 'soft-pop', name: 'Soft Pop', colors: ['#6e44ff', '#fefbf6', '#f3f4f6'] },
-        { id: 'custom', name: 'Custom Theme', colors: ['#888888', '#555555', '#333333'], comingSoon: true },
-    ]
-
     const buildTime = (() => {
         const raw = process.env.NEXT_PUBLIC_BUILD_TIME || '';
         if (!raw) return 'Unknown';

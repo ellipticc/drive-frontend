@@ -147,23 +147,45 @@ export default function AssistantPage() {
     const [isStarred, setIsStarred] = React.useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
+    // Typing effect state
+    const [displayedTitle, setDisplayedTitle] = React.useState("");
+    const [isTypingTitle, setIsTypingTitle] = React.useState(false);
+
     // Fetch Chat Title/Status
     React.useEffect(() => {
         if (!conversationId) {
             setChatTitle("New Chat");
+            setDisplayedTitle(""); // Hide initially
             setIsStarred(false);
             return;
         }
 
         const fetchChatDetails = async () => {
-            // Avoid double fetch if title is already set to something other than generic
-            // But we need star status...
             try {
                 const { data } = await apiClient.getChats();
                 const currentChat = (data?.chats || []).find((c: any) => c.id === conversationId);
                 if (currentChat) {
-                    setChatTitle((currentChat as any).title || "New Chat");
+                    const newTitle = (currentChat as any).title || "New Chat";
+                    setChatTitle(newTitle);
                     setIsStarred(!!(currentChat as any).pinned);
+
+                    // Trigger typing effect only if transitioning from empty/New Chat to a real title
+                    if (newTitle !== "New Chat" && (displayedTitle === "" || displayedTitle === "New Chat")) {
+                        setIsTypingTitle(true);
+                        let i = 0;
+                        setDisplayedTitle("");
+                        const interval = setInterval(() => {
+                            setDisplayedTitle(newTitle.substring(0, i + 1));
+                            i++;
+                            if (i >= newTitle.length) {
+                                clearInterval(interval);
+                                setIsTypingTitle(false);
+                            }
+                        }, 30); // 30ms per char
+                        return () => clearInterval(interval);
+                    } else {
+                        setDisplayedTitle(newTitle);
+                    }
                 }
             } catch (e) {
                 console.error("Failed to fetch chat details", e);
@@ -1435,17 +1457,20 @@ export default function AssistantPage() {
 
     const ChatTitleHeader = (
         <div className="flex items-center gap-0.5 group max-w-full">
-            {isEditingTitle ? (
+            {/* Hide if New Chat or empty (unless typing) */}
+            {(!displayedTitle || displayedTitle === "New Chat") && !isTypingTitle ? (
+                <div className="h-8 w-4" /> // Invisible spacer
+            ) : isEditingTitle ? (
                 <div className="relative flex items-center">
                     {/* Hidden span for width measurement */}
                     <span className="invisible absolute whitespace-pre font-semibold px-2 text-sm pointer-events-none" style={{ minWidth: '80px', maxWidth: '400px' }}>
-                        {tempTitle || (chatTitle || "New Chat")}
+                        {tempTitle || displayedTitle}
                     </span>
                     <Input
                         value={tempTitle}
                         onChange={(e) => setTempTitle(e.target.value.substring(0, 70))}
                         className="h-8 font-semibold px-2 bg-secondary/30 border-none focus-visible:ring-1 focus-visible:ring-primary/50 transition-all duration-200"
-                        style={{ width: `${Math.max(120, Math.min(400, (tempTitle.length || (chatTitle?.length || 8)) * 9))}px` }}
+                        style={{ width: `${Math.max(120, Math.min(400, (tempTitle.length || (displayedTitle?.length || 8)) * 9))}px` }}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') handleRenameChat();
                             if (e.key === 'Escape') setIsEditingTitle(false);
@@ -1460,45 +1485,54 @@ export default function AssistantPage() {
                 <>
                     <Button
                         variant="ghost"
-                        className="h-8 font-semibold px-2 hover:bg-secondary/50 shrink-0 max-w-[300px] sm:max-w-[400px] justify-start"
+                        className={cn(
+                            "h-8 font-semibold px-2 hover:bg-secondary/50 shrink-0 max-w-[300px] sm:max-w-[400px] justify-start",
+                            isTypingTitle && "cursor-default hover:bg-transparent"
+                        )}
                         onClick={() => {
-                            setTempTitle(chatTitle || "New Chat");
-                            setIsEditingTitle(true);
+                            if (!isTypingTitle) {
+                                setTempTitle(displayedTitle);
+                                setIsEditingTitle(true);
+                            }
                         }}
-                        title={chatTitle || "New Chat"}
+                        title={displayedTitle}
+                        disabled={isTypingTitle}
                     >
                         <span className="truncate">
-                            {chatTitle || "New Chat"}
+                            {displayedTitle}
+                            {isTypingTitle && <span className="animate-pulse ml-0.5">|</span>}
                         </span>
                     </Button>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/50 hover:text-foreground">
-                                <IconChevronDown className="size-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-48">
-                            <DropdownMenuItem onClick={handleToggleStar}>
-                                <IconStar className={cn("mr-2 size-4", isStarred ? "fill-primary text-primary" : "")} />
-                                {isStarred ? "Unstar" : "Star"}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                                setTempTitle(chatTitle || "New Chat");
-                                setIsRenameDialogOpen(true);
-                            }}>
-                                <IconPencil className="mr-2 size-4" />
-                                Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                                onClick={handleDeleteChat}
-                                className="text-destructive/80 focus:bg-destructive focus:text-destructive-foreground hover:text-destructive group/del"
-                            >
-                                <IconTrash className="mr-2 size-4 group-hover/del:text-destructive-foreground" />
-                                Delete
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    {(!isTypingTitle && displayedTitle && displayedTitle !== "New Chat") && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/50 hover:text-foreground">
+                                    <IconChevronDown className="size-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-48">
+                                <DropdownMenuItem onClick={handleToggleStar}>
+                                    <IconStar className={cn("mr-2 size-4", isStarred ? "fill-primary text-primary" : "")} />
+                                    {isStarred ? "Unstar" : "Star"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                    setTempTitle(chatTitle || "New Chat");
+                                    setIsRenameDialogOpen(true);
+                                }}>
+                                    <IconPencil className="mr-2 size-4" />
+                                    Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={() => setIsDeleteDialogOpen(true)}
+                                    className="text-destructive/80 focus:bg-destructive focus:text-destructive-foreground hover:text-destructive group/del"
+                                >
+                                    <IconTrash className="mr-2 size-4 group-hover/del:text-destructive-foreground" />
+                                    Delete
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
                 </>
             )}
         </div>

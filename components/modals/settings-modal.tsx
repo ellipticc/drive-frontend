@@ -238,8 +238,7 @@ export function SettingsModal({
   const [isSavingName, setIsSavingName] = useState(false)
   const [dateTimePreference, setDateTimePreference] = useState("24h")
 
-  const [appearanceTheme, setAppearanceTheme] = useState("default")
-  const [themeSync, setThemeSync] = useState(true)
+
   const [dateFormat, setDateFormat] = useState("MM/DD/YYYY")
   const [autoTimezone, setAutoTimezone] = useState(true)
   const [timezone, setTimezone] = useState("UTC")
@@ -487,12 +486,7 @@ export function SettingsModal({
       setOriginalName(nameToUse);
 
       // Initialize theme state
-      if (user.appearance_theme) {
-        setAppearanceTheme(user.appearance_theme);
-      }
-      if (user.theme_sync !== undefined) {
-        setThemeSync(user.theme_sync);
-      }
+      /* Removed appearanceTheme and themeSync state */
       if (user.date_format) {
         setDateFormat(user.date_format);
       }
@@ -1714,18 +1708,6 @@ export function SettingsModal({
                     </div>
                   ) : (
                     <PreferencesTab
-                      appearanceTheme={appearanceTheme}
-                      setAppearanceTheme={async (newTheme: string) => {
-                        setAppearanceTheme(newTheme);
-                        await handleUpdatePreferences({ appearance_theme: newTheme });
-                      }}
-                      themeSync={themeSync}
-                      setThemeSync={async (sync: boolean) => {
-                        setThemeSync(sync);
-                        await handleUpdatePreferences({ theme_sync: sync ? 1 : 0 });
-                      }}
-                      theme={theme}
-                      setTheme={setTheme}
                       autoPaperVersioning={autoPaperVersioning}
                       setAutoPaperVersioning={async (val: boolean) => {
                         setAutoPaperVersioning(val);
