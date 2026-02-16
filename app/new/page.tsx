@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useUser } from "@/components/user-context"
-import { IconSparkles, IconBookmark, IconRotateClockwise, IconPlus, IconChevronDown, IconPencil, IconTrash, IconStar } from "@tabler/icons-react"
+import { IconSparkles, IconBookmark, IconRotateClockwise, IconChevronDown, IconPencil, IconTrash, IconStar, IconArrowDown } from "@tabler/icons-react"
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
 
@@ -17,6 +17,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -139,7 +140,15 @@ export default function AssistantPage() {
     // Standard scrolling state
     const [isAtBottom, setIsAtBottom] = React.useState(true);
     const scrollEndRef = React.useRef<HTMLDivElement>(null);
-    const [showScrollToBottom, setShowScrollToBottom] = React.useState(false); // Show button when user scrolls up
+    const [showScrollToBottom, setShowScrollToBottom] = React.useState(false);
+
+    const handleScroll = () => {
+        if (!scrollContainerRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+        const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+        setShowScrollToBottom(!isNearBottom);
+        setIsAtBottom(isNearBottom);
+    };
 
     // Chat Title State
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
@@ -1599,10 +1608,30 @@ export default function AssistantPage() {
                 ) : (
 
                     // CHAT STATE: Scrollable Messages + Sticky Bottom Input
-                    <div className="flex flex-col h-full w-full">
+                    <div className="flex flex-col h-full w-full relative">
+                        {/* Scroll to Bottom Button */}
+                        {showScrollToBottom && (
+                            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30">
+                                <Tooltip delayDuration={500}>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="rounded-full shadow-md bg-background/80 backdrop-blur-sm hover:bg-background border-border/50 size-8"
+                                            onClick={() => scrollToBottom()}
+                                        >
+                                            <IconArrowDown className="size-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">Scroll to bottom</TooltipContent>
+                                </Tooltip>
+                            </div>
+                        )}
+
                         {/* Messages Container - Virtual List for Performance */}
                         <div
                             ref={scrollContainerRef}
+                            onScroll={handleScroll}
                             className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth min-h-0 max-w-full overflow-x-hidden"
                         >
                             {/* Standard List Rendering */}
@@ -1684,26 +1713,6 @@ export default function AssistantPage() {
                                 <div ref={scrollEndRef} className="h-1 w-full" />
                             </div>
                         </div>
-
-                        {/* Floating "Scroll to Bottom" Button - Shows when user scrolls up */}
-                        {showScrollToBottom && (
-                            <div className="absolute bottom-24 right-4 z-30">
-                                <button
-                                    onClick={() => {
-                                        shouldAutoScrollRef.current = true;
-                                        scrollToBottom('smooth');
-                                        setShowScrollToBottom(false);
-                                    }}
-                                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:bg-primary/90 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2"
-                                    title="Auto-scroll is paused. Click to resume."
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                                    </svg>
-                                    <span className="text-sm font-medium">Latest</span>
-                                </button>
-                            </div>
-                        )}
 
                         {/* Sticky Input Footer - Centered with consistent max-width */}
                         <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-0">

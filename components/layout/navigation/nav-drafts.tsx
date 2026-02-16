@@ -11,6 +11,7 @@ import {
     SidebarMenuButton,
     useSidebar,
 } from "@/components/ui/sidebar"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { apiClient, FileItem } from "@/lib/api"
 import { decryptFilename } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
@@ -153,13 +154,20 @@ export function NavDrafts({ item }: { item: any }) {
                     ) : papers.length > 0 ? (
                         papers.map((paper) => (
                             <SidebarMenuSubItem key={paper.id}>
-                                <SidebarMenuSubButton
-                                    onClick={() => handleNavigate(`/paper/${paper.id}`)}
-                                    className="cursor-pointer flex items-center gap-2"
-                                >
-                                    <IconStackFilled className="size-3.5 text-blue-500 shrink-0" />
-                                    <span className="truncate text-xs font-medium">{paper.name}</span>
-                                </SidebarMenuSubButton>
+                                <Tooltip delayDuration={500}>
+                                    <TooltipTrigger asChild>
+                                        <SidebarMenuSubButton
+                                            onClick={() => handleNavigate(`/paper?fileId=${paper.id}`)}
+                                            className="cursor-pointer flex items-center gap-2"
+                                        >
+                                            <IconStackFilled className="size-3.5 text-blue-500 shrink-0" />
+                                            <span className="truncate text-xs font-medium">{paper.name}</span>
+                                        </SidebarMenuSubButton>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" className="max-w-[200px] break-words">
+                                        {paper.name}
+                                    </TooltipContent>
+                                </Tooltip>
                             </SidebarMenuSubItem>
                         ))
                     ) : (

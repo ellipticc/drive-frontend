@@ -13,7 +13,7 @@ export function NavNew() {
     return (
         <SidebarMenuItem>
             <SidebarMenuButton
-                tooltip="New Chat"
+                tooltip="New Chat (Ctrl+Shift+O)"
                 onClick={() => router.push('/new')}
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground transition-colors shadow-sm"
             >

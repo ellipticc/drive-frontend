@@ -62,17 +62,21 @@ export const AppSidebar = React.memo(function AppSidebar({
   const { chats, renameChat, pinChat, deleteChat, archiveChat } = useAICrypto();
   const [searchOpen, setSearchOpen] = React.useState(false)
 
-  // Keyboard shortcut for search (Cmd+K)
+  // Keyboard shortcut for search (Cmd+K) and new chat (Ctrl+Shift+O)
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         setSearchOpen((open) => !open)
       }
+      if (e.key === "O" && e.shiftKey && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        router.push('/new')
+      }
     }
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
-  }, [])
+  }, [router])
 
   const data = {
     user: contextUser ? {
@@ -272,10 +276,10 @@ export const AppSidebar = React.memo(function AppSidebar({
         <CommandDialog
           open={searchOpen}
           onOpenChange={setSearchOpen}
-          className="max-w-7xl"
+          className="max-w-[85vw] w-[800px] sm:max-w-[800px] border-border/50"
         >
-          <CommandInput placeholder="Search chats..." />
-          <CommandList className="max-h-[500px]">
+          <CommandInput placeholder="Search chats..." className="h-12" />
+          <CommandList className="max-h-[min(400px,50vh)]">
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup heading="Recent Chats">
               {chats.map(chat => (
@@ -285,7 +289,7 @@ export const AppSidebar = React.memo(function AppSidebar({
                     router.push(`/new?conversationId=${chat.id}`);
                     setSearchOpen(false);
                   }}
-                  className="cursor-pointer"
+                  className="cursor-pointer py-3"
                 >
                   <IconBubbleText className="mr-2 h-4 w-4" />
                   <span>{chat.title}</span>
