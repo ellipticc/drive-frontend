@@ -16,6 +16,16 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -87,7 +97,7 @@ export default function AssistantPage() {
 
 
 
-    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats, chats } = useAICrypto();
+    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats, chats, renameChat, deleteChat } = useAICrypto();
 
     // Available models for system rerun popovers
     const availableModels = [
@@ -140,6 +150,7 @@ export default function AssistantPage() {
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
     const [tempTitle, setTempTitle] = React.useState("");
     const [isStarred, setIsStarred] = React.useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
     // Fetch Chat Title/Status
     React.useEffect(() => {
@@ -1215,6 +1226,10 @@ export default function AssistantPage() {
                                         }
                                     }
 
+                                    if (data.suggestions) {
+                                        msg.suggestions = data.suggestions;
+                                    }
+
                                     return newMessages;
                                 });
 
@@ -1369,8 +1384,13 @@ export default function AssistantPage() {
 
     const handleRenameChat = async () => {
         if (!conversationId || !tempTitle.trim()) return;
+        if (tempTitle === chatTitle) {
+            setIsEditingTitle(false);
+            return;
+        }
+
         try {
-            await apiClient.updateConversation(conversationId, { title: tempTitle });
+            await renameChat(conversationId, tempTitle);
             setChatTitle(tempTitle);
             setIsEditingTitle(false);
         } catch (e) {
@@ -1380,9 +1400,14 @@ export default function AssistantPage() {
     };
 
     const handleDeleteChat = async () => {
+        setIsDeleteDialogOpen(true);
+    };
+
+    const confirmDeleteChat = async () => {
         if (!conversationId) return;
         try {
-            await apiClient.deleteConversation(conversationId);
+            await deleteChat(conversationId);
+            setIsDeleteDialogOpen(false);
             router.push('/new');
             toast.success("Chat deleted");
         } catch (e) {
@@ -1405,50 +1430,60 @@ export default function AssistantPage() {
     };
 
     const ChatTitleHeader = (
-        <div className="flex items-center gap-1 group">
+        <div className="flex items-center gap-0.5 group">
             {isEditingTitle ? (
                 <div className="flex items-center gap-1">
                     <Input
                         value={tempTitle}
                         onChange={(e) => setTempTitle(e.target.value)}
-                        className="h-8 w-48"
+                        className="h-8 w-48 font-semibold px-2"
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') handleRenameChat();
                             if (e.key === 'Escape') setIsEditingTitle(false);
                         }}
+                        onBlur={handleRenameChat} // Save on blur
                         autoFocus
+                        onFocus={(e) => e.target.select()} // Select all
                     />
-                    <Button size="icon" variant="ghost" className="size-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={handleRenameChat}>
-                        <IconRotateClockwise className="size-4 rotate-90 scale-x-[-1]" />
-                    </Button>
                 </div>
             ) : (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 gap-2 font-semibold px-2 hover:bg-secondary/50">
-                            {chatTitle || "New Chat"}
-                            <IconChevronDown className="size-4 text-muted-foreground opacity-50" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-56">
-                        <DropdownMenuItem onClick={handleToggleStar}>
-                            <IconStar className={cn("mr-2 size-4", isStarred ? "fill-yellow-400 text-yellow-400" : "")} />
-                            {isStarred ? "Unstar Chat" : "Star Chat"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
+                <>
+                    <Button
+                        variant="ghost"
+                        className="h-8 font-semibold px-2 hover:bg-secondary/50 truncate max-w-[200px]"
+                        onClick={() => {
                             setTempTitle(chatTitle || "New Chat");
                             setIsEditingTitle(true);
-                        }}>
-                            <IconPencil className="mr-2 size-4" />
-                            Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleDeleteChat} className="text-destructive focus:text-destructive">
-                            <IconTrash className="mr-2 size-4" />
-                            Delete Chat
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                        }}
+                    >
+                        {chatTitle || "New Chat"}
+                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/50 hover:text-foreground">
+                                <IconChevronDown className="size-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56">
+                            <DropdownMenuItem onClick={handleToggleStar}>
+                                <IconStar className={cn("mr-2 size-4", isStarred ? "fill-primary text-primary" : "")} />
+                                {isStarred ? "Unstar Chat" : "Star Chat"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                                setTempTitle(chatTitle || "New Chat");
+                                setIsEditingTitle(true);
+                            }}>
+                                <IconPencil className="mr-2 size-4" />
+                                Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleDeleteChat} className="text-destructive focus:text-destructive">
+                                <IconTrash className="mr-2 size-4" />
+                                Delete Chat
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </>
             )}
         </div>
     );
@@ -1656,6 +1691,24 @@ export default function AssistantPage() {
                     onSubmit={submitFeedback}
                 />
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete this chat history. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDeleteChat} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div >
     );
 }

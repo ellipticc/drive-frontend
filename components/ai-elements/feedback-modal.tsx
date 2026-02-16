@@ -161,11 +161,11 @@ export function FeedbackModal({
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-0">
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
                         Cancel
                     </Button>
                     <Button onClick={handleSubmit} disabled={isSubmitting || !rating}>
-                        {isSubmitting ? "Submitting..." : "Submit Feedback"}
+                        {isSubmitting ? "Submitting..." : "Submit"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

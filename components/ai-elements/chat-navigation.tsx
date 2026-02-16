@@ -83,11 +83,12 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
             ref={containerRef}
             className={cn(
                 "fixed right-4 top-1/2 -translate-y-1/2 z-40 flex flex-col items-end transition-all duration-300",
-                isHovered ? "w-[260px]" : "w-12"
+                isHovered ? "w-auto max-w-[260px]" : "w-12"
             )}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
+            {/* Idle State: Dashes */}
             <div
                 className={cn(
                     "flex flex-col gap-1.5 p-2 transition-opacity duration-200 absolute right-0",
@@ -98,42 +99,37 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
                     <div
                         key={`dash-${msg.id}`}
                         className={cn(
-                            "h-1 rounded-full transition-all duration-300",
-                            activeId === msg.id ? "w-4 bg-primary" : "w-1.5 bg-muted-foreground/30"
+                            "w-1.5 h-6 rounded-full transition-all duration-300 cursor-pointer",
+                            activeId === msg.id ? "bg-primary h-8" : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
                         )}
+                        onClick={() => msg.id && handleNavigationInfo(msg.id)}
                     />
                 ))}
             </div>
 
-            {/* Hover State: Card List (Only visible when hovered) */}
+            {/* Hover State: Card List */}
             <Card
                 className={cn(
-                    "flex flex-col overflow-hidden transition-all duration-300 origin-right shadow-xl border-border/50",
-                    "bg-sidebar", // Match sidebar background as requested
+                    "flex flex-col w-full overflow-hidden transition-all duration-300 bg-sidebar/95 backdrop-blur shadow-lg border-sidebar-border origin-right",
                     isHovered ? "opacity-100 scale-100 translate-x-0" : "opacity-0 scale-95 translate-x-4 pointer-events-none absolute right-0"
                 )}
             >
-                <div className="flex flex-col max-h-[60vh] overflow-y-auto p-2 w-[260px]">
-                    {userMessages.map((msg) => (
-                        <div
-                            key={msg.id}
+                <div className="flex flex-col p-2 gap-1 max-h-[60vh] overflow-y-auto min-w-[200px]">
+                    {userMessages.map((msg, idx) => (
+                        <button
+                            key={`item-${msg.id}`}
                             onClick={() => msg.id && handleNavigationInfo(msg.id)}
                             className={cn(
-                                "cursor-pointer px-3 py-2 rounded-md text-sm transition-colors text-left truncate relative",
+                                "text-left text-xs px-2 py-2 rounded-md transition-colors w-full",
                                 activeId === msg.id
-                                    ? "bg-accent text-accent-foreground font-medium"
-                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                    ? "bg-primary/10 text-primary font-medium"
+                                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                             )}
                         >
-                            {/* Marker line for active state */}
-                            {activeId === msg.id && (
-                                <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-primary rounded-r-full" />
-                            )}
-
-                            {/* Truncated Content */}
-                            {msg.content.split('\n')[0].slice(0, 50)}
-                            {msg.content.split('\n')[0].length > 50 ? '...' : ''}
-                        </div>
+                            <span className="line-clamp-2 break-words">
+                                {msg.content || `Message ${idx + 1}`}
+                            </span>
+                        </button>
                     ))}
                 </div>
             </Card>

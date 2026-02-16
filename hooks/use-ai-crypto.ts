@@ -317,6 +317,7 @@ export function useAICrypto(): UseAICryptoReturn {
                             reasoning: parsedReasoning,
                             reasoningDuration: msg.reasoning_duration,
                             suggestions,
+                            feedback: msg.feedback as 'like' | 'dislike' | undefined,
                         };
                     }
 
