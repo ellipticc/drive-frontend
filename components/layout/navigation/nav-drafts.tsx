@@ -47,8 +47,9 @@ export function NavDrafts({ item }: { item: any }) {
                 const masterKey = masterKeyManager.hasMasterKey() ? masterKeyManager.getMasterKey() : null
 
                 // Filter for papers and decrypt names
+                const files = response.data.files || []
                 const paperFiles = await Promise.all(
-                    response.data.files
+                    files
                         .filter(f => f.type === 'paper')
                         .map(async (f) => {
                             let name = "Untitled Paper"

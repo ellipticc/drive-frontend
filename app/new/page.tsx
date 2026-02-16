@@ -13,6 +13,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -440,7 +441,7 @@ export default function AssistantPage() {
         setMessages(prev => [...prev, tempUserMessage]);
 
         // Scroll the new user message to the top of the viewport for better focus
-        shouldAutoScrollRef.current = true;
+        shouldAutoScrollRef.current = false;
         setTimeout(() => {
             scrollToMessage(tempId, 'smooth');
         }, 100);
@@ -491,7 +492,7 @@ export default function AssistantPage() {
             let encryptedUserMessage;
             if (kyberPublicKey) {
                 try {
-                    const { encryptedContent, iv, encapsulatedKey } = await encryptMessage(finalContent);
+                    const { encryptedContent, iv, encapsulatedKey } = await encryptMessage(value);
                     encryptedUserMessage = { encryptedContent, iv, encapsulatedKey };
                 } catch (e) {
                     console.error("Failed to encrypt user message:", e);
@@ -1511,6 +1512,10 @@ export default function AssistantPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start" className="w-48">
+                                <DropdownMenuLabel className="truncate font-normal text-xs text-muted-foreground p-2">
+                                    {displayedTitle}
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={handleToggleStar}>
                                     <IconStar className={cn("mr-2 size-4", isStarred ? "fill-primary text-primary" : "")} />
                                     {isStarred ? "Unstar" : "Star"}

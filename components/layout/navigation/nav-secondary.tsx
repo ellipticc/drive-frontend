@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { type Icon } from "@tabler/icons-react"
+import { cn } from "@/lib/utils"
 
 import {
   SidebarGroup,
@@ -13,7 +14,6 @@ import {
 import { SupportRequestDialog } from "@/components/support-request-dialog"
 import { FeedbackPopover } from "@/components/modals/feedback-popover"
 import { Kbd } from "@/components/ui/kbd"
-import { useUser } from "@/components/user-context"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
@@ -54,7 +54,7 @@ export function NavSecondary({
   }
 
   return (
-    <SidebarGroup {...props}>
+    <SidebarGroup {...props} className={cn("p-0", props.className)}>
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => {

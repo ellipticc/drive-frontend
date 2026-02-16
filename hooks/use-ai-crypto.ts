@@ -371,10 +371,20 @@ export function useAICrypto(): UseAICryptoReturn {
         if (!sessionKey) throw new Error("No session key available for decryption");
 
         // 2. Decrypt the chunk
-        const decryptedBytes = decryptData(encryptedContent, sessionKey, iv);
-        const decrypted = new TextDecoder().decode(decryptedBytes);
-
-        return { decrypted, sessionKey };
+        try {
+            if (!encryptedContent) return { decrypted: "", sessionKey };
+            const decryptedBytes = decryptData(encryptedContent, sessionKey, iv);
+            const decrypted = new TextDecoder().decode(decryptedBytes);
+            return { decrypted, sessionKey };
+        } catch (e: any) {
+            // Ignore padding errors or empty chunks which might be keep-alives
+            if (e.message && (e.message.includes("padding") || e.message.includes("invalid"))) {
+                console.warn("Soft decryption failure (likely padding/keep-alive):", e.message);
+                return { decrypted: "", sessionKey };
+            }
+            console.error("Critical decryption failure:", e);
+            throw e; // Re-throw critical errors
+        }
     }, [userKeys]);
 
     const encryptMessage = useCallback(async (content: string) => {

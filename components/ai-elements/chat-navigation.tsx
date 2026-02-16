@@ -25,19 +25,19 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
     // Filter only user messages that have IDs
     const userMessages = messages.filter(m => m.role === 'user' && m.id && m.content);
 
-    // Handle Scroll logic (DeepSeek style: Exact Top)
+    // Handle Scroll logic (Exact Top, Instant)
     const handleNavigationInfo = (id: string) => {
         // Prevent hover state from jittering during scroll interactions
         if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
         setIsHovered(true);
 
         if (scrollToMessage) {
-            scrollToMessage(id, 'smooth');
+            scrollToMessage(id, 'auto');
         } else {
             // Fallback if prop not provided
             const element = document.getElementById(`message-${id}`);
             if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                element.scrollIntoView({ behavior: 'auto', block: 'start' });
             }
         }
         setActiveId(id);
@@ -105,10 +105,10 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
         >
-            {/* Idle State: Centered Dashes */}
+            {/* Idle State: Centered Dashes (Horizontal Lines) */}
             <div
                 className={cn(
-                    "flex flex-col items-center gap-2 transition-all duration-500 ease-in-out",
+                    "flex flex-col items-center gap-1.5 transition-all duration-500 ease-in-out",
                     isHovered ? "opacity-0 pointer-events-none absolute scale-50" : "opacity-100 scale-100"
                 )}
             >
@@ -116,10 +116,10 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
                     <div
                         key={`dash-${msg.id}`}
                         className={cn(
-                            "w-1 h-4 rounded-full transition-all duration-300 cursor-pointer",
+                            "h-0.5 rounded-full transition-all duration-300 cursor-pointer",
                             activeId === msg.id
-                                ? "bg-primary h-7"
-                                : "bg-muted-foreground/20 hover:bg-muted-foreground/40"
+                                ? "bg-primary w-6"
+                                : "bg-muted-foreground/30 hover:bg-muted-foreground/60 w-3"
                         )}
                         onClick={(e) => {
                             e.stopPropagation();

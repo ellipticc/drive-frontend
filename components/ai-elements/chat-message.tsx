@@ -355,11 +355,17 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                             })()
                         )}{/* Show thinking placeholder only during active streaming */}
                         {message.isThinking && isLast && !message.reasoning && (
-                            <div className="text-sm text-muted-foreground italic">Thinking...</div>
+                            <div className="flex items-center text-sm text-muted-foreground italic animate-pulse">
+                                <IconBrain className="size-3 mr-2" />
+                                Thinking...
+                            </div>
                         )}
                         {/* If reasoning finished but we only have duration (no content), show duration */}
-                        {!message.isThinking && message.reasoningDuration !== undefined && !message.reasoning && (
-                            <div className="text-sm text-muted-foreground italic">Thought for {message.reasoningDuration}s</div>
+                        {!message.isThinking && message.reasoningDuration !== undefined && message.reasoningDuration > 0 && !message.reasoning && (
+                            <div className="flex items-center text-sm text-muted-foreground italic">
+                                <IconBrain className="size-3 mr-2" />
+                                Thought for {message.reasoningDuration}s
+                            </div>
                         )}
 
                         <div className="w-full max-w-full break-words overflow-hidden">
