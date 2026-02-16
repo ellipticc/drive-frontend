@@ -1458,10 +1458,7 @@ export default function AssistantPage() {
 
     const ChatTitleHeader = (
         <div className="flex items-center gap-0.5 group max-w-full">
-            {/* Hide if New Chat or empty (unless typing) */}
-            {(!displayedTitle || displayedTitle === "New Chat") && !isTypingTitle ? (
-                <div className="h-8 w-4" /> // Invisible spacer
-            ) : isEditingTitle ? (
+            {isEditingTitle ? (
                 <div className="relative flex items-center">
                     {/* Hidden span for width measurement */}
                     <span className="invisible absolute whitespace-pre font-semibold px-2 text-sm pointer-events-none" style={{ minWidth: '80px', maxWidth: '400px' }}>
@@ -1635,7 +1632,7 @@ export default function AssistantPage() {
                                         <div
                                             key={message.id || index}
                                             id={`message-${message.id}`}
-                                            className="w-full flex justify-center mb-4 animate-in fade-in duration-300"
+                                            className="w-full flex justify-center mb-2 animate-in fade-in duration-300"
                                         >
                                             <div className="w-full max-w-3xl">
                                                 {message.isCheckpoint ? (

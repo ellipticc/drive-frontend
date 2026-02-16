@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { IconChevronRight, IconLoader2, IconWritingSign, IconWritingSignFilled, IconFileText } from "@tabler/icons-react"
+import { IconChevronRight, IconLoader2, IconStackFilled } from "@tabler/icons-react"
 import {
     SidebarMenuSub,
     SidebarMenuSubItem,
@@ -39,34 +39,43 @@ export function NavDrafts({ item }: { item: any }) {
         if (hasLoaded) return
         setIsLoading(true)
         try {
-            // Fetch files from root (or general getFiles if acceptable)
-            // We filter for papers on the client side since API might not support strict type filtering yet
-            const response = await apiClient.getFiles({ limit: 100, folderId: 'root' })
+            // Fetch files from root
+            // We filter for papers on the client side since API does not support strict type filtering yet
+            const folderId = "root";
+            const response = await apiClient.getFolderContents(folderId)
 
             if (response.success && response.data) {
                 const masterKey = masterKeyManager.hasMasterKey() ? masterKeyManager.getMasterKey() : null
 
                 // Filter for papers and decrypt names
                 const files = response.data.files || []
+
                 const paperFiles = await Promise.all(
                     files
-                        .filter(f => f.type === 'paper')
+                        // Filter by mimeType
+                        .filter(f => f.mimeType === 'application/x-paper' || f.mimetype === 'application/x-paper')
                         .map(async (f) => {
                             let name = "Untitled Paper"
                             try {
                                 if (f.encryptedFilename && masterKey && f.filenameSalt) {
                                     name = await decryptFilename(f.encryptedFilename, f.filenameSalt, masterKey)
-                                } else if (f.name) {
-                                    name = f.name
+                                } else if (f.filename) {
+                                    name = f.filename
                                 }
                             } catch (err) {
                                 console.error("Failed to decrypt paper name", err)
                             }
-                            return { ...f, name }
+                            // Normalize to FileItem shape expected by state
+                            return {
+                                ...f,
+                                name,
+                                type: 'paper' as const, // Force type for UI logic
+                                mimeType: f.mimeType || f.mimetype
+                            }
                         })
                 )
 
-                setPapers(paperFiles)
+                setPapers(paperFiles as any)
                 setHasLoaded(true)
                 if (paperFiles.length === 0) {
                     setIsLeaf(true)
@@ -146,8 +155,9 @@ export function NavDrafts({ item }: { item: any }) {
                             <SidebarMenuSubItem key={paper.id}>
                                 <SidebarMenuSubButton
                                     onClick={() => handleNavigate(`/paper/${paper.id}`)}
-                                    className="cursor-pointer"
+                                    className="cursor-pointer flex items-center gap-2"
                                 >
+                                    <IconStackFilled className="size-3.5 text-blue-500 shrink-0" />
                                     <span className="truncate text-xs font-medium">{paper.name}</span>
                                 </SidebarMenuSubButton>
                             </SidebarMenuSubItem>

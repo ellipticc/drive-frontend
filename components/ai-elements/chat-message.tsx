@@ -345,6 +345,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                         isStreaming={isLast && message.isThinking}
                                         duration={message.reasoningDuration}
                                         thinkingType={tagType || undefined}
+                                        className="mb-1"
                                     >
                                         <ReasoningTrigger className="w-fit" />
                                         <ReasoningContent isStreaming={isLast && message.isThinking}>
