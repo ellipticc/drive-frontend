@@ -1430,13 +1430,13 @@ export default function AssistantPage() {
     };
 
     const ChatTitleHeader = (
-        <div className="flex items-center gap-0.5 group">
+        <div className="flex items-center gap-0.5 group max-w-full">
             {isEditingTitle ? (
                 <div className="flex items-center gap-1">
                     <Input
                         value={tempTitle}
-                        onChange={(e) => setTempTitle(e.target.value)}
-                        className="h-8 w-48 font-semibold px-2"
+                        onChange={(e) => setTempTitle(e.target.value.substring(0, 70))}
+                        className="h-8 max-w-[400px] min-w-[200px] font-semibold px-2"
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') handleRenameChat();
                             if (e.key === 'Escape') setIsEditingTitle(false);
@@ -1444,19 +1444,23 @@ export default function AssistantPage() {
                         onBlur={handleRenameChat} // Save on blur
                         autoFocus
                         onFocus={(e) => e.target.select()} // Select all
+                        maxLength={70}
                     />
                 </div>
             ) : (
                 <>
                     <Button
                         variant="ghost"
-                        className="h-8 font-semibold px-2 hover:bg-secondary/50 truncate max-w-[200px]"
+                        className="h-8 font-semibold px-2 hover:bg-secondary/50 shrink-0"
                         onClick={() => {
                             setTempTitle(chatTitle || "New Chat");
                             setIsEditingTitle(true);
                         }}
+                        title={chatTitle || "New Chat"}
                     >
-                        {chatTitle || "New Chat"}
+                        <span className="truncate max-w-[300px] sm:max-w-[400px]">
+                            {chatTitle || "New Chat"}
+                        </span>
                     </Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>

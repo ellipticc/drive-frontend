@@ -20,12 +20,17 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
     const [isHovered, setIsHovered] = useState(false);
     const observerRef = useRef<IntersectionObserver | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Filter only user messages that have IDs
     const userMessages = messages.filter(m => m.role === 'user' && m.id && m.content);
 
     // Handle Scroll logic (DeepSeek style: Exact Top)
     const handleNavigationInfo = (id: string) => {
+        // Prevent hover state from jittering during scroll interactions
+        if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+        setIsHovered(true);
+
         if (scrollToMessage) {
             scrollToMessage(id, 'smooth');
         } else {
@@ -36,6 +41,18 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
             }
         }
         setActiveId(id);
+    };
+
+    const handleMouseEnter = () => {
+        if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+        setIsHovered(true);
+    };
+
+    const handleMouseLeave = () => {
+        // Small delay to prevent flickering when moving between dash and content
+        hoverTimeoutRef.current = setTimeout(() => {
+            setIsHovered(false);
+        }, 300);
     };
 
     // Intersection Observer for Active Highlight
@@ -83,10 +100,10 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
             ref={containerRef}
             className={cn(
                 "fixed right-4 top-1/2 -translate-y-1/2 z-40 flex flex-col items-end transition-all duration-300",
-                isHovered ? "w-auto max-w-[260px]" : "w-12"
+                isHovered ? "w-auto" : "w-12"
             )}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
         >
             {/* Idle State: Dashes */}
             <div
@@ -102,37 +119,44 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
                             "w-1.5 h-6 rounded-full transition-all duration-300 cursor-pointer",
                             activeId === msg.id ? "bg-primary h-8" : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
                         )}
-                        onClick={() => msg.id && handleNavigationInfo(msg.id)}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (msg.id) handleNavigationInfo(msg.id);
+                        }}
                     />
                 ))}
             </div>
 
-            {/* Hover State: Card List */}
-            <Card
+            {/* Hover State: List (No Card Background on Items) */}
+            <div
                 className={cn(
-                    "flex flex-col w-full overflow-hidden transition-all duration-300 bg-sidebar/95 backdrop-blur shadow-lg border-sidebar-border origin-right",
-                    isHovered ? "opacity-100 scale-100 translate-x-0" : "opacity-0 scale-95 translate-x-4 pointer-events-none absolute right-0"
+                    "flex flex-col w-full overflow-hidden transition-all duration-300 origin-right rounded-xl",
+                    isHovered ? "opacity-100 scale-100 translate-x-0 bg-sidebar/95 backdrop-blur shadow-lg border border-sidebar-border" : "opacity-0 scale-95 translate-x-4 pointer-events-none absolute right-0"
                 )}
             >
-                <div className="flex flex-col p-2 gap-1 max-h-[60vh] overflow-y-auto min-w-[200px]">
+                <div className="flex flex-col p-2 gap-1 max-h-[60vh] overflow-y-auto min-w-[200px] max-w-[260px]">
                     {userMessages.map((msg, idx) => (
                         <button
                             key={`item-${msg.id}`}
                             onClick={() => msg.id && handleNavigationInfo(msg.id)}
                             className={cn(
-                                "text-left text-xs px-2 py-2 rounded-md transition-colors w-full",
+                                "text-left text-xs px-2 py-2 rounded-md transition-colors w-full group",
+                                // Highlight text ONLY, no background hover on the component itself as requested
                                 activeId === msg.id
-                                    ? "bg-primary/10 text-primary font-medium"
-                                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                    ? "text-primary font-medium"
+                                    : "text-muted-foreground hover:text-foreground"
                             )}
                         >
-                            <span className="line-clamp-2 break-words">
+                            <span className={cn(
+                                "line-clamp-2 break-words transition-colors",
+                                activeId === msg.id ? "text-primary" : "group-hover:text-foreground"
+                            )}>
                                 {msg.content || `Message ${idx + 1}`}
                             </span>
                         </button>
                     ))}
                 </div>
-            </Card>
+            </div>
         </div>
     );
 }
