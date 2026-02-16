@@ -504,8 +504,8 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                 */}
                             </div>
                         )}
-                        {/* Follow-up Suggestions - Only show for the last message */}
-                        {isLast && message.suggestions && message.suggestions.length > 0 && (
+                        {/* Follow-up Suggestions */}
+                        {message.suggestions && message.suggestions.length > 0 && (
                             <Suggestions>
                                 {message.suggestions.map((s, i) => (
                                     <Suggestion

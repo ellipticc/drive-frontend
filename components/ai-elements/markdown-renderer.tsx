@@ -30,6 +30,8 @@ import {
   Emphasis,
   HorizontalRule,
   Break,
+  MathInline,
+  MathBlock,
 } from '@/components/ai-elements/markdown-components';
 
 // Plugins for extended Markdown support
@@ -152,6 +154,10 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       a: Link as any,
       hr: HorizontalRule as any,
       br: Break as any,
+
+      // Math
+      math: (props: any) => <MathBlock {...props} />,
+      inlineMath: (props: any) => <MathInline {...props} />,
 
       // Text formatting
       strong: Strong as any,

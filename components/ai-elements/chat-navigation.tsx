@@ -99,8 +99,8 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
         <div
             ref={containerRef}
             className={cn(
-                "fixed right-1 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center transition-all duration-300 group/nav",
-                isHovered ? "w-[240px] px-2" : "w-6"
+                "fixed right-3 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center transition-all duration-500 ease-in-out group/nav",
+                isHovered ? "w-[260px] px-2" : "w-8"
             )}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -108,8 +108,8 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
             {/* Idle State: Centered Dashes */}
             <div
                 className={cn(
-                    "flex flex-col items-center gap-1.5 transition-opacity duration-300",
-                    isHovered ? "opacity-0 pointer-events-none absolute" : "opacity-100"
+                    "flex flex-col items-center gap-2 transition-all duration-500 ease-in-out",
+                    isHovered ? "opacity-0 pointer-events-none absolute scale-50" : "opacity-100 scale-100"
                 )}
             >
                 {userMessages.map((msg) => (
@@ -118,7 +118,7 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
                         className={cn(
                             "w-1 h-4 rounded-full transition-all duration-300 cursor-pointer",
                             activeId === msg.id
-                                ? "bg-primary h-6"
+                                ? "bg-primary h-7"
                                 : "bg-muted-foreground/20 hover:bg-muted-foreground/40"
                         )}
                         onClick={(e) => {
@@ -132,22 +132,22 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
             {/* Hover State: List */}
             <div
                 className={cn(
-                    "flex flex-col w-full overflow-hidden transition-all duration-300 origin-right rounded-2xl bg-sidebar/95 backdrop-blur shadow-xl border border-sidebar-border",
+                    "flex flex-col w-full overflow-hidden transition-all duration-500 ease-in-out origin-right rounded-2xl bg-sidebar/95 backdrop-blur shadow-2xl border border-sidebar-border",
                     isHovered
                         ? "opacity-100 scale-100 translate-x-0"
                         : "opacity-0 scale-95 translate-x-4 pointer-events-none absolute"
                 )}
             >
-                <div className="flex flex-col p-2 gap-0.5 max-h-[60vh] overflow-y-auto w-full">
+                <div className="flex flex-col p-3 gap-1 max-h-[60vh] overflow-y-auto w-full scrollbar-thin">
                     {userMessages.map((msg, idx) => (
                         <button
                             key={`item-${msg.id}`}
                             onClick={() => msg.id && handleNavigationInfo(msg.id)}
                             className={cn(
-                                "text-left text-[11px] leading-tight px-3 py-2 rounded-lg transition-all w-full group/item",
+                                "text-left text-[11px] leading-tight px-3 py-2.5 rounded-xl transition-all w-full group/item",
                                 activeId === msg.id
-                                    ? "text-primary font-semibold"
-                                    : "text-muted-foreground hover:text-foreground"
+                                    ? "text-primary font-semibold bg-primary/5"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/5"
                             )}
                         >
                             <span className={cn(

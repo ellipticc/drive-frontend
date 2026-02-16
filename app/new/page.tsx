@@ -41,6 +41,7 @@ interface MessageVersion {
     toolCalls?: any[];
     createdAt?: number;
     feedback?: 'like' | 'dislike';
+    suggestions?: string[];
 }
 
 interface Message {
@@ -141,6 +142,7 @@ export default function AssistantPage() {
 
     // Chat Title State
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
+    const [isRenameDialogOpen, setIsRenameDialogOpen] = React.useState(false);
     const [tempTitle, setTempTitle] = React.useState("");
     const [isStarred, setIsStarred] = React.useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -171,9 +173,6 @@ export default function AssistantPage() {
     }, [conversationId]); // We use setChatTitle from closure
 
     const scrollToMessage = (messageId: string, behavior: ScrollBehavior = 'smooth') => {
-        // Only auto-scroll if user hasn't manually scrolled away from bottom
-        if (!shouldAutoScrollRef.current && behavior !== 'auto') return;
-
         const element = document.getElementById(`message-${messageId}`);
         if (element) {
             element.scrollIntoView({ behavior, block: 'start' });
@@ -184,6 +183,13 @@ export default function AssistantPage() {
     const scrollToBottom = React.useCallback((behavior: ScrollBehavior = 'smooth') => {
         scrollEndRef.current?.scrollIntoView({ behavior, block: 'end' });
     }, []);
+
+    // Auto-scroll to bottom when messages update (if authorized by ref)
+    React.useEffect(() => {
+        if (shouldAutoScrollRef.current && isLoading) {
+            scrollToBottom('auto');
+        }
+    }, [messages, isLoading, scrollToBottom]);
 
     const handleVersionChange = (messageId: string, direction: 'prev' | 'next') => {
         setMessages(prev => {
@@ -1221,6 +1227,11 @@ export default function AssistantPage() {
 
                                     if (data.suggestions) {
                                         msg.suggestions = data.suggestions;
+                                        if (msg.versions && typeof msg.currentVersionIndex === 'number') {
+                                            if (msg.versions[msg.currentVersionIndex]) {
+                                                msg.versions[msg.currentVersionIndex].suggestions = data.suggestions;
+                                            }
+                                        }
                                     }
 
                                     return newMessages;
@@ -1425,12 +1436,16 @@ export default function AssistantPage() {
     const ChatTitleHeader = (
         <div className="flex items-center gap-0.5 group max-w-full">
             {isEditingTitle ? (
-                <div className="flex items-center gap-1">
+                <div className="relative flex items-center">
+                    {/* Hidden span for width measurement */}
+                    <span className="invisible absolute whitespace-pre font-semibold px-2 text-sm pointer-events-none" style={{ minWidth: '80px', maxWidth: '400px' }}>
+                        {tempTitle || (chatTitle || "New Chat")}
+                    </span>
                     <Input
                         value={tempTitle}
                         onChange={(e) => setTempTitle(e.target.value.substring(0, 70))}
-                        className="h-8 w-[--title-width] font-semibold px-2 bg-secondary/30 border-none focus-visible:ring-1 focus-visible:ring-primary/50"
-                        style={{ '--title-width': `${Math.max(200, Math.min(400, (chatTitle?.length || 8) * 10))}px` } as React.CSSProperties}
+                        className="h-8 font-semibold px-2 bg-secondary/30 border-none focus-visible:ring-1 focus-visible:ring-primary/50 transition-all duration-200"
+                        style={{ width: `${Math.max(120, Math.min(400, (tempTitle.length || (chatTitle?.length || 8)) * 9))}px` }}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') handleRenameChat();
                             if (e.key === 'Escape') setIsEditingTitle(false);
@@ -1469,7 +1484,7 @@ export default function AssistantPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => {
                                 setTempTitle(chatTitle || "New Chat");
-                                setIsEditingTitle(true);
+                                setIsRenameDialogOpen(true);
                             }}>
                                 <IconPencil className="mr-2 size-4" />
                                 Rename
@@ -1477,9 +1492,9 @@ export default function AssistantPage() {
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                                 onClick={handleDeleteChat}
-                                className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
+                                className="text-destructive/80 focus:bg-destructive focus:text-destructive-foreground hover:text-destructive group/del"
                             >
-                                <IconTrash className="mr-2 size-4" />
+                                <IconTrash className="mr-2 size-4 group-hover/del:text-destructive-foreground" />
                                 Delete
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -1620,7 +1635,9 @@ export default function AssistantPage() {
                                                             const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
                                                             if (inputRef) inputRef.focus();
                                                         }}
-                                                        onSuggestionClick={(text) => handleSubmit(text)}
+                                                        onSuggestionClick={(text) => {
+                                                            handleSubmit(text);
+                                                        }}
                                                     />
                                                 )}
                                             </div>
@@ -1692,6 +1709,39 @@ export default function AssistantPage() {
                     onSubmit={submitFeedback}
                 />
             </div>
+
+            {/* Rename Dialog */}
+            <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+                <DialogContent className="sm:max-w-md bg-sidebar/95 backdrop-blur-sm border-sidebar-border">
+                    <DialogHeader>
+                        <DialogTitle>Rename chat</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Input
+                            value={tempTitle}
+                            onChange={(e) => setTempTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    handleRenameChat();
+                                    setIsRenameDialogOpen(false);
+                                }
+                            }}
+                            autoFocus
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setIsRenameDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={() => {
+                            handleRenameChat();
+                            setIsRenameDialogOpen(false);
+                        }}>
+                            Submit
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Delete Confirmation Dialog */}
             <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

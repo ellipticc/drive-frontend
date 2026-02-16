@@ -559,3 +559,26 @@ export const Break: React.FC<{
 }> = ({ className }) => (
   <div className={cn('h-2', className)} />
 );
+
+/**
+ * Math Components (KaTeX)
+ */
+export const MathInline: React.FC<{
+  children?: React.ReactNode;
+  className?: string;
+}> = ({ children, className }) => (
+  <span className={cn('inline-block align-baseline mx-1 my-0.5 overflow-x-auto max-w-full px-1.5 py-0.5 bg-muted/30 rounded-md border border-border/20 selection:bg-primary/30', className)}>
+    {children}
+  </span>
+);
+
+export const MathBlock: React.FC<{
+  children?: React.ReactNode;
+  className?: string;
+}> = ({ children, className }) => (
+  <div className={cn('w-full overflow-x-auto my-8 p-6 bg-muted/10 dark:bg-muted/5 border border-border/40 rounded-2xl flex justify-center scrollbar-thin hover:border-border/60 transition-colors', className)}>
+    <div className="max-w-full overflow-hidden">
+      {children}
+    </div>
+  </div>
+);

@@ -11,6 +11,7 @@ export interface DecryptedMessage {
     createdAt?: string;
     isThinking?: boolean;
     reasoning?: string;
+    suggestions?: string[];
 }
 
 export interface UseAICryptoReturn {
