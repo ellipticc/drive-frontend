@@ -236,8 +236,8 @@ function PaperHeader({
     const displayIcon = icon || (paperTitle ? paperTitle.charAt(0).toUpperCase() : "U");
 
     return (
-        <header className="flex h-14 md:h-16 min-h-[3.5rem] md:min-h-[4rem] items-center gap-2 md:gap-4 border-b px-3 md:px-6 shrink-0 bg-background z-50">
-            <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+        <header className="flex h-14 md:h-16 min-h-[3.5rem] md:min-h-[4rem] items-center gap-2 border-b px-4 shrink-0 bg-background z-50 transition-all duration-200 ease-in-out">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <SidebarTrigger className="h-9 w-9 md:h-10 md:w-10" />
@@ -461,16 +461,6 @@ function PaperHeader({
                     </Tooltip>
                 </div>
 
-                <Separator orientation="vertical" className="mx-1 h-4 hidden md:block" />
-
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <ThemeToggle aria-label="Toggle theme" />
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                        <span className="text-xs">Toggle theme</span>
-                    </TooltipContent>
-                </Tooltip>
             </div>
         </header>
     );
@@ -768,11 +758,11 @@ function PaperPageContent() {
 
         const handleHashChange = () => {
             const hash = window.location.hash;
-            
+
             // Parse hash for #versions or #versions?versionId=xxx
             if (hash.startsWith('#versions')) {
                 setHistoryOpen(true);
-                
+
                 // Extract versionId from hash if present
                 const versionIdMatch = hash.match(/versionId=([^&]*)/);
                 if (versionIdMatch?.[1]) {

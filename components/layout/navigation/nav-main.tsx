@@ -74,6 +74,7 @@ export function NavMain({
     icon?: Icon
     id?: string
     badge?: number // Optional badge count
+    shortcut?: string // Keyboard shortcut
     items?: { // Nested items
       title: string;
       url: string;
@@ -361,6 +362,11 @@ export function NavMain({
                       return IconComponent && <IconComponent className="shrink-0" />
                     })()}
                     <span>{item.title}</span>
+                    {item.shortcut && (
+                      <kbd className="pointer-events-none ml-auto hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100 sm:inline-flex">
+                        {item.shortcut}
+                      </kbd>
+                    )}
                     {item.badge && (
                       <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-medium text-white min-w-[1.25rem]">
                         {item.badge}

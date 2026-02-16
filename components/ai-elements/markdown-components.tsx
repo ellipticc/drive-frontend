@@ -42,7 +42,8 @@ const InternalCodeBlock = React.forwardRef<
     let cancelled = false;
     (async () => {
       try {
-        const html = await highlightCode(codeContent, language, isDark);
+        const safeLanguage = language === 'conf' ? 'properties' : language;
+        const html = await highlightCode(codeContent, safeLanguage, isDark);
         if (!cancelled) {
           setHighlightedHtml(html);
           setIsLoading(false);

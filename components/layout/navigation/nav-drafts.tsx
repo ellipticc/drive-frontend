@@ -160,7 +160,7 @@ export function NavDrafts({ item }: { item: any }) {
                                             onClick={() => handleNavigate(`/paper?fileId=${paper.id}`)}
                                             className="cursor-pointer flex items-center gap-2"
                                         >
-                                            <IconStackFilled className="size-3.5 text-blue-500 shrink-0" />
+                                            <IconStackFilled className="size-3.5 text-blue-500 !text-blue-500 shrink-0" />
                                             <span className="truncate text-xs font-medium">{paper.name}</span>
                                         </SidebarMenuSubButton>
                                     </TooltipTrigger>

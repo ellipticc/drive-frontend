@@ -29,6 +29,7 @@ export function NavSecondary({
     url: string
     icon: Icon
     id?: string
+    shortcut?: string
   }[]
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const { state, isMobile } = useSidebar();
@@ -36,6 +37,32 @@ export function NavSecondary({
   const [helpOpen, setHelpOpen] = React.useState(false)
   const [supportOpen, setSupportOpen] = React.useState(false)
   const [settingsOpen, setSettingsOpen] = useSettingsOpen()
+
+  React.useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      // Ignore input fields
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        if (e.key === "h") {
+          e.preventDefault();
+          setHelpOpen((open) => !open);
+        }
+        if (e.key === "f") {
+          e.preventDefault();
+          setFeedbackOpen((open) => !open);
+        }
+      }
+    }
+    document.addEventListener("keydown", down)
+    return () => document.removeEventListener("keydown", down)
+  }, [])
 
   // Helper function to get filled icon for active states
   const getIcon = (item: { icon: Icon; id?: string }, isActive: boolean) => {
@@ -86,6 +113,11 @@ export function NavSecondary({
                             return <IconComponent />
                           })()}
                           <span>{item.title}</span>
+                          {item.shortcut && (
+                            <div className="ms-auto">
+                              <Kbd>{item.shortcut}</Kbd>
+                            </div>
+                          )}
                         </SidebarMenuButton>
                       </DropdownMenuTrigger>
                     )}
@@ -160,6 +192,11 @@ export function NavSecondary({
                         return <IconComponent />
                       })()}
                       <span>{item.title}</span>
+                      {item.shortcut && (
+                        <div className="ms-auto">
+                          <Kbd>{item.shortcut}</Kbd>
+                        </div>
+                      )}
                     </SidebarMenuButton>
                   )
                 ) : item.id === "feedback" ? (

@@ -267,6 +267,9 @@ export default function AssistantPage() {
 
             document.title = title;
             setChatTitle(chatTitle);
+            if (!displayedTitle || displayedTitle === "") { // Only update if empty to avoid jumping
+                setDisplayedTitle(chatTitle);
+            }
         }
     }, [conversationId, chats]);
 
@@ -301,7 +304,7 @@ export default function AssistantPage() {
                             scrollToMessage(lastUserMessage.id, 'instant');
                             hasScrolledRef.current = true;
                         }
-                    }, 100);
+                    }, 500);
                 })
                 .catch((err: Error) => {
                     console.error("History load error:", err);
@@ -1611,7 +1614,7 @@ export default function AssistantPage() {
                     <div className="flex flex-col h-full w-full relative">
                         {/* Scroll to Bottom Button */}
                         {showScrollToBottom && (
-                            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30">
+                            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50">
                                 <Tooltip delayDuration={500}>
                                     <TooltipTrigger asChild>
                                         <Button

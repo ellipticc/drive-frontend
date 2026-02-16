@@ -65,6 +65,15 @@ export const AppSidebar = React.memo(function AppSidebar({
   // Keyboard shortcut for search (Cmd+K) and new chat (Ctrl+Shift+O)
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      // Ignore input fields
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         setSearchOpen((open) => !open)
@@ -72,6 +81,22 @@ export const AppSidebar = React.memo(function AppSidebar({
       if (e.key === "O" && e.shiftKey && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         router.push('/new')
+      }
+
+      // Single key shortcuts
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        if (e.key === "v") {
+          e.preventDefault();
+          router.push('/vault');
+        }
+        if (e.key === "d") {
+          e.preventDefault();
+          router.push('/paper/new');
+        }
+        if (e.key === "s") {
+          e.preventDefault();
+          window.location.hash = '#settings/General';
+        }
       }
     }
     document.addEventListener("keydown", down)
@@ -93,12 +118,14 @@ export const AppSidebar = React.memo(function AppSidebar({
         url: "/vault",
         icon: IconStack2,
         id: "my-files",
+        shortcut: "V",
       },
       {
         title: "Draft", // Hardcoded for now, or t("sidebar.draft") if available? I'll use "Draft" as requested.
         url: "/paper/new",
         icon: IconWritingSign,
         id: "draft",
+        shortcut: "D",
       },
     ],
     navSecondary: [
@@ -107,18 +134,21 @@ export const AppSidebar = React.memo(function AppSidebar({
         url: "#",
         icon: IconAdjustments,
         id: "settings",
+        shortcut: "S",
       },
       {
         title: t("sidebar.getHelp"),
         url: "#",
         icon: IconHelpCircle,
         id: "help",
+        shortcut: "H",
       },
       {
         title: t("sidebar.feedback"),
         url: "#",
         icon: IconBubbleText,
         id: "feedback",
+        shortcut: "F",
       },
     ],
   }
