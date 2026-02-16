@@ -17,15 +17,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -1436,14 +1429,15 @@ export default function AssistantPage() {
                     <Input
                         value={tempTitle}
                         onChange={(e) => setTempTitle(e.target.value.substring(0, 70))}
-                        className="h-8 max-w-[400px] min-w-[200px] font-semibold px-2"
+                        className="h-8 w-[--title-width] font-semibold px-2 bg-secondary/30 border-none focus-visible:ring-1 focus-visible:ring-primary/50"
+                        style={{ '--title-width': `${Math.max(200, Math.min(400, (chatTitle?.length || 8) * 10))}px` } as React.CSSProperties}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') handleRenameChat();
                             if (e.key === 'Escape') setIsEditingTitle(false);
                         }}
-                        onBlur={handleRenameChat} // Save on blur
+                        onBlur={handleRenameChat}
                         autoFocus
-                        onFocus={(e) => e.target.select()} // Select all
+                        onFocus={(e) => e.target.select()}
                         maxLength={70}
                     />
                 </div>
@@ -1451,14 +1445,14 @@ export default function AssistantPage() {
                 <>
                     <Button
                         variant="ghost"
-                        className="h-8 font-semibold px-2 hover:bg-secondary/50 shrink-0"
+                        className="h-8 font-semibold px-2 hover:bg-secondary/50 shrink-0 max-w-[300px] sm:max-w-[400px] justify-start"
                         onClick={() => {
                             setTempTitle(chatTitle || "New Chat");
                             setIsEditingTitle(true);
                         }}
                         title={chatTitle || "New Chat"}
                     >
-                        <span className="truncate max-w-[300px] sm:max-w-[400px]">
+                        <span className="truncate">
                             {chatTitle || "New Chat"}
                         </span>
                     </Button>
@@ -1468,10 +1462,10 @@ export default function AssistantPage() {
                                 <IconChevronDown className="size-4" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56">
+                        <DropdownMenuContent align="start" className="w-48">
                             <DropdownMenuItem onClick={handleToggleStar}>
                                 <IconStar className={cn("mr-2 size-4", isStarred ? "fill-primary text-primary" : "")} />
-                                {isStarred ? "Unstar Chat" : "Star Chat"}
+                                {isStarred ? "Unstar" : "Star"}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => {
                                 setTempTitle(chatTitle || "New Chat");
@@ -1481,9 +1475,12 @@ export default function AssistantPage() {
                                 Rename
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={handleDeleteChat} className="text-destructive focus:text-destructive">
+                            <DropdownMenuItem
+                                onClick={handleDeleteChat}
+                                className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
+                            >
                                 <IconTrash className="mr-2 size-4" />
-                                Delete Chat
+                                Delete
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -1697,22 +1694,28 @@ export default function AssistantPage() {
             </div>
 
             {/* Delete Confirmation Dialog */}
-            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
-                        <AlertDialogDescription>
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Delete Chat?</DialogTitle>
+                        <DialogDescription>
                             This will permanently delete this chat history. This action cannot be undone.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmDeleteChat} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={confirmDeleteChat}
+                            className="bg-destructive hover:bg-destructive/90 text-white font-semibold"
+                        >
                             Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div >
     );
 }

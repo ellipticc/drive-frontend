@@ -99,25 +99,27 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
         <div
             ref={containerRef}
             className={cn(
-                "fixed right-4 top-1/2 -translate-y-1/2 z-40 flex flex-col items-end transition-all duration-300",
-                isHovered ? "w-auto" : "w-12"
+                "fixed right-1 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center transition-all duration-300 group/nav",
+                isHovered ? "w-[240px] px-2" : "w-6"
             )}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
         >
-            {/* Idle State: Dashes */}
+            {/* Idle State: Centered Dashes */}
             <div
                 className={cn(
-                    "flex flex-col gap-1.5 p-2 transition-opacity duration-200 absolute right-0",
-                    isHovered ? "opacity-0 pointer-events-none" : "opacity-100"
+                    "flex flex-col items-center gap-1.5 transition-opacity duration-300",
+                    isHovered ? "opacity-0 pointer-events-none absolute" : "opacity-100"
                 )}
             >
                 {userMessages.map((msg) => (
                     <div
                         key={`dash-${msg.id}`}
                         className={cn(
-                            "w-1.5 h-6 rounded-full transition-all duration-300 cursor-pointer",
-                            activeId === msg.id ? "bg-primary h-8" : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                            "w-1 h-4 rounded-full transition-all duration-300 cursor-pointer",
+                            activeId === msg.id
+                                ? "bg-primary h-6"
+                                : "bg-muted-foreground/20 hover:bg-muted-foreground/40"
                         )}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -127,29 +129,30 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
                 ))}
             </div>
 
-            {/* Hover State: List (No Card Background on Items) */}
+            {/* Hover State: List */}
             <div
                 className={cn(
-                    "flex flex-col w-full overflow-hidden transition-all duration-300 origin-right rounded-xl",
-                    isHovered ? "opacity-100 scale-100 translate-x-0 bg-sidebar/95 backdrop-blur shadow-lg border border-sidebar-border" : "opacity-0 scale-95 translate-x-4 pointer-events-none absolute right-0"
+                    "flex flex-col w-full overflow-hidden transition-all duration-300 origin-right rounded-2xl bg-sidebar/95 backdrop-blur shadow-xl border border-sidebar-border",
+                    isHovered
+                        ? "opacity-100 scale-100 translate-x-0"
+                        : "opacity-0 scale-95 translate-x-4 pointer-events-none absolute"
                 )}
             >
-                <div className="flex flex-col p-2 gap-1 max-h-[60vh] overflow-y-auto min-w-[200px] max-w-[260px]">
+                <div className="flex flex-col p-2 gap-0.5 max-h-[60vh] overflow-y-auto w-full">
                     {userMessages.map((msg, idx) => (
                         <button
                             key={`item-${msg.id}`}
                             onClick={() => msg.id && handleNavigationInfo(msg.id)}
                             className={cn(
-                                "text-left text-xs px-2 py-2 rounded-md transition-colors w-full group",
-                                // Highlight text ONLY, no background hover on the component itself as requested
+                                "text-left text-[11px] leading-tight px-3 py-2 rounded-lg transition-all w-full group/item",
                                 activeId === msg.id
-                                    ? "text-primary font-medium"
+                                    ? "text-primary font-semibold"
                                     : "text-muted-foreground hover:text-foreground"
                             )}
                         >
                             <span className={cn(
                                 "line-clamp-2 break-words transition-colors",
-                                activeId === msg.id ? "text-primary" : "group-hover:text-foreground"
+                                activeId === msg.id ? "text-primary" : "group-hover/item:text-foreground"
                             )}>
                                 {msg.content || `Message ${idx + 1}`}
                             </span>
