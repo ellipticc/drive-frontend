@@ -85,72 +85,51 @@ export function FeedbackModal({
         }
     }
 
-    // Determine titles and placeholders based on rating
     const isLike = rating === 'like'
-    const title = "Feedback"
-    const description = "Help us improve the AI's responses."
+
+    // Positive feedback reasons
+    const POSITIVE_REASONS = [
+        { value: "accurate", label: "Accurate Information" },
+        { value: "comprehensive", label: "Comprehensive Response" },
+        { value: "creative", label: "Creative & Original" },
+        { value: "formatting", label: "Good Formatting" },
+        { value: "logic", label: "Sound Logic" },
+        { value: "other", label: "Other" }
+    ]
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[500px] gap-6">
                 <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
-                    <DialogDescription>{description}</DialogDescription>
+                    <DialogTitle>Provide Feedback</DialogTitle>
+                    <DialogDescription>
+                        {isLike ? "What did you like about this response?" : "What was the issue with this response?"}
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-6 py-2">
-                    {/* Rating Toggle */}
-                    <div className="flex items-center justify-center gap-4">
-                        <Button
-                            variant={isLike ? "default" : "outline"}
-                            size="lg"
-                            className={cn(
-                                "flex-1 h-12 gap-2 text-base",
-                                isLike && "bg-green-600 hover:bg-green-700 text-white border-green-600"
-                            )}
-                            onClick={() => setRating('like')}
-                        >
-                            <IconThumbUp className="size-5" />
-                            Helpful
-                        </Button>
-                        <Button
-                            variant={!isLike ? "default" : "outline"}
-                            size="lg"
-                            className={cn(
-                                "flex-1 h-12 gap-2 text-base",
-                                !isLike && rating === 'dislike' && "bg-red-600 hover:bg-red-700 text-white border-red-600"
-                            )}
-                            onClick={() => setRating('dislike')}
-                        >
-                            <IconThumbDown className="size-5" />
-                            Not Helpful
-                        </Button>
+                    {/* Reason Dropdown (Full Width) */}
+                    <div className="space-y-2">
+                        <Label>{isLike ? "Reason (Optional)" : "Issue Type (Optional)"}</Label>
+                        <Select value={issueType} onValueChange={setIssueType}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder={isLike ? "Select a reason..." : "Select an issue..."} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {(isLike ? POSITIVE_REASONS : ISSUE_TYPES).map((type) => (
+                                    <SelectItem key={type.value} value={type.value}>
+                                        {type.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
-
-                    {/* Issue Type Dropdown (Only for Dislike) */}
-                    {!isLike && (
-                        <div className="space-y-2">
-                            <Label>What type of issue do you wish to report? (Optional)</Label>
-                            <Select value={issueType} onValueChange={setIssueType}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select an issue..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {ISSUE_TYPES.map((type) => (
-                                        <SelectItem key={type.value} value={type.value}>
-                                            {type.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
 
                     {/* Details Input */}
                     <div className="space-y-2">
                         <Label>Details (Optional)</Label>
                         <Textarea
-                            placeholder={isLike ? "What was satisfying about this response?" : "What was (un)satisfying about this response?"}
+                            placeholder={isLike ? "What was satisfying about this response?" : "What was unsatisfying about this response?"}
                             value={details}
                             onChange={(e) => setDetails(e.target.value)}
                             maxLength={1000}
@@ -165,6 +144,7 @@ export function FeedbackModal({
                             id="include-context"
                             checked={includeContext}
                             onCheckedChange={(checked) => setIncludeContext(!!checked)}
+                            className="rounded-sm" // Ensure square grounded
                         />
                         <div className="grid gap-1.5 leading-none">
                             <label

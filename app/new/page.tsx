@@ -2,12 +2,24 @@
 
 import * as React from "react"
 import { useUser } from "@/components/user-context"
-import { IconSparkles, IconBookmark, IconRotateClockwise, IconPlus } from "@tabler/icons-react"
+import { IconSparkles, IconBookmark, IconRotateClockwise, IconPlus, IconChevronDown, IconPencil, IconTrash, IconStar } from "@tabler/icons-react"
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { IconLoader2 } from "@tabler/icons-react"
+// Import AI Elements
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+
 // Import AI Elements
 import { EnhancedPromptInput } from "@/components/enhanced-prompt-input"
 import { SiteHeader } from "@/components/layout/header/site-header"
@@ -15,12 +27,9 @@ import { useAICrypto } from "@/hooks/use-ai-crypto";
 import { parseFile } from "@/lib/file-parser";
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
-import { MarkdownRenderer } from "@/components/ai-elements/markdown-renderer";
 import { FeedbackModal } from "@/components/ai-elements/feedback-modal";
 import { ChatMessage } from "@/components/ai-elements/chat-message"
 import { ChatScrollNavigation } from "@/components/ai-elements/chat-navigation"
-import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
 interface MessageVersion {
@@ -74,6 +83,10 @@ export default function AssistantPage() {
     const hasScrolledRef = React.useRef(false);
     const shouldAutoScrollRef = React.useRef(true);
 
+
+
+
+
     const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats, chats } = useAICrypto();
 
     // Available models for system rerun popovers
@@ -122,6 +135,36 @@ export default function AssistantPage() {
     const [isAtBottom, setIsAtBottom] = React.useState(true);
     const scrollEndRef = React.useRef<HTMLDivElement>(null);
     const [showScrollToBottom, setShowScrollToBottom] = React.useState(false); // Show button when user scrolls up
+
+    // Chat Title State
+    const [isEditingTitle, setIsEditingTitle] = React.useState(false);
+    const [tempTitle, setTempTitle] = React.useState("");
+    const [isStarred, setIsStarred] = React.useState(false);
+
+    // Fetch Chat Title/Status
+    React.useEffect(() => {
+        if (!conversationId) {
+            setChatTitle("New Chat");
+            setIsStarred(false);
+            return;
+        }
+
+        const fetchChatDetails = async () => {
+            // Avoid double fetch if title is already set to something other than generic
+            // But we need star status...
+            try {
+                const { data } = await apiClient.getChats();
+                const currentChat = (data?.chats || []).find((c: any) => c.id === conversationId);
+                if (currentChat) {
+                    setChatTitle((currentChat as any).title || "New Chat");
+                    setIsStarred(!!(currentChat as any).pinned);
+                }
+            } catch (e) {
+                console.error("Failed to fetch chat details", e);
+            }
+        };
+        fetchChatDetails();
+    }, [conversationId]); // We use setChatTitle from closure
 
     const scrollToMessage = (messageId: string, behavior: ScrollBehavior = 'smooth') => {
         // Only auto-scroll if user hasn't manually scrolled away from bottom
@@ -1244,33 +1287,36 @@ export default function AssistantPage() {
         }
     };
 
-    const handleFeedback = async (messageId: string, feedback: 'like' | 'dislike') => {
-        // Optimistic UI Update
-        setMessages(prev => prev.map(msg =>
-            msg.id === messageId ? { ...msg, feedback } : msg
-        ));
+    const handleFeedback = (messageId: string, feedback: 'like' | 'dislike') => {
+        // Find message and context for modal
+        const msgIndex = messages.findIndex(m => m.id === messageId);
+        if (msgIndex !== -1) {
+            const msg = messages[msgIndex];
+            const prevMsg = messages[msgIndex - 1]; // Try to get prompt context
 
+            setFeedbackMessageId(messageId);
+            setFeedbackRating(feedback);
+            setFeedbackResponseContext(msg.content);
+            setFeedbackPromptContext(prevMsg?.role === 'user' ? prevMsg.content : "Context unavailable");
+            setIsFeedbackModalOpen(true);
+        }
+    };
+
+    const submitFeedback = async (messageId: string, rating: 'like' | 'dislike', reasons: string[], details: string, context: any) => {
         try {
-            // Find message and context for modal
-            const msgIndex = messages.findIndex(m => m.id === messageId);
-            if (msgIndex !== -1) {
-                const msg = messages[msgIndex];
-                const prevMsg = messages[msgIndex - 1]; // Try to get prompt context
+            // Optimistic Update
+            setMessages(prev => prev.map(msg =>
+                msg.id === messageId ? { ...msg, feedback: rating } : msg
+            ));
 
-                setFeedbackMessageId(messageId);
-                setFeedbackRating(feedback);
-                setFeedbackResponseContext(msg.content);
-                setFeedbackPromptContext(prevMsg?.role === 'user' ? prevMsg.content : "Context unavailable");
-                setIsFeedbackModalOpen(true);
-            }
-
-            // Save simple feedback immediately
             await apiClient.submitDetailedFeedback({
                 messageId,
-                rating: feedback
+                rating,
+                reasons,
+                details,
+                promptContext: context?.prompt,
+                responseContext: context?.response
             });
-
-            toast.success("Feedback saved");
         } catch (error) {
             console.error("Failed to submit feedback", error);
             toast.error("Failed to save feedback");
@@ -1321,13 +1367,98 @@ export default function AssistantPage() {
         }
     };
 
+    const handleRenameChat = async () => {
+        if (!conversationId || !tempTitle.trim()) return;
+        try {
+            await apiClient.updateConversation(conversationId, { title: tempTitle });
+            setChatTitle(tempTitle);
+            setIsEditingTitle(false);
+        } catch (e) {
+            console.error("Failed to rename chat", e);
+            toast.error("Failed to rename chat");
+        }
+    };
+
+    const handleDeleteChat = async () => {
+        if (!conversationId) return;
+        try {
+            await apiClient.deleteConversation(conversationId);
+            router.push('/new');
+            toast.success("Chat deleted");
+        } catch (e) {
+            console.error("Failed to delete chat", e);
+            toast.error("Failed to delete chat");
+        }
+    };
+
+    const handleToggleStar = async () => {
+        if (!conversationId) return;
+        try {
+            const newStarred = !isStarred;
+            await apiClient.updateConversation(conversationId, { is_starred: newStarred });
+            setIsStarred(newStarred);
+            toast.success(newStarred ? "Chat starred" : "Chat unstarred");
+        } catch (e) {
+            console.error("Failed to update chat", e);
+            toast.error("Failed to update chat");
+        }
+    };
+
+    const ChatTitleHeader = (
+        <div className="flex items-center gap-1 group">
+            {isEditingTitle ? (
+                <div className="flex items-center gap-1">
+                    <Input
+                        value={tempTitle}
+                        onChange={(e) => setTempTitle(e.target.value)}
+                        className="h-8 w-48"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleRenameChat();
+                            if (e.key === 'Escape') setIsEditingTitle(false);
+                        }}
+                        autoFocus
+                    />
+                    <Button size="icon" variant="ghost" className="size-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={handleRenameChat}>
+                        <IconRotateClockwise className="size-4 rotate-90 scale-x-[-1]" />
+                    </Button>
+                </div>
+            ) : (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 gap-2 font-semibold px-2 hover:bg-secondary/50">
+                            {chatTitle || "New Chat"}
+                            <IconChevronDown className="size-4 text-muted-foreground opacity-50" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                        <DropdownMenuItem onClick={handleToggleStar}>
+                            <IconStar className={cn("mr-2 size-4", isStarred ? "fill-yellow-400 text-yellow-400" : "")} />
+                            {isStarred ? "Unstar Chat" : "Star Chat"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                            setTempTitle(chatTitle || "New Chat");
+                            setIsEditingTitle(true);
+                        }}>
+                            <IconPencil className="mr-2 size-4" />
+                            Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleDeleteChat} className="text-destructive focus:text-destructive">
+                            <IconTrash className="mr-2 size-4" />
+                            Delete Chat
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )}
+        </div>
+    );
 
     return (
         <div className="flex flex-col h-full bg-background relative overflow-x-hidden">
 
 
             {/* Header */}
-            <SiteHeader className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm" />
+            <SiteHeader className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm" customTitle={ChatTitleHeader} />
 
             {/* Main Content Area */}
             <div className="flex-1 relative flex flex-col overflow-hidden">
@@ -1522,6 +1653,7 @@ export default function AssistantPage() {
                     initialRating={feedbackRating}
                     promptContext={feedbackPromptContext}
                     responseContext={feedbackResponseContext}
+                    onSubmit={submitFeedback}
                 />
             </div>
         </div >

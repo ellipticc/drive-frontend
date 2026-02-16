@@ -3208,6 +3208,19 @@ class ApiClient {
     };
   }
 
+  async deleteConversation(conversationId: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request(`/ai/chat/${conversationId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async updateConversation(conversationId: string, data: { title?: string; is_starred?: boolean }): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request(`/ai/chat/${conversationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  }
+
   // AI Chat List Management
   async getChats(): Promise<ApiResponse<{ chats: AIChat[] }>> {
     const endpoint = '/ai/chats';

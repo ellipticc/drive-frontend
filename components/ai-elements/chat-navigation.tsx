@@ -82,69 +82,61 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
         <div
             ref={containerRef}
             className={cn(
-                "fixed right-4 top-1/2 -translate-y-1/2 z-40 flex flex-col gap-1 transition-all duration-300",
-                "max-h-[80vh] w-[260px]", // Fixed width for alignment
-                !isHovered && "pointer-events-none" // Allow clicking through when not hovered
+                "fixed right-4 top-1/2 -translate-y-1/2 z-40 flex flex-col items-end transition-all duration-300",
+                isHovered ? "w-[260px]" : "w-12"
             )}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            {/* 
-                Blur Effect Layer (Underlay) 
-                Applies ONLY when NOT hovering 
-            */}
             <div
                 className={cn(
-                    "absolute inset-0 bg-background/0 transition-all duration-300 rounded-xl",
-                    !isHovered && "backdrop-blur-[1px] opacity-100" // Subtle blur when inactive
+                    "flex flex-col gap-1.5 p-2 transition-opacity duration-200 absolute right-0",
+                    isHovered ? "opacity-0 pointer-events-none" : "opacity-100"
                 )}
-            />
-
-            {/* Scroll Container */}
-            <div
-                className={cn(
-                    "flex flex-col gap-1.5 overflow-y-auto pr-2 py-4 pl-4 transition-all duration-300",
-                    "scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/50", // Custom scrollbar
-                    isHovered ? "opacity-100 translate-x-0 pointer-events-auto" : "opacity-30 translate-x-8 pointer-events-auto" // Slide out partially
-                )}
-                style={{
-                    maskImage: isHovered ? 'none' : 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)'
-                }}
             >
                 {userMessages.map((msg) => (
                     <div
-                        key={msg.id}
-                        onClick={() => msg.id && handleNavigationInfo(msg.id)}
+                        key={`dash-${msg.id}`}
                         className={cn(
-                            "cursor-pointer transition-all duration-200 group relative",
-                            // Hover state transform/card
-                            isHovered ? "bg-card/80 border border-border/40 hover:bg-muted/80 shadow-sm rounded-lg p-3" : "py-1 text-right pr-2"
+                            "h-1 rounded-full transition-all duration-300",
+                            activeId === msg.id ? "w-4 bg-primary" : "w-1.5 bg-muted-foreground/30"
                         )}
-                        role="button"
-                    >
-                        {/* Active Indicator Line (Left of card) */}
-                        {activeId === msg.id && isHovered && (
-                            <div className="absolute left-0 top-3 bottom-3 w-1 bg-primary rounded-r full" />
-                        )}
-
-                        {/* Content */}
-                        <div className={cn(
-                            "text-sm font-medium truncate transition-colors",
-                            activeId === msg.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
-                            !isHovered && "text-xs opacity-60"
-                        )}>
-                            {/* Extract First Line & Truncate */}
-                            {msg.content.split('\n')[0].slice(0, 60)}
-                            {msg.content.split('\n')[0].length > 60 || msg.content.includes('\n') ? '...' : ''}
-                        </div>
-
-                        {/* Active Dot (When collapsed/not hovered) */}
-                        {!isHovered && activeId === msg.id && (
-                            <div className="absolute right-[-8px] top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
-                        )}
-                    </div>
+                    />
                 ))}
             </div>
+
+            {/* Hover State: Card List (Only visible when hovered) */}
+            <Card
+                className={cn(
+                    "flex flex-col overflow-hidden transition-all duration-300 origin-right shadow-xl border-border/50",
+                    "bg-sidebar", // Match sidebar background as requested
+                    isHovered ? "opacity-100 scale-100 translate-x-0" : "opacity-0 scale-95 translate-x-4 pointer-events-none absolute right-0"
+                )}
+            >
+                <div className="flex flex-col max-h-[60vh] overflow-y-auto p-2 w-[260px]">
+                    {userMessages.map((msg) => (
+                        <div
+                            key={msg.id}
+                            onClick={() => msg.id && handleNavigationInfo(msg.id)}
+                            className={cn(
+                                "cursor-pointer px-3 py-2 rounded-md text-sm transition-colors text-left truncate relative",
+                                activeId === msg.id
+                                    ? "bg-accent text-accent-foreground font-medium"
+                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                            )}
+                        >
+                            {/* Marker line for active state */}
+                            {activeId === msg.id && (
+                                <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-primary rounded-r-full" />
+                            )}
+
+                            {/* Truncated Content */}
+                            {msg.content.split('\n')[0].slice(0, 50)}
+                            {msg.content.split('\n')[0].length > 50 ? '...' : ''}
+                        </div>
+                    ))}
+                </div>
+            </Card>
         </div>
     );
 }
