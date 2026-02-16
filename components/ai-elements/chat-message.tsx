@@ -333,7 +333,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         )}
                     </>
                 ) : (
-                    <div className="w-full space-y-2 selection:bg-primary/20 selection:text-foreground">{/* Reasoning / Chain of Thought */}
+                    <div className="w-full space-y-0.5 selection:bg-primary/20 selection:text-foreground">{/* Reasoning / Chain of Thought */}
                         {message.reasoning && (
                             (() => {
                                 const reasoningContent = message.reasoning;

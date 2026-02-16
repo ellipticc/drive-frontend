@@ -13,8 +13,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { IconThumbUp, IconThumbDown, IconCheck } from "@tabler/icons-react"
-import { cn } from "@/lib/utils"
 
 // Issue types for negative feedback
 const ISSUE_TYPES = [
@@ -160,7 +158,7 @@ export function FeedbackModal({
                     </div>
                 </div>
 
-                <DialogFooter className="gap-2 sm:gap-0">
+                <DialogFooter className="gap-2 sm:gap-2">
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
                         Cancel
                     </Button>

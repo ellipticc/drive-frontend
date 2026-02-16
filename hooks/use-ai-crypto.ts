@@ -303,12 +303,34 @@ export function useAICrypto(): UseAICryptoReturn {
                             decryptedReasoning
                         );
 
-                        // Parse suggestions JSON if present
+                        // Parse suggestions JSON if present (decrypt if encrypted)
                         let suggestions: string[] | undefined;
                         if (msg.suggestions) {
                             try {
-                                suggestions = JSON.parse(msg.suggestions);
-                            } catch { /* ignore parse errors */ }
+                                let suggestionsJson = msg.suggestions;
+
+                                // Decrypt if IV is present
+                                if (msg.suggestions_iv) {
+                                    try {
+                                        const suggestionsDecryptedBytes = decryptData(msg.suggestions, sharedSecret, msg.suggestions_iv);
+                                        suggestionsJson = new TextDecoder().decode(suggestionsDecryptedBytes);
+                                    } catch (e) {
+                                        console.warn("Failed to decrypt suggestions:", msg.id, e);
+                                        // If decryption fails, we can't do anything with the encrypted string
+                                        suggestionsJson = "[]";
+                                    }
+                                }
+
+                                if (typeof suggestionsJson === 'string') {
+                                    suggestions = JSON.parse(suggestionsJson);
+                                } else if (Array.isArray(suggestionsJson)) {
+                                    // Handle case where it might be already parsed (unlikely from DB but possible in some flows)
+                                    suggestions = suggestionsJson;
+                                }
+                            } catch {
+                                // If parse fails, assume empty
+                                suggestions = [];
+                            }
                         }
 
                         return {

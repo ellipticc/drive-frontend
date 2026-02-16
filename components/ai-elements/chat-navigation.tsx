@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { Card } from '@/components/ui/card';
 
 interface Message {
     id?: string;
@@ -99,7 +98,7 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
         <div
             ref={containerRef}
             className={cn(
-                "fixed right-3 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center transition-all duration-500 ease-in-out group/nav",
+                "fixed right-6 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center transition-all duration-500 ease-in-out group/nav",
                 isHovered ? "w-[260px] px-2" : "w-8"
             )}
             onMouseEnter={handleMouseEnter}
@@ -118,8 +117,8 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
                         className={cn(
                             "h-0.5 rounded-full transition-all duration-300 cursor-pointer",
                             activeId === msg.id
-                                ? "bg-primary w-6"
-                                : "bg-muted-foreground/30 hover:bg-muted-foreground/60 w-3"
+                                ? "bg-primary w-4"
+                                : "bg-muted-foreground/30 hover:bg-muted-foreground/60 w-1.5"
                         )}
                         onClick={(e) => {
                             e.stopPropagation();
