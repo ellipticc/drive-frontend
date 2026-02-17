@@ -288,7 +288,8 @@ export default function AssistantPage() {
             decryptHistory(conversationId)
                 .then((msgs: Message[]) => {
                     setMessages(msgs);
-                    setChatTitle('Chat');
+                    // Don't reset title to 'Chat' here, let the useEffect handle it or keep current
+                    // setChatTitle('Chat');
 
                     setPagination({
                         offset: 0,
@@ -1500,13 +1501,13 @@ export default function AssistantPage() {
                             isTypingTitle && "cursor-default hover:bg-transparent"
                         )}
                         onClick={() => {
-                            if (!isTypingTitle) {
+                            if (!isTypingTitle && displayedTitle !== "New Chat") {
                                 setTempTitle(displayedTitle);
                                 setIsEditingTitle(true);
                             }
                         }}
                         title={displayedTitle}
-                        disabled={isTypingTitle}
+                        disabled={isTypingTitle || displayedTitle === "New Chat"}
                     >
                         <span className="truncate">
                             {displayedTitle}
@@ -1539,9 +1540,9 @@ export default function AssistantPage() {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     onClick={() => setIsDeleteDialogOpen(true)}
-                                    className="text-destructive/80 focus:bg-destructive focus:text-destructive-foreground hover:text-destructive group/del"
+                                    className="text-destructive focus:bg-destructive focus:text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground group/del"
                                 >
-                                    <IconTrash className="mr-2 size-4 group-hover/del:text-destructive-foreground" />
+                                    <IconTrash className="mr-2 size-4 group-hover/del:text-destructive-foreground transition-colors" />
                                     Delete
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -1562,7 +1563,38 @@ export default function AssistantPage() {
             {/* Main Content Area */}
             <div className="flex-1 relative flex flex-col overflow-hidden">
 
-                {messages.length === 0 ? (
+                {isLoading && messages.length === 0 ? (
+                    // LOADING SKELETON
+                    <div className="flex flex-col h-full w-full relative">
+                        <div className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth min-h-0 max-w-full overflow-x-hidden">
+                            <div className="flex flex-col items-center w-full min-h-full">
+                                <div className="w-full max-w-4xl mx-auto py-8 space-y-4 break-words">
+                                    <div className="text-center">
+                                        <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+                                        <p className="text-sm text-muted-foreground">Loading chat history...</p>
+                                    </div>
+                                    {[...Array(4)].map((_, i) => (
+                                        <div key={i} className={`p-4 rounded-xl bg-muted/40 border border-border/40 ${i % 2 === 0 ? 'self-end ml-auto max-w-[80%]' : 'self-start mr-auto max-w-[80%]'} w-full mb-4`}>
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <Skeleton className="h-4 w-24" />
+                                            </div>
+                                            <Skeleton className="h-4 w-full mb-2" />
+                                            <Skeleton className="h-4 w-2/3" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        {/* Sticky Input Footer Skeleton */}
+                        <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-0">
+                            <div className="flex justify-center w-full">
+                                <div className="max-w-4xl w-full px-4">
+                                    <div className="h-14 bg-muted/20 rounded-xl border border-border/40 w-full" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : messages.length === 0 ? (
                     // ZERO STATE: Centered Input
                     <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
                         <div className="w-full max-w-4xl mx-auto px-4 space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
@@ -1612,25 +1644,6 @@ export default function AssistantPage() {
 
                     // CHAT STATE: Scrollable Messages + Sticky Bottom Input
                     <div className="flex flex-col h-full w-full relative">
-                        {/* Scroll to Bottom Button */}
-                        {showScrollToBottom && (
-                            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50">
-                                <Tooltip delayDuration={500}>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            className="rounded-full shadow-md bg-background/80 backdrop-blur-sm hover:bg-background border-border/50 size-8"
-                                            onClick={() => scrollToBottom()}
-                                        >
-                                            <IconArrowDown className="size-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top">Scroll to bottom</TooltipContent>
-                                </Tooltip>
-                            </div>
-                        )}
-
                         {/* Messages Container - Virtual List for Performance */}
                         <div
                             ref={scrollContainerRef}
@@ -1639,79 +1652,58 @@ export default function AssistantPage() {
                         >
                             {/* Standard List Rendering */}
                             <div className="flex flex-col items-center w-full min-h-full">
-                                {/* Loading skeleton when initial messages are fetching */}
-                                {isLoading && messages.length === 0 ? (
-                                    <div className="w-full max-w-4xl mx-auto py-8 space-y-4 break-words">
-                                        <div className="text-center">
-                                            <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                                            <p className="text-sm text-muted-foreground">Loading chat…</p>
+                                {messages.map((message, index) => (
+                                    <div
+                                        key={message.id || index}
+                                        id={`message-${message.id}`}
+                                        className="w-full flex justify-center mb-2 animate-in fade-in duration-300"
+                                    >
+                                        <div className="w-full max-w-3xl">
+                                            {message.isCheckpoint ? (
+                                                <Checkpoint className="my-4">
+                                                    <CheckpointIcon>
+                                                        <IconBookmark className="size-4 shrink-0" />
+                                                    </CheckpointIcon>
+                                                    <span className="text-xs font-medium">Checkpoint {index + 1}</span>
+                                                    <CheckpointTrigger
+                                                        tooltip="Restore checkpoint"
+                                                        onClick={() => handleRestoreCheckpoint(message.id || '')}
+                                                    >
+                                                        <IconRotateClockwise className="size-3" />
+                                                    </CheckpointTrigger>
+                                                </Checkpoint>
+                                            ) : (
+                                                <ChatMessage
+                                                    message={message}
+                                                    isLast={index === messages.length - 1}
+                                                    onCopy={handleCopy}
+                                                    onFeedback={handleFeedback}
+                                                    onRetry={() => handleRetry(message.id || '')}
+                                                    onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
+                                                    onEdit={(content) => handleEditMessage(message.id || '', content)}
+                                                    onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
+                                                    onCheckpoint={() => handleAddCheckpoint()}
+                                                    availableModels={availableModels}
+                                                    onRerunSystemWithModel={handleRerunSystemWithModel}
+                                                    onAddToChat={(text) => {
+                                                        setContextItems(prev => [...prev, {
+                                                            id: crypto.randomUUID(),
+                                                            type: 'text',
+                                                            content: text
+                                                        }]);
+                                                        toast.success("Added to context");
+                                                        const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
+                                                        if (inputRef) inputRef.focus();
+                                                    }}
+                                                    onSuggestionClick={(text) => {
+                                                        handleSubmit(text);
+                                                    }}
+                                                />
+                                            )}
                                         </div>
-
-                                        {/* Sample skeleton message blocks */}
-                                        {[...Array(6)].map((_, i) => (
-                                            <div key={i} className={`p-4 rounded-xl bg-muted/10 border border-border/50 ${i % 2 === 0 ? 'self-start' : 'self-end'} w-full`}>
-                                                <div className="flex items-center gap-3 mb-2">
-                                                    <Skeleton className="h-4 w-24" />
-                                                    <Skeleton className="h-3 w-14" />
-                                                </div>
-                                                <Skeleton className="h-4 w-5/6 mb-2" />
-                                                <Skeleton className="h-4 w-2/3" />
-                                            </div>
-                                        ))}
                                     </div>
-                                ) : (
-                                    messages.map((message, index) => (
-                                        <div
-                                            key={message.id || index}
-                                            id={`message-${message.id}`}
-                                            className="w-full flex justify-center mb-2 animate-in fade-in duration-300"
-                                        >
-                                            <div className="w-full max-w-3xl">
-                                                {message.isCheckpoint ? (
-                                                    <Checkpoint className="my-4">
-                                                        <CheckpointIcon>
-                                                            <IconBookmark className="size-4 shrink-0" />
-                                                        </CheckpointIcon>
-                                                        <span className="text-xs font-medium">Checkpoint {index + 1}</span>
-                                                        <CheckpointTrigger
-                                                            tooltip="Restore checkpoint"
-                                                            onClick={() => handleRestoreCheckpoint(message.id || '')}
-                                                        >
-                                                            <IconRotateClockwise className="size-3" />
-                                                        </CheckpointTrigger>
-                                                    </Checkpoint>
-                                                ) : (
-                                                    <ChatMessage
-                                                        message={message}
-                                                        isLast={index === messages.length - 1}
-                                                        onCopy={handleCopy}
-                                                        onFeedback={handleFeedback}
-                                                        onRetry={() => handleRetry(message.id || '')}
-                                                        onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
-                                                        onEdit={(content) => handleEditMessage(message.id || '', content)}
-                                                        onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
-                                                        onCheckpoint={() => handleAddCheckpoint()}
-                                                        availableModels={availableModels}
-                                                        onRerunSystemWithModel={handleRerunSystemWithModel}
-                                                        onAddToChat={(text) => {
-                                                            setContextItems(prev => [...prev, {
-                                                                id: crypto.randomUUID(),
-                                                                type: 'text',
-                                                                content: text
-                                                            }]);
-                                                            toast.success("Added to context");
-                                                            const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
-                                                            if (inputRef) inputRef.focus();
-                                                        }}
-                                                        onSuggestionClick={(text) => {
-                                                            handleSubmit(text);
-                                                        }}
-                                                    />
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
+                                ))
+                                }
                                 {/* Scroll Anchor */}
                                 <div ref={scrollEndRef} className="h-1 w-full" />
                             </div>
@@ -1719,6 +1711,25 @@ export default function AssistantPage() {
 
                         {/* Sticky Input Footer - Centered with consistent max-width */}
                         <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-0">
+                            {/* Scroll to Bottom Button - Absolute to top of footer */}
+                            {showScrollToBottom && (
+                                <div className="absolute top-[-3.5rem] left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
+                                    <Tooltip delayDuration={500}>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="rounded-full shadow-md bg-background/80 backdrop-blur-sm hover:bg-background border-border/50 size-8 transition-all duration-300 animate-in fade-in zoom-in-95"
+                                                onClick={() => scrollToBottom()}
+                                            >
+                                                <IconArrowDown className="size-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">Scroll to bottom</TooltipContent>
+                                    </Tooltip>
+                                </div>
+                            )}
+
                             <div className="flex justify-center w-full">
                                 <div className="max-w-4xl w-full px-4">
                                     <EnhancedPromptInput
@@ -1763,6 +1774,9 @@ export default function AssistantPage() {
                 <DialogContent className="sm:max-w-md bg-sidebar/95 backdrop-blur-sm border-sidebar-border">
                     <DialogHeader>
                         <DialogTitle>Rename chat</DialogTitle>
+                        <DialogDescription className="text-muted-foreground text-sm">
+                            Enter a new name for this conversation.
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
                         <Input

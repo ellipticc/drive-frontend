@@ -137,7 +137,7 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
                         : "opacity-0 scale-95 translate-x-4 pointer-events-none absolute"
                 )}
             >
-                <div className="flex flex-col p-3 gap-1 max-h-[60vh] overflow-y-auto w-full scrollbar-thin">
+                <div className="flex flex-col p-3 gap-1 max-h-[60vh] overflow-y-auto w-full scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40 pr-1">
                     {userMessages.map((msg, idx) => (
                         <button
                             key={`item-${msg.id}`}

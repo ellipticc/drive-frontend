@@ -131,6 +131,9 @@ export function NavDrafts({ item }: { item: any }) {
             >
                 {item.icon && <item.icon />}
                 <span>{item.title}</span>
+                <kbd className="pointer-events-none ml-auto hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100 sm:inline-flex">
+                    D
+                </kbd>
 
                 {!isLeaf && state !== 'collapsed' && (
                     <div

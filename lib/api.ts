@@ -3215,7 +3215,7 @@ class ApiClient {
   }
 
   async updateConversation(conversationId: string, data: { title?: string; is_starred?: boolean }): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request(`/ai/chat/${conversationId}`, {
+    return this.request(`/ai/chats/${conversationId}`, {
       method: 'PATCH',
       body: JSON.stringify(data)
     });
