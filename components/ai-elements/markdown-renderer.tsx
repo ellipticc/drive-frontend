@@ -188,7 +188,7 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           errorColor: '#cc0000',
           trust: true,
         },
-      ],
+      ] as any,
     ],
     []
   );

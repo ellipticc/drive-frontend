@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { IconPlus, IconChevronDown, IconArrowUp, IconX, IconFileText, IconLoader2, IconCheck, IconArchive, IconBrain, IconWorld, IconSquareFilled } from "@tabler/icons-react";
+import { IconPlus, IconChevronDown, IconArrowUp, IconX, IconFileText, IconLoader2, IconCheck, IconArchive, IconBrain, IconWorld, IconSquareFilled, IconAlertCircle } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/utils";
+import { isPromptTooLong } from "@/lib/constants/prompt-limits";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const Icons = {
@@ -115,6 +116,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const [thinkingMode, setThinkingMode] = useState(false);
     const [searchMode, setSearchMode] = useState(false);
     const [modelOpen, setModelOpen] = useState(false);
+    const [tokenError, setTokenError] = useState(false);
 
     const effectiveModel = externalModel || localModel;
     const handleModelChange = (m: string) => {
@@ -190,6 +192,15 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const handleSend = async () => {
         if ((!message.trim() && files.length === 0 && contextItems.length === 0) || isLoading) return;
 
+        // Check token limit before sending
+        if (isPromptTooLong(message)) {
+            setTokenError(true);
+            // Auto-clear error after 5 seconds
+            setTimeout(() => setTokenError(false), 5000);
+            return;
+        }
+
+        setTokenError(false);
         const messageToSend = message;
         const currentFiles = files.map(f => f.file);
         const shouldThink = thinkingMode && isThinkingSupported;
@@ -292,7 +303,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
 
 
                     <div className="relative mb-1">
-                        <div className="max-h-96 w-full overflow-y-auto custom-scrollbar font-sans break-words min-h-[2.5rem] pl-1">
+                        <div className="max-h-60 w-full overflow-y-auto overflow-x-hidden custom-scrollbar font-sans break-words min-h-[2.5rem] pl-1">
                             <textarea
                                 ref={textareaRef}
                                 value={message}
@@ -307,6 +318,14 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                             />
                         </div>
                     </div>
+
+                    {/* Token Limit Error */}
+                    {tokenError && (
+                        <div className="animate-in fade-in duration-200 flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/30 rounded-lg">
+                            <IconAlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
+                            <span className="text-sm text-destructive font-medium">Prompt too long. Please shorten your message.</span>
+                        </div>
+                    )}
 
 
                     <div className="flex gap-2 w-full items-center justify-between">
