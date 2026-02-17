@@ -1648,7 +1648,7 @@ export default function AssistantPage() {
     };
 
     const ChatTitleHeader = (
-        <div className="flex items-center gap-0.5 group max-w-full">
+        <div className="inline-flex items-center gap-0.5 group max-w-full">
             {isEditingTitle ? (
                 <div className="relative flex items-center">
                     {/* Hidden span for width measurement */}
@@ -1671,14 +1671,15 @@ export default function AssistantPage() {
                     />
                 </div>
             ) : (
-                <div className="flex items-center gap-2">
+                // Use a grouped control so title + chevron share hover
+                <div className="inline-flex items-center gap-0.5 group/control">
                     <Button
                         variant="ghost"
                         className={cn(
-                            "h-8 font-semibold px-2 shrink-0 max-w-[300px] sm:max-w-[400px] justify-start",
+                            "h-8 font-semibold px-2 shrink-0 max-w-[300px] sm:max-w-[400px] justify-start rounded-md transition-colors",
                             isTypingTitle || displayedTitle === "New Chat"
-                                ? "cursor-default hover:bg-transparent"
-                                : "hover:bg-muted/80 dark:hover:bg-muted/50 cursor-pointer"
+                                ? "cursor-default bg-transparent"
+                                : "cursor-pointer hover:bg-muted/80 dark:hover:bg-muted/50 group-hover/control:bg-muted/80"
                         )}
                         onClick={() => {
                             if (!isTypingTitle && displayedTitle !== "New Chat") {
@@ -1694,11 +1695,11 @@ export default function AssistantPage() {
                         </span>
                     </Button>
 
-                    {/* Dropdown moved directly next to the conversation title */}
+                    {/* Chevron immediately adjacent and shares hover via group-control */}
                     {(!isTypingTitle && displayedTitle && displayedTitle !== "New Chat") && (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/50 hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors">
+                                <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/70 rounded-md transition-colors hover:bg-muted/80 dark:hover:bg-muted/50 group-hover/control:bg-muted/80">
                                     <IconChevronDown className="size-4" />
                                 </Button>
                             </DropdownMenuTrigger>
