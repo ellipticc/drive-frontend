@@ -228,8 +228,8 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
 
             {/* Message Content */}
             <div className={cn(
-                "flex flex-col min-w-0 max-w-[85%]",
-                isUser ? "items-end" : "items-start flex-1"
+                "flex flex-col min-w-0",
+                isUser ? "items-end max-w-[85%]" : "items-start flex-1 max-w-full"
             )}>
                 {isUser ? (
                     // ... User Message Render ...
@@ -276,49 +276,59 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                 </div>
                             ) : null}
 
-                            <div className={cn("relative flex items-end justify-end transition-all duration-200", isEditingPrompt ? "opacity-40 blur-[2px]" : "")}>
-                                {/* Show timestamp and actions on LEFT of user message */}
-                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mr-2 self-center">
+                            <div className={cn("relative flex flex-col items-end transition-all duration-200", isEditingPrompt ? "opacity-40 blur-[2px]" : "")}>
+
+                                {/* Message bubble (w-fit) */}
+                                <div className={cn(
+                                    "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-fit selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap",
+                                    "bg-primary text-primary-foreground"
+                                )}>
+                                    {message.content}
+                                </div>
+
+                                {/* Actions Row - Below message, right aligned but content is flex-row */}
+                                <div className="flex items-center gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {/* Timestamp - Leftmost of the actions row */}
                                     {message.createdAt && (
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <span className="text-[10px] text-muted-foreground cursor-default whitespace-nowrap">
+                                                <span className="text-[10px] text-muted-foreground/50 cursor-default whitespace-nowrap select-none">
                                                     {new Date(message.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    {' • '}
+                                                    {new Date(message.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                                                 </span>
                                             </TooltipTrigger>
                                             <TooltipContent side="bottom">
-                                                <p>{new Date(message.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric' })}</p>
+                                                <p>{new Date(message.createdAt).toLocaleString()}</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     )}
-                                    <ActionButton
-                                        icon={IconRefresh}
-                                        label="Retry"
-                                        onClick={onRetry}
-                                    />
-                                    <ActionButton
-                                        icon={IconEdit}
-                                        label="Edit"
-                                        onClick={() => setIsEditingPrompt(true)}
-                                    />
-                                    <ActionButton
-                                        icon={copied ? IconCheck : IconCopy}
-                                        label="Copy"
-                                        onClick={handleCopy}
-                                    />
-                                    {/* Continue button - shown when response was stopped by user */}
-                                    {message.content && /Stopped by user/i.test(message.content) && (
-                                        <ActionButton
-                                            icon={IconArrowRight}
-                                            label="Continue"
-                                            onClick={() => onRegenerate?.('continue')}
-                                        />
-                                    )}
-                                </div>
 
-                                {/* Message bubble (w-fit) */}
-                                <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-fit selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap">
-                                    {message.content}
+                                    <div className="flex items-center gap-1">
+                                        <ActionButton
+                                            icon={IconRefresh}
+                                            label="Retry"
+                                            onClick={onRetry}
+                                        />
+                                        <ActionButton
+                                            icon={IconEdit}
+                                            label="Edit"
+                                            onClick={() => setIsEditingPrompt(true)}
+                                        />
+                                        <ActionButton
+                                            icon={copied ? IconCheck : IconCopy}
+                                            label="Copy"
+                                            onClick={handleCopy}
+                                        />
+                                        {/* Continue button - shown when response was stopped by user */}
+                                        {message.content && /Stopped by user/i.test(message.content) && (
+                                            <ActionButton
+                                                icon={IconArrowRight}
+                                                label="Continue"
+                                                onClick={() => onRegenerate?.('continue')}
+                                            />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>

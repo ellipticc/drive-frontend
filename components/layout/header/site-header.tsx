@@ -9,9 +9,10 @@ interface SiteHeaderProps {
   className?: string
   sticky?: boolean
   customTitle?: React.ReactNode
+  rightContent?: React.ReactNode
 }
 
-export function SiteHeader({ className, sticky = false, customTitle }: SiteHeaderProps) {
+export function SiteHeader({ className, sticky = false, customTitle, rightContent }: SiteHeaderProps) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -65,6 +66,7 @@ export function SiteHeader({ className, sticky = false, customTitle }: SiteHeade
           </div>
         )}
         <div className="ml-auto flex items-center gap-2">
+          {rightContent}
           {/* Mobile: new-chat button on top-right */}
           <div className="md:hidden">
             <Button variant="ghost" size="icon" className="size-8" onClick={() => router.push('/new')} title="New Chat">

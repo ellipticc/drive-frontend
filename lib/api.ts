@@ -1119,8 +1119,6 @@ class ApiClient {
     });
   }
 
-
-
   /**
    * Submit detailed feedback for an AI message
    */
@@ -3254,7 +3252,7 @@ class ApiClient {
 
 
 
-  async updateChat(conversationId: string, updates: { pinned?: boolean; archived?: boolean; title?: string; iv?: string; encapsulated_key?: string }): Promise<void> {
+  async updateChat(conversationId: string, updates: { pinned?: boolean; archived?: boolean; title?: string; iv?: string; encapsulated_key?: string; starred?: boolean }): Promise<void> {
     const endpoint = `/ai/chats/${conversationId}`;
     const authHeaders = await this.getAuthHeaders(endpoint, 'PATCH');
 

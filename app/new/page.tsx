@@ -1911,7 +1911,7 @@ export default function AssistantPage() {
                         </div>
 
                         {/* Sticky Input Footer - Centered with consistent max-width */}
-                        <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-0">
+                        <div className="sticky bottom-0 z-40 w-full bg-background/95 pb-4 pt-0">
                             {/* Scroll to Bottom Button - Absolute to top of footer */}
                             {showScrollToBottom && (
                                 <div className="absolute top-[-3.5rem] left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
@@ -1920,7 +1920,7 @@ export default function AssistantPage() {
                                             <Button
                                                 variant="outline"
                                                 size="icon"
-                                                className="rounded-full shadow-md bg-background hover:bg-muted border-border/50 size-8 transition-all duration-300 animate-in fade-in zoom-in-95 opacity-100 dark:bg-muted dark:border-border/60 text-foreground ring-1 ring-border/10"
+                                                className="rounded-full shadow-md bg-background hover:bg-muted border-border/50 size-8 dark:bg-muted dark:border-border/60 text-foreground ring-1 ring-border/10"
                                                 onClick={() => scrollToBottom()}
                                             >
                                                 <IconArrowDown className="size-4 text-foreground" />
