@@ -6,7 +6,8 @@ export type AudioRecordingState = 'idle' | 'recording' | 'processing' | 'transcr
 
 interface UseAudioRecordingOptions {
     onTranscript?: (text: string, isFinal: boolean) => void;
-    onNoAudioDetected?: () => void;
+    onNoAudioDetected?: (hasExistingText: boolean) => void;
+    hasExistingText?: () => boolean; // Function to check if there's already text in input
     chunkDurationMs?: number;
     silenceTimeoutMs?: number; // Time in ms before showing "no audio detected" (default 5000ms)
 }
@@ -14,6 +15,7 @@ interface UseAudioRecordingOptions {
 export const useAudioRecording = ({
     onTranscript,
     onNoAudioDetected,
+    hasExistingText,
     chunkDurationMs = 1500,
     silenceTimeoutMs = 5000,
 }: UseAudioRecordingOptions = {}) => {
@@ -53,7 +55,9 @@ export const useAudioRecording = ({
                 // Trigger after N checks (roughly 5 seconds at ~1 check/sec)
                 if (silenceCounter > 5) {
                     setState('no_audio_detected');
-                    onNoAudioDetected?.();
+                    // Only call callback if no existing text (don't show toast if user is editing)
+                    const existingText = hasExistingText?.() ?? false;
+                    onNoAudioDetected?.(!existingText);
                     clearInterval(checkInterval);
                     return;
                 }
@@ -64,7 +68,7 @@ export const useAudioRecording = ({
 
         // Cleanup timer
         silenceTimerRef.current = setTimeout(() => clearInterval(checkInterval), 60000); // Stop after 60 seconds
-    }, [onNoAudioDetected]);
+    }, [onNoAudioDetected, hasExistingText]);
 
     // Detect if user is actively speaking
     const isUserSpeaking = useCallback((): boolean => {

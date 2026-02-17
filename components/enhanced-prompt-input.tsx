@@ -165,9 +165,13 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                 setMessage(text);
             }
         },
-        onNoAudioDetected: () => {
-            toast.error('No audio detected. Make sure your microphone is connected and unmuted.');
+        onNoAudioDetected: (shouldShowToast) => {
+            // Only show toast if there's no existing text in the input
+            if (shouldShowToast) {
+                toast.error('No audio detected. Make sure your microphone is connected and unmuted.');
+            }
         },
+        hasExistingText: () => message.trim().length > 0,
     });
 
     const effectiveModel = externalModel || localModel;
@@ -566,7 +570,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                         <button
                                             onClick={cancelRecording}
                                             disabled={audioState.includes('transcribing')}
-                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-destructive/90 text-destructive-foreground hover:bg-destructive transition-colors disabled:opacity-50"
+                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
                                             type="button"
                                             aria-label="Cancel dictation"
                                         >

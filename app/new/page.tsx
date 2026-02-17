@@ -90,11 +90,7 @@ export default function AssistantPage() {
     const isLoadingOlderRef = React.useRef(false)
     const hasScrolledRef = React.useRef(false);
     const shouldAutoScrollRef = React.useRef(true);
-
-
-
-
-
+    
     const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats, chats, renameChat, deleteChat } = useAICrypto();
 
     // Available models for system rerun popovers
@@ -703,6 +699,12 @@ export default function AssistantPage() {
                 while (true) {
                     const { done, value } = await reader.read()
                     if (done) break
+                    
+                    // Check if abort was signaled - stop immediately
+                    if (controller.signal.aborted) {
+                        console.log('[Stream] Abort signal detected, stopping reader');
+                        break;
+                    }
 
                     const chunk = decoder.decode(value, { stream: true })
                     buffer += chunk;
@@ -1690,33 +1692,17 @@ export default function AssistantPage() {
             <div className="flex-1 relative flex flex-col overflow-hidden">
 
                 {isLoading || (!isContentReady && messages.length === 0) ? (
-                    // LOADING SKELETON - Simple paragraph placeholder
+                    // LOADING SKELETON - Simple pulsating paragraph
                     <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth">
-                        <div className="flex flex-col gap-6 max-w-4xl mx-auto">
-                            {/* User message skeleton */}
-                            <div className="flex justify-end">
-                                <div className="max-w-[70%] p-4 rounded-2xl bg-primary/10 border border-primary/20">
-                                    <div className="space-y-2">
-                                        <Skeleton className="h-4 w-48" />
-                                        <Skeleton className="h-4 w-40" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Assistant response skeleton - Main paragraph loading */}
-                            <div className="flex justify-start">
-                                <div className="max-w-[85%] p-4 rounded-2xl bg-muted/50 border border-border/50 w-full">
-                                    <div className="space-y-2">
-                                        <Skeleton className="h-4 w-full" />
-                                        <Skeleton className="h-4 w-full" />
-                                        <Skeleton className="h-4 w-[95%]" />
-                                        <Skeleton className="h-4 w-full" />
-                                        <Skeleton className="h-4 w-[90%]" />
-                                        <Skeleton className="h-4 w-full" />
-                                        <Skeleton className="h-4 w-[85%]" />
-                                    </div>
-                                </div>
-                            </div>
+                        <div className="max-w-4xl mx-auto space-y-2">
+                            {/* Pulsating skeleton lines - simulating paragraph text */}
+                            <Skeleton className="h-4 w-full animate-pulse" />
+                            <Skeleton className="h-4 w-[95%] animate-pulse" style={{ animationDelay: '100ms' }} />
+                            <Skeleton className="h-4 w-full animate-pulse" style={{ animationDelay: '200ms' }} />
+                            <Skeleton className="h-4 w-[90%] animate-pulse" style={{ animationDelay: '300ms' }} />
+                            <Skeleton className="h-4 w-full animate-pulse" style={{ animationDelay: '400ms' }} />
+                            <Skeleton className="h-4 w-[85%] animate-pulse" style={{ animationDelay: '100ms' }} />
+                            <Skeleton className="h-4 w-full animate-pulse" style={{ animationDelay: '200ms' }} />
                         </div>
                     </div>
                 ) : messages.length === 0 ? (
