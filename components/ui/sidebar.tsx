@@ -81,15 +81,14 @@ function SidebarProvider({
 
   // Load initial state from localStorage with error handling
   const getInitialOpenState = React.useCallback(() => {
+    if (typeof window === 'undefined') return defaultOpen
     try {
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem(SIDEBAR_COOKIE_NAME)
-        return stored !== null ? stored === 'true' : defaultOpen
-      }
+      const stored = localStorage.getItem(SIDEBAR_COOKIE_NAME)
+      return stored !== null ? stored === 'true' : defaultOpen
     } catch (error) {
       console.warn('Failed to read sidebar state from localStorage:', error)
+      return defaultOpen
     }
-    return defaultOpen
   }, [defaultOpen])
 
   // This is the internal state of the sidebar.
@@ -115,12 +114,12 @@ function SidebarProvider({
     [setOpenProp, open]
   )
 
-  // Initialize state from localStorage after hydration
-  React.useEffect(() => {
+  // Initialize state from localStorage after hydration using useLayoutEffect
+  React.useLayoutEffect(() => {
     const initialState = getInitialOpenState()
     _setOpen(initialState)
     setIsHydrated(true)
-  }, [getInitialOpenState])
+  }, [defaultOpen]) // Only depend on defaultOpen, not getInitialOpenState
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
