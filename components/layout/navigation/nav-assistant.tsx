@@ -167,52 +167,58 @@ export function NavAssistant({ item }: NavAssistantProps) {
                   key={chat.id}
                   className="group/menu-sub-item relative"
                 >
-                  <SidebarMenuSubButton
-                    onClick={() =>
-                      !isEditing &&
-                      handleNavigate(`/new?conversationId=${chat.id}`)
-                    }
-                    isActive={currentConversationId === chat.id}
-                    className="group/chat-item pr-7 h-8"
-                  >
-                    {isEditing ? (
-                      <Input
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter")
-                            handleRenameSave(chat.id)
-                          if (e.key === "Escape")
-                            setEditingChatId(null)
-                          e.stopPropagation()
-                        }}
-                        onBlur={() => handleRenameSave(chat.id)}
-                        autoFocus
-                        className="h-6 text-xs px-1 py-0"
-                      />
-                    ) : (
-                      <>
-                        <Tooltip delayDuration={700}>
-                          <TooltipTrigger asChild>
-                            <span className="truncate flex-1 text-xs">
-                              {chat.title}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent
-                            side="top"
-                            align="start"
-                            className="max-w-[200px] break-words"
-                          >
+                  {isEditing ? (
+                    <SidebarMenuSubButton
+                      asChild
+                      isActive={currentConversationId === chat.id}
+                      className="group/chat-item pr-7 h-8"
+                    >
+                      <div onClick={(e) => e.preventDefault()}>
+                        <Input
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter")
+                              handleRenameSave(chat.id)
+                            if (e.key === "Escape")
+                              setEditingChatId(null)
+                            e.stopPropagation()
+                          }}
+                          onBlur={() => handleRenameSave(chat.id)}
+                          autoFocus
+                          className="h-6 text-xs px-1 py-0"
+                        />
+                      </div>
+                    </SidebarMenuSubButton>
+                  ) : (
+                    <SidebarMenuSubButton
+                      onClick={() =>
+                        !isEditing &&
+                        handleNavigate(`/new?conversationId=${chat.id}`)
+                      }
+                      isActive={currentConversationId === chat.id}
+                      className="group/chat-item pr-7 h-8"
+                    >
+                      <Tooltip delayDuration={700}>
+                        <TooltipTrigger asChild>
+                          <span className="truncate flex-1 text-xs">
                             {chat.title}
-                          </TooltipContent>
-                        </Tooltip>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side="top"
+                          align="start"
+                          className="max-w-[200px] break-words"
+                        >
+                          {chat.title}
+                        </TooltipContent>
+                      </Tooltip>
 
-                        {chat.pinned && (
-                          <IconPinFilled className="size-3 text-muted-foreground mr-1 shrink-0" />
-                        )}
-                      </>
-                    )}
-                  </SidebarMenuSubButton>
+                      {chat.pinned && (
+                        <IconPinFilled className="size-3 text-muted-foreground mr-1 shrink-0" />
+                      )}
+                    </SidebarMenuSubButton>
+                  )}
 
                   {!isEditing && (
                     <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/menu-sub-item:opacity-100 transition-opacity flex gap-0.5">
