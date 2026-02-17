@@ -78,8 +78,13 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   // Normalize problematic unicode characters
   const safeContent = React.useMemo(() => {
     if (!content) return content;
-    // Normalize dashes
-    return content.replace(/\u2013|\u2014/g, '-');
+    // Normalize various dashes and hyphens to regular hyphen
+    let normalized = content.replace(/[\u2010-\u2015]/g, '-'); // Includes hyphen, non-breaking hyphen, en-dash, em-dash, etc.
+    // Normalize other problematic Unicode characters
+    normalized = normalized.replace(/[\u2018\u2019]/g, "'"); // Curly quotes to straight quotes
+    normalized = normalized.replace(/[\u201C\u201D]/g, '"'); // Curly double quotes to straight quotes
+    normalized = normalized.replace(/[\u00AD]/g, '-'); // Soft hyphen to hyphen
+    return normalized;
   }, [content]);
 
   // Components mapping for react-markdown
@@ -174,7 +179,17 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
   // Rehype plugins for AST transformation
   const rehypePlugins = useMemo(
-    () => [rehypeKatex],
+    () => [
+      [
+        rehypeKatex,
+        {
+          strict: 'ignore', // Silently ignore unknown symbols instead of warning
+          throwOnError: false,
+          errorColor: '#cc0000',
+          trust: true,
+        },
+      ],
+    ],
     []
   );
 

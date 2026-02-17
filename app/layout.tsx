@@ -15,6 +15,7 @@ import { LanguageProvider } from "@/lib/i18n/language-context";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { IconLoader2 as Loader2 } from "@tabler/icons-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { DOMErrorBoundary } from "@/components/error-boundary-dom";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 
@@ -253,7 +254,9 @@ export default function RootLayout({
 
                         <ServiceWorkerRegister />
 
-                        <ConditionalLayout>{children}</ConditionalLayout>
+                        <DOMErrorBoundary>
+                          <ConditionalLayout>{children}</ConditionalLayout>
+                        </DOMErrorBoundary>
                         <Toaster
                           position="bottom-right"
                           richColors
