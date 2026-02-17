@@ -74,7 +74,7 @@ function CommandInput({
   return (
     <div
       data-slot="command-input-wrapper"
-      className="flex items-center gap-2 border-b px-4 py-2"
+      className="flex items-center gap-2 border-b px-4 py-2 sticky top-0 z-10 bg-inherit" // Made sticky
     >
       <SearchIcon className="size-4 shrink-0 opacity-50 flex-shrink-0" />
       <CommandPrimitive.Input
@@ -154,7 +154,7 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-2 rounded-sm px-3 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 transition-[background-color,box-shadow,border-radius] duration-150 ease-in-out hover:rounded-md hover:shadow-sm hover:bg-accent/5 first:opacity-25 first:text-muted-foreground first:hover:opacity-55 first:hover:text-muted-foreground/70",
+        "relative flex cursor-default items-center gap-2 rounded-sm px-3 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 transition-[background-color,box-shadow,border-radius] duration-150 ease-in-out hover:rounded-md hover:shadow-sm hover:bg-accent/5 data-[selected='true']:bg-accent data-[selected='true']:text-accent-foreground",
         className
       )}
       {...props}

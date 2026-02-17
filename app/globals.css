@@ -255,6 +255,25 @@ button {
   letter-spacing: -0.01em;
 }
 
+/* AI Page Specific Overrides */
+/* Light Mode Hover Contrast */
+.light .hover\:bg-muted\/80:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+  /* Slightly darker for better visibility */
+}
+
+/* Dark Mode Prompt Input Accent */
+.dark .group:focus-within .ring-ring {
+  --tw-ring-color: var(--accent);
+  --tw-ring-opacity: 0.8;
+}
+
+/* Ensure prompt input in dark mode pops more */
+.dark textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent) !important;
+}
+
 .heading-sm {
   font-family: var(--font-sans);
   font-size: 1.5rem;

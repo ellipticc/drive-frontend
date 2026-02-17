@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useUser } from "@/components/user-context"
-import { IconSparkles, IconBookmark, IconRotateClockwise, IconChevronDown, IconPencil, IconTrash, IconStar, IconArrowDown } from "@tabler/icons-react"
+import { IconPlus, IconChevronLeft, IconMessage, IconSettings, IconFolder, IconSearch, IconChevronRight, IconMenu, IconX, IconEdit, IconTrash, IconChevronDown, IconStar, IconDownload, IconPencil, IconArrowDown, IconSparkles, IconRotateClockwise, IconBookmark } from "@tabler/icons-react";
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
 
@@ -1694,34 +1694,69 @@ export default function AssistantPage() {
                         </span>
                     </Button>
                     {(!isTypingTitle && displayedTitle && displayedTitle !== "New Chat") && (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/50 hover:text-foreground">
-                                    <IconChevronDown className="size-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-48">
-                                <DropdownMenuItem onClick={handleToggleStar}>
-                                    <IconStar className={cn("mr-2 size-4", isStarred ? "fill-primary text-primary" : "")} />
-                                    {isStarred ? "Unstar" : "Star"}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                    setTempTitle(chatTitle || "New Chat");
-                                    setIsRenameDialogOpen(true);
-                                }}>
-                                    <IconPencil className="mr-2 size-4" />
-                                    Rename
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    onClick={() => setIsDeleteDialogOpen(true)}
-                                    className="text-destructive focus:bg-destructive focus:text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground group/del"
-                                >
-                                    <IconTrash className="mr-2 size-4 group-hover/del:text-destructive-foreground transition-colors" />
-                                    Delete
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex items-center gap-1 ml-2">
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground">
+                                        <IconStar className={cn("size-4", isStarred ? "fill-primary text-primary" : "")} onClick={handleToggleStar} />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                    <p>{isStarred ? "Unstar" : "Star"}</p>
+                                </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground" onClick={() => {
+                                        // Simple download trigger
+                                        const blob = new Blob([messages.map(m => `${m.role.toUpperCase()}:\n${m.content}\n---\n`).join('\n')], { type: 'text/markdown' });
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = `chat-${conversationId || 'export'}.md`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        document.body.removeChild(a);
+                                        URL.revokeObjectURL(url);
+                                    }}>
+                                        <IconDownload className="size-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                    <p>Download</p>
+                                </TooltipContent>
+                            </Tooltip>
+
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/50 hover:text-foreground">
+                                        <IconChevronDown className="size-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-48">
+                                    <DropdownMenuItem onClick={handleToggleStar}>
+                                        <IconStar className={cn("mr-2 size-4", isStarred ? "fill-primary text-primary" : "")} />
+                                        {isStarred ? "Unstar" : "Star"}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => {
+                                        setTempTitle(chatTitle || "New Chat");
+                                        setIsRenameDialogOpen(true);
+                                    }}>
+                                        <IconPencil className="mr-2 size-4" />
+                                        Rename
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                        onClick={() => setIsDeleteDialogOpen(true)}
+                                        className="text-destructive focus:bg-destructive focus:text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground group/del"
+                                    >
+                                        <IconTrash className="mr-2 size-4 group-hover/del:text-destructive-foreground transition-colors" />
+                                        Delete
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     )}
                 </>
             )}

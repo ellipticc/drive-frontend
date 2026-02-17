@@ -228,8 +228,8 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
 
             {/* Message Content */}
             <div className={cn(
-                "flex flex-col flex-1 min-w-0",
-                isUser ? "items-end" : "items-start"
+                "flex flex-col min-w-0 max-w-[85%]",
+                isUser ? "items-end" : "items-start flex-1"
             )}>
                 {isUser ? (
                     // ... User Message Render ...
@@ -237,15 +237,15 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         {/* Edit Mode Overlay */}
                         <div className="relative w-full">
                             {isEditingPrompt ? (
-                                <div className="absolute inset-0 z-10 w-full h-full min-h-[120px] -m-2 p-2">
-                                    <div className="bg-background/95 backdrop-blur-sm border rounded-2xl shadow-lg p-3 h-full flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-200">
-                                        <Textarea
+                                <div className="absolute inset-0 z-10 w-full h-full -m-2 p-2">
+                                    <div className="bg-background/95 backdrop-blur-sm border rounded-2xl shadow-lg p-2 h-full flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-200">
+                                        <Input
                                             value={editContent}
                                             onChange={(e) => setEditContent(e.target.value)}
-                                            className="flex-1 bg-transparent border-none resize-none focus-visible:ring-0 p-1 text-sm leading-relaxed"
+                                            className="flex-1 bg-transparent border-none focus-visible:ring-0 p-1 text-sm h-auto"
                                             placeholder="Edit your message..."
                                             onKeyDown={(e) => {
-                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                if (e.key === 'Enter') {
                                                     e.preventDefault();
                                                     handleEditPromptSubmit();
                                                 }
@@ -259,14 +259,14 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
-                                                className="h-7 px-2"
+                                                className="h-6 px-2 text-xs"
                                                 onClick={() => setIsEditingPrompt(false)}
                                             >
                                                 Cancel
                                             </Button>
                                             <Button
                                                 size="sm"
-                                                className="h-7 px-2"
+                                                className="h-6 px-2 text-xs"
                                                 onClick={handleEditPromptSubmit}
                                             >
                                                 Save
@@ -276,75 +276,51 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                 </div>
                             ) : null}
 
-                            <div className={cn("relative flex items-start transition-all duration-200", isEditingPrompt ? "opacity-40 blur-[2px]" : "")}>
-                                {/* Message bubble (reduced padding slightly) */}
-                                <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-full selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap">
-                                    {message.content}
+                            <div className={cn("relative flex items-end justify-end transition-all duration-200", isEditingPrompt ? "opacity-40 blur-[2px]" : "")}>
+                                {/* Show timestamp and actions on LEFT of user message */}
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mr-2 self-center">
+                                    {message.createdAt && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <span className="text-[10px] text-muted-foreground cursor-default whitespace-nowrap">
+                                                    {new Date(message.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom">
+                                                <p>{new Date(message.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric' })}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
+                                    <ActionButton
+                                        icon={IconRefresh}
+                                        label="Retry"
+                                        onClick={onRetry}
+                                    />
+                                    <ActionButton
+                                        icon={IconEdit}
+                                        label="Edit"
+                                        onClick={() => setIsEditingPrompt(true)}
+                                    />
+                                    <ActionButton
+                                        icon={copied ? IconCheck : IconCopy}
+                                        label="Copy"
+                                        onClick={handleCopy}
+                                    />
+                                    {/* Continue button - shown when response was stopped by user */}
+                                    {message.content && /Stopped by user/i.test(message.content) && (
+                                        <ActionButton
+                                            icon={IconArrowRight}
+                                            label="Continue"
+                                            onClick={() => onRegenerate?.('continue')}
+                                        />
+                                    )}
                                 </div>
 
-                                {/* Bookmark overlay commented out for now (disabled per request) */}
-                                {/*
-                                    <div className="absolute left-0 right-0 -top-3 pointer-events-none">
-                                        <div className="border-t border-dashed border-border/50 w-full" />
-                                        <div className="flex justify-end pr-2 mt-0.5">
-                                            <div className="pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <button
-                                                            onClick={() => onCheckpoint?.(message.id || '')}
-                                                            className={cn("p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors")}
-                                                            aria-label="Create bookmark"
-                                                        >
-                                                            <IconBookmark className={cn("size-4", message.isCheckpoint ? 'text-primary' : '')} />
-                                                        </button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="bottom">
-                                                        <p>{message.isCheckpoint ? 'Bookmarked' : 'Create bookmark'}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    */}
+                                {/* Message bubble (w-fit) */}
+                                <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-fit selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap">
+                                    {message.content}
+                                </div>
                             </div>
-
-                            {/* Date with Tooltip */}
-                            {message.createdAt && (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <span className="text-[10px] text-muted-foreground mr-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-default">
-                                            {new Date(message.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                        </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top">
-                                        <p>{new Date(message.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric' })}</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            )}
-
-                            <ActionButton
-                                icon={IconRefresh}
-                                label="Retry"
-                                onClick={onRetry}
-                            />
-                            <ActionButton
-                                icon={IconEdit}
-                                label="Edit"
-                                onClick={() => setIsEditingPrompt(true)}
-                            />
-                            <ActionButton
-                                icon={copied ? IconCheck : IconCopy}
-                                label="Copy"
-                                onClick={handleCopy}
-                            />
-                            {/* Continue button - shown when response was stopped by user */}
-                            {message.content && /Stopped by user/i.test(message.content) && (
-                                <ActionButton
-                                    icon={IconArrowRight}
-                                    label="Continue"
-                                    onClick={() => onRegenerate?.('continue')}
-                                />
-                            )}
                         </div>
                     </>
                 ) : (
