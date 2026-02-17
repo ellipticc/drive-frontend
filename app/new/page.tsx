@@ -1671,104 +1671,104 @@ export default function AssistantPage() {
                     />
                 </div>
             ) : (
-                <>
-                    <Button
-                        variant="ghost"
-                        className={cn(
-                            "h-8 font-semibold px-2 shrink-0 max-w-[300px] sm:max-w-[400px] justify-start",
-                            isTypingTitle || displayedTitle === "New Chat"
-                                ? "cursor-default hover:bg-transparent"
-                                : "hover:bg-muted/80 dark:hover:bg-muted/50 cursor-pointer"
-                        )}
-                        onClick={() => {
-                            if (!isTypingTitle && displayedTitle !== "New Chat") {
-                                setTempTitle(displayedTitle);
-                                setIsEditingTitle(true);
-                            }
-                        }}
-                        disabled={isTypingTitle || displayedTitle === "New Chat"}
-                    >
-                        <span className="truncate">
-                            {displayedTitle}
-                            {isTypingTitle && <span className="animate-pulse ml-0.5">|</span>}
-                        </span>
-                    </Button>
-                    {(!isTypingTitle && displayedTitle && displayedTitle !== "New Chat") && (
-                        <div className="flex items-center gap-1 ml-2">
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground">
-                                        <IconStar className={cn("size-4", isStarred ? "fill-primary text-primary" : "")} onClick={handleToggleStar} />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom">
-                                    <p>{isStarred ? "Unstar" : "Star"}</p>
-                                </TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground" onClick={() => {
-                                        // Simple download trigger
-                                        const blob = new Blob([messages.map(m => `${m.role.toUpperCase()}:\n${m.content}\n---\n`).join('\n')], { type: 'text/markdown' });
-                                        const url = URL.createObjectURL(blob);
-                                        const a = document.createElement('a');
-                                        a.href = url;
-                                        a.download = `chat-${conversationId || 'export'}.md`;
-                                        document.body.appendChild(a);
-                                        a.click();
-                                        document.body.removeChild(a);
-                                        URL.revokeObjectURL(url);
-                                    }}>
-                                        <IconDownload className="size-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom">
-                                    <p>Download</p>
-                                </TooltipContent>
-                            </Tooltip>
-
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/50 hover:text-foreground">
-                                        <IconChevronDown className="size-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" className="w-48">
-                                    <DropdownMenuItem onClick={handleToggleStar}>
-                                        <IconStar className={cn("mr-2 size-4", isStarred ? "fill-primary text-primary" : "")} />
-                                        {isStarred ? "Unstar" : "Star"}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => {
-                                        setTempTitle(chatTitle || "New Chat");
-                                        setIsRenameDialogOpen(true);
-                                    }}>
-                                        <IconPencil className="mr-2 size-4" />
-                                        Rename
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                        onClick={() => setIsDeleteDialogOpen(true)}
-                                        className="text-destructive focus:bg-destructive focus:text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground group/del"
-                                    >
-                                        <IconTrash className="mr-2 size-4 group-hover/del:text-destructive-foreground transition-colors" />
-                                        Delete
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
+                <Button
+                    variant="ghost"
+                    className={cn(
+                        "h-8 font-semibold px-2 shrink-0 max-w-[300px] sm:max-w-[400px] justify-start",
+                        isTypingTitle || displayedTitle === "New Chat"
+                            ? "cursor-default hover:bg-transparent"
+                            : "hover:bg-muted/80 dark:hover:bg-muted/50 cursor-pointer"
                     )}
-                </>
+                    onClick={() => {
+                        if (!isTypingTitle && displayedTitle !== "New Chat") {
+                            setTempTitle(displayedTitle);
+                            setIsEditingTitle(true);
+                        }
+                    }}
+                    disabled={isTypingTitle || displayedTitle === "New Chat"}
+                >
+                    <span className="truncate">
+                        {displayedTitle}
+                        {isTypingTitle && <span className="animate-pulse ml-0.5">|</span>}
+                    </span>
+                </Button>
             )}
         </div>
     );
+
+    // Chat Header Actions - Star, Download, Menu (positioned on extreme right)
+    const ChatHeaderActions = (!isTypingTitle && displayedTitle && displayedTitle !== "New Chat") ? (
+        <div className="flex items-center gap-1">
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground">
+                        <IconStar className={cn("size-4", isStarred ? "fill-primary text-primary" : "")} onClick={handleToggleStar} />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                    <p>{isStarred ? "Unstar" : "Star"}</p>
+                </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground" onClick={() => {
+                        // Simple download trigger
+                        const blob = new Blob([messages.map(m => `${m.role.toUpperCase()}:\n${m.content}\n---\n`).join('\n')], { type: 'text/markdown' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `chat-${conversationId || 'export'}.md`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }}>
+                        <IconDownload className="size-4" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                    <p>Download</p>
+                </TooltipContent>
+            </Tooltip>
+
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/50 hover:text-foreground">
+                        <IconChevronDown className="size-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onClick={handleToggleStar}>
+                        <IconStar className={cn("mr-2 size-4", isStarred ? "fill-primary text-primary" : "")} />
+                        {isStarred ? "Unstar" : "Star"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                        setTempTitle(chatTitle || "New Chat");
+                        setIsRenameDialogOpen(true);
+                    }}>
+                        <IconPencil className="mr-2 size-4" />
+                        Rename
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                        onClick={() => setIsDeleteDialogOpen(true)}
+                        className="text-destructive focus:bg-destructive focus:text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground group/del"
+                    >
+                        <IconTrash className="mr-2 size-4 group-hover/del:text-destructive-foreground transition-colors" />
+                        Delete
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    ) : null;
 
     return (
         <div className="flex flex-col h-full bg-background relative overflow-x-hidden">
 
 
             {/* Header */}
-            <SiteHeader className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm" customTitle={ChatTitleHeader} />
+            <SiteHeader className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm" customTitle={ChatTitleHeader} rightContent={ChatHeaderActions} />
 
             {/* Main Content Area */}
             <div className="flex-1 relative flex flex-col overflow-hidden">
@@ -1785,6 +1785,10 @@ export default function AssistantPage() {
                             <Skeleton className="h-4 w-full animate-pulse" style={{ animationDelay: '400ms' }} />
                             <Skeleton className="h-4 w-[85%] animate-pulse" style={{ animationDelay: '100ms' }} />
                             <Skeleton className="h-4 w-full animate-pulse" style={{ animationDelay: '200ms' }} />
+                            <Skeleton className="h-4 w-[80%] animate-pulse" style={{ animationDelay: '300ms' }} />
+                            <Skeleton className="h-4 w-full animate-pulse" style={{ animationDelay: '100ms' }} />
+                            <Skeleton className="h-4 w-[75%] animate-pulse" style={{ animationDelay: '200ms' }} />
+                            <Skeleton className="h-4 w-full animate-pulse" style={{ animationDelay: '300ms' }} />
                         </div>
                     </div>
                 ) : messages.length === 0 ? (

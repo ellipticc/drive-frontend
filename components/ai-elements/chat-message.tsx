@@ -237,38 +237,38 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                         {/* Edit Mode Overlay */}
                         <div className="group relative flex flex-col items-end">
                             {isEditingPrompt ? (
-                                <div className="w-full max-w-2xl bg-background/95 backdrop-blur-sm border rounded-2xl shadow-lg p-3 flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-200">
-                                    <Input
-                                        value={editContent}
-                                        onChange={(e) => setEditContent(e.target.value)}
-                                        className="flex-1 bg-transparent border-none focus-visible:ring-0 p-1 text-sm h-auto min-h-[40px] resize-none"
-                                        placeholder="Edit your message..."
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
-                                                e.preventDefault();
-                                                handleEditPromptSubmit();
-                                            }
-                                            if (e.key === 'Escape') {
-                                                setIsEditingPrompt(false);
-                                            }
-                                        }}
-                                        autoFocus
-                                    />
-                                    <div className="flex gap-2 justify-end">
+                                <div className="w-full space-y-2">
+                                    <div className="bg-muted rounded-2xl p-4">
+                                        <Input
+                                            value={editContent}
+                                            onChange={(e) => setEditContent(e.target.value)}
+                                            className="bg-background border"
+                                            placeholder="Edit your message..."
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleEditPromptSubmit();
+                                                }
+                                                if (e.key === 'Escape') {
+                                                    setIsEditingPrompt(false);
+                                                }
+                                            }}
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div className="flex gap-2 justify-end mt-2">
                                         <Button
                                             size="sm"
-                                            variant="ghost"
-                                            className="h-7 px-3 text-xs"
+                                            variant="outline"
                                             onClick={() => setIsEditingPrompt(false)}
                                         >
                                             Cancel
                                         </Button>
                                         <Button
                                             size="sm"
-                                            className="h-7 px-3 text-xs"
                                             onClick={handleEditPromptSubmit}
                                         >
-                                            Save
+                                            Send
                                         </Button>
                                     </div>
                                 </div>

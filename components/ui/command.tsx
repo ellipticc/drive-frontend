@@ -44,6 +44,16 @@ function CommandDialog({
   commandClassName?: string
   showCloseButton?: boolean
 }) {
+  React.useEffect(() => {
+    // Prevent layout shift by forcing stable scrollbar gutter when dialog is open
+    const originalStyle = document.documentElement.style.scrollbarGutter;
+    document.documentElement.style.scrollbarGutter = 'stable';
+    
+    return () => {
+      document.documentElement.style.scrollbarGutter = originalStyle;
+    };
+  }, [props.open]);
+
   return (
     <Dialog {...props}>
       <DialogHeader className="sr-only">
