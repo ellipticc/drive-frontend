@@ -554,11 +554,13 @@ export const HorizontalRule: React.FC<{
 
 /**
  * Break Component
+ * Renders as actual <br> element instead of div for proper line breaking
+ * Especially important in table cells where semantic HTML is required
  */
 export const Break: React.FC<{
   className?: string;
 }> = ({ className }) => (
-  <div className={cn('h-2', className)} />
+  <br className={className} />
 );
 
 /**

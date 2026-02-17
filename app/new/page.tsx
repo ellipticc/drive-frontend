@@ -165,9 +165,7 @@ export default function AssistantPage() {
     React.useEffect(() => {
         if (!conversationId) {
             setChatTitle("New Chat");
-            setDisplayedTitle(""); // Hide initially
-            setIsStarred(false);
-            return;
+                setDisplayedTitle("New Chat");
         }
 
         const fetchChatDetails = async () => {
@@ -179,8 +177,8 @@ export default function AssistantPage() {
                     setChatTitle(newTitle);
                     setIsStarred(!!(currentChat as any).pinned);
 
-                    // Trigger typing effect only if transitioning from empty/New Chat to a real title
-                    if (newTitle !== "New Chat" && (displayedTitle === "" || displayedTitle === "New Chat")) {
+                    // Always display the title immediately without typing effect
+                    if (true) {
                         setIsTypingTitle(true);
                         let i = 0;
                         setDisplayedTitle("");
@@ -1765,7 +1763,7 @@ export default function AssistantPage() {
                                             <Button
                                                 variant="outline"
                                                 size="icon"
-                                                className="rounded-full shadow-md bg-background hover:bg-muted border-border/50 size-8 transition-all duration-300 animate-in fade-in zoom-in-95"
+                                                className="rounded-full shadow-md bg-background hover:bg-muted border-border/50 size-8 transition-all duration-300 animate-in fade-in zoom-in-95 opacity-100"
                                                 onClick={() => scrollToBottom()}
                                             >
                                                 <IconArrowDown className="size-4" />

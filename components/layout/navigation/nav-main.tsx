@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Kbd } from "@/components/ui/kbd"
 
 import {
   SidebarGroup,
@@ -337,7 +338,14 @@ export function NavMain({
               return (
                 <SidebarMenuItem key={item.title} className="space-y-1">
                   <SidebarMenuButton
-                    tooltip={item.title}
+                    tooltip={item.shortcut ? {
+                      children: (
+                        <div className="flex items-center gap-2">
+                          <span>{item.title}</span>
+                          <Kbd>{item.shortcut}</Kbd>
+                        </div>
+                      )
+                    } : item.title}
                     isActive={pathname === item.url}
                     onClick={(e) => {
                       if (item.url === '/vault') {
@@ -621,7 +629,14 @@ export function NavMain({
               return (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
-                    tooltip={item.title}
+                    tooltip={item.shortcut ? {
+                      children: (
+                        <div className="flex items-center gap-2">
+                          <span>{item.title}</span>
+                          <Kbd>{item.shortcut}</Kbd>
+                        </div>
+                      )
+                    } : item.title}
                     isActive={pathname === item.url}
                     onClick={() => handleNavigate(item.url)}
                     className="cursor-pointer"
