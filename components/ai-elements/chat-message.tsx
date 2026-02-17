@@ -235,102 +235,98 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                     // ... User Message Render ...
                     <>
                         {/* Edit Mode Overlay */}
-                        <div className="relative w-full">
+                        <div className="group relative flex flex-col items-end">
                             {isEditingPrompt ? (
-                                <div className="absolute inset-0 z-10 w-full h-full -m-2 p-2">
-                                    <div className="bg-background/95 backdrop-blur-sm border rounded-2xl shadow-lg p-2 h-full flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-200">
-                                        <Input
-                                            value={editContent}
-                                            onChange={(e) => setEditContent(e.target.value)}
-                                            className="flex-1 bg-transparent border-none focus-visible:ring-0 p-1 text-sm h-auto"
-                                            placeholder="Edit your message..."
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    handleEditPromptSubmit();
-                                                }
-                                                if (e.key === 'Escape') {
-                                                    setIsEditingPrompt(false);
-                                                }
-                                            }}
-                                            autoFocus
-                                        />
-                                        <div className="flex gap-2 justify-end">
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                className="h-6 px-2 text-xs"
-                                                onClick={() => setIsEditingPrompt(false)}
-                                            >
-                                                Cancel
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                className="h-6 px-2 text-xs"
-                                                onClick={handleEditPromptSubmit}
-                                            >
-                                                Save
-                                            </Button>
+                                <div className="w-full max-w-2xl bg-background/95 backdrop-blur-sm border rounded-2xl shadow-lg p-3 flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-200">
+                                    <Input
+                                        value={editContent}
+                                        onChange={(e) => setEditContent(e.target.value)}
+                                        className="flex-1 bg-transparent border-none focus-visible:ring-0 p-1 text-sm h-auto min-h-[40px] resize-none"
+                                        placeholder="Edit your message..."
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleEditPromptSubmit();
+                                            }
+                                            if (e.key === 'Escape') {
+                                                setIsEditingPrompt(false);
+                                            }
+                                        }}
+                                        autoFocus
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-7 px-3 text-xs"
+                                            onClick={() => setIsEditingPrompt(false)}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            className="h-7 px-3 text-xs"
+                                            onClick={handleEditPromptSubmit}
+                                        >
+                                            Save
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Message bubble */}
+                                    <div className={cn(
+                                        "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-fit selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap",
+                                        "bg-primary text-primary-foreground"
+                                    )}>
+                                        {message.content}
+                                    </div>
+
+                                    {/* Actions Row - Below message */}
+                                    <div className="flex items-center gap-3 mt-1 mr-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                        {/* Timestamp - Explicitly to the left of buttons */}
+                                        {message.createdAt && (
+                                            <span className="text-[10px] text-muted-foreground/60 select-none">
+                                                {new Date(message.createdAt).toLocaleString(undefined, {
+                                                    month: 'short',
+                                                    day: 'numeric',
+                                                    hour: 'numeric',
+                                                    minute: '2-digit'
+                                                })}
+                                            </span>
+                                        )}
+
+                                        <div className="flex items-center gap-1">
+                                            <ActionButton
+                                                icon={IconRefresh}
+                                                label="Retry"
+                                                onClick={onRetry}
+                                            />
+                                            <ActionButton
+                                                icon={IconEdit}
+                                                label="Edit"
+                                                onClick={() => {
+                                                    setEditContent(message.content);
+                                                    setIsEditingPrompt(true);
+                                                }}
+                                            />
+                                            <ActionButton
+                                                icon={copied ? IconCheck : IconCopy}
+                                                label="Copy"
+                                                onClick={handleCopy}
+                                            />
+                                            {message.content && /Stopped by user/i.test(message.content) && (
+                                                <ActionButton
+                                                    icon={IconArrowRight}
+                                                    label="Continue"
+                                                    onClick={() => onRegenerate?.('continue')}
+                                                    delayDuration={700}
+                                                />
+                                            )}
                                         </div>
                                     </div>
-                                </div>
-                            ) : null}
-
-                            <div className={cn("relative flex flex-col items-end transition-all duration-200", isEditingPrompt ? "opacity-40 blur-[2px]" : "")}>
-
-                                {/* Message bubble (w-fit) */}
-                                <div className={cn(
-                                    "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-fit selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap",
-                                    "bg-primary text-primary-foreground"
-                                )}>
-                                    {message.content}
-                                </div>
-
-                                {/* Actions Row - Below message, right aligned but content is flex-row */}
-                                <div className="flex items-center gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    {/* Timestamp - Leftmost of the actions row */}
-                                    {message.createdAt && (
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <span className="text-[10px] text-muted-foreground/50 cursor-default whitespace-nowrap select-none">
-                                                    {new Date(message.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                    {' • '}
-                                                    {new Date(message.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                                                </span>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="bottom">
-                                                <p>{new Date(message.createdAt).toLocaleString()}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    )}
-
-                                    <div className="flex items-center gap-1">
-                                        <ActionButton
-                                            icon={IconRefresh}
-                                            label="Retry"
-                                            onClick={onRetry}
-                                        />
-                                        <ActionButton
-                                            icon={IconEdit}
-                                            label="Edit"
-                                            onClick={() => setIsEditingPrompt(true)}
-                                        />
-                                        <ActionButton
-                                            icon={copied ? IconCheck : IconCopy}
-                                            label="Copy"
-                                            onClick={handleCopy}
-                                        />
-                                        {/* Continue button - shown when response was stopped by user */}
-                                        {message.content && /Stopped by user/i.test(message.content) && (
-                                            <ActionButton
-                                                icon={IconArrowRight}
-                                                label="Continue"
-                                                onClick={() => onRegenerate?.('continue')}
-                                            />
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                                </>
+                            )}
                         </div>
                     </>
                 ) : (
@@ -378,9 +374,6 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                 <MarkdownRenderer content={message.content} compact={false} isStreaming={isLast && !!message.isThinking} />
                             )}
                         </div>
-
-                        {/* Text Selection Menu for adding to chat */}
-                        {/* {onAddToChat && <TextSelectionMenu onAddToChat={onAddToChat} />} */}
 
                         {/* References Footer */}
                         {message.sources && message.sources.length > 0 && (
@@ -651,12 +644,12 @@ function QuickOption({ icon: Icon, label, ariaLabel, selected, onClick, disabled
     )
 }
 
-function ActionButton({ icon: Icon, label, onClick }: { icon: any, label: string, onClick?: () => void }) {
+function ActionButton({ icon: Icon, label, onClick, className, delayDuration }: { icon: any, label: string, onClick?: () => void, className?: string, delayDuration?: number }) {
     return (
         <TooltipProvider>
-            <Tooltip>
+            <Tooltip delayDuration={delayDuration}>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={onClick}>
+                    <Button variant="ghost" size="icon" className={cn("h-6 w-6 text-muted-foreground hover:text-foreground", className)} onClick={onClick}>
                         <Icon className="size-3.5" />
                     </Button>
                 </TooltipTrigger>
