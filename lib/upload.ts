@@ -1023,8 +1023,8 @@ async function initializeUploadSession(
       conflictError.conflictInfo = {
         type: 'file',
         name: actualFile.name,
-        existingPath: folderId ? `Folder ${folderId}` : 'My Files',
-        newPath: folderId ? `Folder ${folderId}` : 'My Files',
+        existingPath: folderId ? `Folder ${folderId}` : 'Vault',
+        newPath: folderId ? `Folder ${folderId}` : 'Vault',
         folderId: folderId,
         existingFileId: response.data?.existingFileId, // Get existing file ID from backend response
         isKeepBothConflict: response.data?.isKeepBothConflict === true // Flag for retry handling

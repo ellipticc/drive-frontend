@@ -116,7 +116,7 @@ export const AppSidebar = React.memo(function AppSidebar({
     } : defaultUser,
     navMain: [
       {
-        title: t("sidebar.myFiles"),
+        title: "Vault",
         url: "/vault",
         icon: IconStack2,
         id: "my-files",

@@ -18,7 +18,7 @@ interface FileBrowserProps {
     pageTitle?: string;
 }
 
-export function FileBrowser({ filterMode = 'default', pageTitle = "My Files" }: FileBrowserProps) {
+export function FileBrowser({ filterMode = 'default', pageTitle = "Vault" }: FileBrowserProps) {
     const { user } = useUser()
     const router = useRouter()
     const pathname = usePathname()

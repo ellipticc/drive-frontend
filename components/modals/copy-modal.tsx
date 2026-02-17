@@ -175,7 +175,7 @@ export function CopyModal({ children, itemId = "", itemName = "item", itemType =
                 // Add root folder
                 const rootFolder: Folder = {
                     id: "root",
-                    name: "My Files",
+                    name: "Vault",
                     parentId: null,
                     path: "/",
                     createdAt: "",
@@ -522,7 +522,7 @@ export function CopyModal({ children, itemId = "", itemName = "item", itemType =
                         <Label>Current location</Label>
                         <Badge variant="outline" className="w-fit">
                             <IconFolder className="h-3 w-3 mr-1" />
-                            My Files
+                            Vault
                         </Badge>
                     </div>
                     <div className="grid gap-2">

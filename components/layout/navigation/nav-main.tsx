@@ -89,7 +89,7 @@ export function NavMain({
   const { state, toggleSidebar } = useSidebar()
   const searchParams = useSearchParams()
 
-  // States for "My files" expansion
+  // States for "Vault" expansion
   const [isMyFilesExpanded, setIsMyFilesExpanded] = useState(() => {
     if (typeof window !== "undefined") {
       return sessionStorage.getItem("my-files-expanded") === "true"
@@ -116,7 +116,7 @@ export function NavMain({
   // const [isAttestationsLeaf, setIsAttestationsLeaf] = useState(false) // Not really used but keeps pattern
 
   // State for additional items expansion (after Photos) — default collapsed
-  const [areAdditionalItemsExpanded, setAreAdditionalItemsExpanded] = useState(false)  // always start collapsed
+  // const [areAdditionalItemsExpanded, setAreAdditionalItemsExpanded] = useState(false)  // always start collapsed
 
   const fetchRootFolders = useCallback(async () => {
     if (hasLoadedRoot) return
@@ -175,16 +175,6 @@ export function NavMain({
     setIsMyFilesExpanded(next)
     sessionStorage.setItem("my-files-expanded", String(next))
   }
-
-  const toggleAdditionalItems = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    const next = !areAdditionalItemsExpanded
-    setAreAdditionalItemsExpanded(next)
-  }
-
-  // attestations UI removed; toggle handler removed
 
   // Helper function for sub-item icons (active state filled)
   // This helps us avoid passing 'filled' icons in the data structure
@@ -249,94 +239,10 @@ export function NavMain({
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
           {items.map((item, index) => {
-            // Find the photos item index
-            const photosIndex = items.findIndex(item => item.id === 'photos');
-            const isAfterPhotos = photosIndex !== -1 && index > photosIndex;
-
-            // Add the More/Less button right after photos
-            if (item.id === 'photos') {
-              return (
-                <Fragment key={item.title}>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      tooltip={item.title}
-                      isActive={pathname === item.url}
-                      onClick={() => handleNavigate(item.url)}
-                      className="cursor-pointer"
-                      data-space-id={item.id}
-                      data-space-name={item.title}
-                    >
-                      {(() => {
-                        const isActive = pathname === item.url
-                        const IconComponent = getIcon(item, isActive)
-                        return IconComponent && <IconComponent />
-                      })()}
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  {/* More/Less button */}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      onClick={toggleAdditionalItems}
-                      className={cn(
-                        "cursor-pointer text-muted-foreground hover:text-foreground transition-colors",
-                        state === "collapsed" && "justify-center"
-                      )}
-                      tooltip={areAdditionalItemsExpanded ? "Show less" : "Show more"}
-                    >
-                      {areAdditionalItemsExpanded ? (
-                        <IconChevronUp className="shrink-0 size-4" />
-                      ) : (
-                        <IconChevronDown className="shrink-0 size-4" />
-                      )}
-                      <span className={cn(
-                        "text-sm",
-                        state === "collapsed" && "sr-only"
-                      )}>
-                        {areAdditionalItemsExpanded ? "Less" : "More"}
-                      </span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </Fragment>
-              );
-            }
-
-            // For items after photos, use smooth transitions
-            if (isAfterPhotos) {
-              return (
-                <SidebarMenuItem
-                  key={item.title}
-                  className={cn(
-                    "transition-all duration-300 ease-in-out overflow-hidden",
-                    areAdditionalItemsExpanded
-                      ? "max-h-12 opacity-100"
-                      : "max-h-0 opacity-0 pointer-events-none"
-                  )}
-                >
-                  <SidebarMenuButton
-                    tooltip={item.title}
-                    isActive={pathname === item.url}
-                    onClick={() => handleNavigate(item.url)}
-                    className="cursor-pointer"
-                  >
-                    {(() => {
-                      const isActive = pathname === item.url
-                      const IconComponent = getIcon(item, isActive) as any
-                      return IconComponent && <IconComponent />
-                    })()}
-                    <span>{item.title}</span>
-                    {item.badge && item.badge > 0 && (
-                      <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-[4px] bg-primary px-0.5 text-[11px] font-semibold text-primary-foreground">
-                        {item.badge}
-                      </span>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              );
-            }
+            // Handle "Vault" with folder expansion
             if (item.id === 'my-files') {
               return (
-                <SidebarMenuItem key={item.title} className="space-y-1">
+                <SidebarMenuItem key={item.id || item.title} className="space-y-1">
                   <SidebarMenuButton
                     tooltip={item.shortcut ? {
                       children: (
@@ -359,7 +265,7 @@ export function NavMain({
                     }}
                     className="cursor-pointer group/nav-item pr-8"
                     data-space-id="root"
-                    data-space-name={t("sidebar.myFiles")}
+                    data-space-name="Vault"
                   >
                     {(() => {
                       const isActive = pathname === item.url
@@ -486,7 +392,7 @@ export function NavMain({
               const currentConversationId = searchParams.get('conversationId');
 
               return (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.id || item.title}>
                   <SidebarMenuButton
                     onClick={() => handleNavigate('/new')}
                     tooltip={item.title}
@@ -627,7 +533,7 @@ export function NavMain({
 
             if (item.id === 'trash') {
               return (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.id || item.title}>
                   <SidebarMenuButton
                     tooltip={item.shortcut ? {
                       children: (
@@ -660,7 +566,7 @@ export function NavMain({
 
             if (item.id === "settings") {
               return (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.id || item.title}>
                   <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'}>
                     {(() => {
                       const IconComponent = getIcon(item, false) as any
@@ -674,7 +580,7 @@ export function NavMain({
 
             // Default item rendering
             return (
-              <SidebarMenuItem key={item.title}>
+              <SidebarMenuItem key={item.id || item.title}>
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={pathname === item.url}
@@ -690,16 +596,9 @@ export function NavMain({
                   })()}
                   <span>{item.title}</span>
                   {item.badge !== undefined && item.badge > 0 && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-[4px] bg-primary px-0.5 text-[11px] font-semibold text-primary-foreground">
-                          {item.badge}
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">
-                        {item.badge} pending invitation{item.badge !== 1 ? 's' : ''}
-                      </TooltipContent>
-                    </Tooltip>
+                    <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-[4px] bg-primary px-0.5 text-[11px] font-semibold text-primary-foreground">
+                      {item.badge}
+                    </span>
                   )}
                 </SidebarMenuButton>
               </SidebarMenuItem>

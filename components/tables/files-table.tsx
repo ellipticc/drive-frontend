@@ -427,7 +427,7 @@ export const Table01DividerLineSm = ({
         }
     }, [filterMode]);
 
-    const [folderPath, setFolderPath] = useState<Array<{ id: string, name: string }>>([{ id: 'root', name: t('sidebar.myFiles') }]);
+    const [folderPath, setFolderPath] = useState<Array<{ id: string, name: string }>>([{ id: 'root', name: 'Vault' }]);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const isNavigatingRef = useRef(false);
 
@@ -436,7 +436,7 @@ export const Table01DividerLineSm = ({
         setFolderPath(prev => {
             if (prev.length > 0 && prev[0].id === 'root') {
                 const newPath = [...prev];
-                newPath[0] = { ...newPath[0], name: t('sidebar.myFiles') };
+                newPath[0] = { ...newPath[0], name: 'Vault' };
                 return newPath;
             }
             return prev;
@@ -840,7 +840,7 @@ export const Table01DividerLineSm = ({
         }
 
         // --- Optimistic Update ---
-        const newPath = [{ id: 'root', name: t('sidebar.myFiles') }];
+        const newPath = [{ id: 'root', name: 'Vault' }];
         let needsFetch = false;
 
         if (urlSegments.length === 0) {
@@ -876,7 +876,7 @@ export const Table01DividerLineSm = ({
         // --- Fetch Missing Data using getFolderPath API ---
         const resolvePath = async () => {
             try {
-                const resolvedPath = [{ id: 'root', name: t('sidebar.myFiles') }];
+                const resolvedPath = [{ id: 'root', name: 'Vault' }];
 
                 // Use getFolderPath API to get the full path in a single request
                 const pathResponse = await apiClient.getFolderPath(urlLastId);
@@ -937,7 +937,7 @@ export const Table01DividerLineSm = ({
             } catch (err) {
                 router.replace('/', { scroll: false });
                 setCurrentFolderId('root');
-                setFolderPath([{ id: 'root', name: t('sidebar.myFiles') }]);
+                setFolderPath([{ id: 'root', name: 'Vault' }]);
                 setIsInitialLoad(false);
             }
         };
@@ -1415,7 +1415,7 @@ export const Table01DividerLineSm = ({
                         if (currentFetchId === fetchIdRef.current) {
                             router.replace('/', { scroll: false });
                             setCurrentFolderId('root');
-                            setFolderPath([{ id: 'root', name: 'My Files' }]);
+                            setFolderPath([{ id: 'root', name: 'Vault' }]);
                         }
                     }, 2000);
                 } else {
