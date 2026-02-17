@@ -112,6 +112,8 @@ interface EnhancedPromptInputProps {
     systemTokens?: number;
     toolDefinitionTokens?: number;
     messageTokens?: number;
+    userMessageTokens?: number;
+    assistantMessageTokens?: number;
     toolResultTokens?: number;
 }
 
@@ -282,6 +284,8 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                             systemTokens={systemTokens}
                             toolDefinitionTokens={toolDefinitionTokens}
                             messageTokens={messageTokens}
+                            userMessageTokens={userMessageTokens}
+                            assistantMessageTokens={assistantMessageTokens}
                             toolResultTokens={toolResultTokens}
                         >
                             <ContextTrigger />

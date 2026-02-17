@@ -1801,10 +1801,12 @@ export default function AssistantPage() {
                                             <Button
                                                 variant="outline"
                                                 size="icon"
-                                                className="rounded-full shadow-md bg-background hover:bg-muted border-border/50 size-8 transition-all duration-300 animate-in fade-in zoom-in-95 opacity-100"
+                                                className="rounded-full shadow-md bg-background hover:bg-muted border-border/50 size-8 transition-all duration-300 animate-in fade-in zoom-in-95 opacity-100 dark:bg-muted/80 dark:border-border/60 text-foreground ring-1 ring-border/10"
                                                 onClick={() => scrollToBottom()}
+                                                aria-label="Scroll to bottom"
+                                                title="Scroll to bottom"
                                             >
-                                                <IconArrowDown className="size-4" />
+                                                <IconArrowDown className="size-4 text-foreground" />
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent side="top">Scroll to bottom</TooltipContent>
@@ -1830,6 +1832,8 @@ export default function AssistantPage() {
                                         systemTokens={contextBreakdown?.systemTokens || 0}
                                         toolDefinitionTokens={contextBreakdown?.toolDefinitionTokens || 0}
                                         messageTokens={contextBreakdown?.messageTokens || 0}
+                                        userMessageTokens={contextBreakdown?.userMessageTokens || 0}
+                                        assistantMessageTokens={contextBreakdown?.assistantMessageTokens || 0}
                                         toolResultTokens={contextBreakdown?.toolResultTokens || 0}
                                     />
                                     {/* Disclaimer Text */}

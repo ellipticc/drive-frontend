@@ -30,6 +30,8 @@ interface ContextSchema {
   systemTokens?: number;
   toolDefinitionTokens?: number;
   messageTokens?: number;
+  userMessageTokens?: number;
+  assistantMessageTokens?: number;
   toolResultTokens?: number;
 }
 
@@ -55,6 +57,8 @@ export const Context = ({
   systemTokens,
   toolDefinitionTokens,
   messageTokens,
+  userMessageTokens,
+  assistantMessageTokens,
   toolResultTokens,
   ...props
 }: ContextProps) => {
@@ -67,6 +71,8 @@ export const Context = ({
       systemTokens,
       toolDefinitionTokens,
       messageTokens,
+      userMessageTokens,
+      assistantMessageTokens,
       toolResultTokens,
     }),
     [
@@ -83,7 +89,7 @@ export const Context = ({
 
   return (
     <ContextContext.Provider value={contextValue}>
-      <HoverCard closeDelay={0} openDelay={0} {...props} />
+      <HoverCard closeDelay={400} openDelay={150} {...props} />
     </ContextContext.Provider>
   );
 };
@@ -160,7 +166,7 @@ export const ContextContent = ({
   ...props
 }: ContextContentProps) => (
   <HoverCardContent
-    className={cn("min-w-60 divide-y overflow-hidden p-0", className)}
+    className={cn("min-w-60 divide-y overflow-hidden p-0 select-text", className)}
     {...props}
   />
 );
@@ -450,6 +456,8 @@ export const ContextWindowBreakdown = ({
     systemTokens = 0,
     toolDefinitionTokens = 0,
     messageTokens = 0,
+    userMessageTokens = 0,
+    assistantMessageTokens = 0,
     toolResultTokens = 0,
     maxTokens,
   } = useContextValue();
@@ -504,13 +512,31 @@ export const ContextWindowBreakdown = ({
           </div>
         )}
 
-        {/* Messages */}
+        {/* Messages (total + breakdown) */}
         {messageTokens > 0 && (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">• Messages</span>
-            <span className="font-mono">
-              {calculatePercent(messageTokens).toFixed(1)}%
-            </span>
+          <div className="space-y-1 w-full">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">• Messages</span>
+              <span className="font-mono">{calculatePercent(messageTokens).toFixed(1)}% · {new Intl.NumberFormat('en-US',{notation: 'compact'}).format(messageTokens)}</span>
+            </div>
+
+            <div className="ml-3 space-y-0.5">
+              {/** User messages */}
+              {userMessageTokens > 0 && (
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-muted-foreground">— User messages</span>
+                  <span className="font-mono">{calculatePercent(userMessageTokens).toFixed(1)}% · {new Intl.NumberFormat('en-US',{notation: 'compact'}).format(userMessageTokens)}</span>
+                </div>
+              )}
+
+              {/** Assistant messages */}
+              {assistantMessageTokens > 0 && (
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-muted-foreground">— Assistant messages</span>
+                  <span className="font-mono">{calculatePercent(assistantMessageTokens).toFixed(1)}% · {new Intl.NumberFormat('en-US',{notation: 'compact'}).format(assistantMessageTokens)}</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

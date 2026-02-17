@@ -6,7 +6,9 @@
 export interface ContextBreakdown {
   systemTokens: number;
   toolDefinitionTokens: number;
-  messageTokens: number;
+  messageTokens: number; // total messages (user + assistant)
+  userMessageTokens: number; // tokens from user messages
+  assistantMessageTokens: number; // tokens from assistant messages
   toolResultTokens: number;
   totalUsed: number;
   percentage: number;
@@ -103,10 +105,17 @@ export function calculateContextBreakdown(
     ? estimateTokens(JSON.stringify(tools))
     : 0;
   
-  // 3. Message tokens (from conversation history)
-  const messageTokens = messages.reduce((total, msg) => {
-    return total + estimateTokens(msg.content);
-  }, 0);
+  // 3. Message tokens (from conversation history) - split by role
+  let messageTokens = 0;
+  let userMessageTokens = 0;
+  let assistantMessageTokens = 0;
+
+  for (const msg of messages) {
+    const t = estimateTokens(msg.content);
+    messageTokens += t;
+    if (msg.role === 'user') userMessageTokens += t;
+    else if (msg.role === 'assistant') assistantMessageTokens += t;
+  }
   
   // 4. Tool results tokens (estimate from any tool calls)
   const toolResultTokens = messages.reduce((total, msg) => {
@@ -126,6 +135,8 @@ export function calculateContextBreakdown(
     systemTokens,
     toolDefinitionTokens,
     messageTokens,
+    userMessageTokens,
+    assistantMessageTokens,
     toolResultTokens,
     totalUsed,
     percentage: Math.min(percentage, 100),
