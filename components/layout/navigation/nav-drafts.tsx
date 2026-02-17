@@ -11,6 +11,7 @@ import {
     SidebarMenuButton,
     useSidebar,
 } from "@/components/ui/sidebar"
+import { Kbd } from "@/components/ui/kbd"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { apiClient, FileItem } from "@/lib/api"
 import { decryptFilename } from "@/lib/crypto"
@@ -131,9 +132,11 @@ export function NavDrafts({ item }: { item: any }) {
             >
                 {item.icon && <item.icon />}
                 <span>{item.title}</span>
-                <kbd className="pointer-events-none ml-auto h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/nav-item:opacity-100 transition-opacity sm:inline-flex">
-                    D
-                </kbd>
+                {state !== 'collapsed' && (
+                    <div className="ms-auto opacity-0 group-hover/nav-item:opacity-100 transition-opacity">
+                        <Kbd>{item.shortcut || 'D'}</Kbd>
+                    </div>
+                )}
 
                 {!isLeaf && state !== 'collapsed' && (
                     <div

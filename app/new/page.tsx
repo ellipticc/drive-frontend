@@ -72,6 +72,7 @@ export default function AssistantPage() {
     const searchParams = useSearchParams()
 
     const [messages, setMessages] = React.useState<Message[]>([])
+    const [isInitialLoading, setIsInitialLoading] = React.useState(false)
     const [isLoading, setIsLoading] = React.useState(false)
     const [isContentReady, setIsContentReady] = React.useState(false)
     const [isCancelling, setIsCancelling] = React.useState(false);
@@ -289,7 +290,7 @@ export default function AssistantPage() {
         }
 
         if (conversationId) {
-            setIsLoading(true);
+            setIsInitialLoading(true);
             setMessages([]); // Clear previous messages while loading
             decryptHistory(conversationId)
                 .then((msgs: Message[]) => {
@@ -317,7 +318,7 @@ export default function AssistantPage() {
                     console.error("History load error:", err);
                     router.push('/new');
                 })
-                .finally(() => setIsLoading(false));
+                .finally(() => setIsInitialLoading(false));
         } else {
             // New Chat
             setChatTitle('New Chat');
@@ -347,7 +348,7 @@ export default function AssistantPage() {
 
     // Track content readiness - production-grade rendering detection
     React.useEffect(() => {
-        if (!isLoading && messages.length > 0) {
+        if (!isInitialLoading && messages.length > 0) {
             // Use MutationObserver and ResizeObserver to detect actual rendering completion
             const messagesContainer = scrollContainerRef.current;
             if (!messagesContainer) {
@@ -411,13 +412,13 @@ export default function AssistantPage() {
                 observer.disconnect();
                 resizeObserver.disconnect();
             };
-        } else if (!isLoading && messages.length === 0 && !conversationId) {
+        } else if (!isInitialLoading && messages.length === 0 && !conversationId) {
             // New chat is ready immediately
             setIsContentReady(true);
         } else {
             setIsContentReady(false);
         }
-    }, [isLoading, messages.length, conversationId]);
+    }, [isInitialLoading, messages.length, conversationId]);
 
     // Keyboard shortcut: Esc to stop active generation
     React.useEffect(() => {
@@ -908,6 +909,28 @@ export default function AssistantPage() {
                                     );
                                     contentToAppend = decrypted;
                                     currentSessionKey = sessionKey;
+                                } else if (data.encrypted_suggestions && data.suggestions_iv) {
+                                    // Decrypt suggestions if they come encrypted
+                                    const { decrypted, sessionKey } = await decryptStreamChunk(
+                                        data.encrypted_suggestions,
+                                        data.suggestions_iv,
+                                        data.encapsulated_key,
+                                        currentSessionKey
+                                    );
+                                    currentSessionKey = sessionKey;
+                                    currentSuggestions = JSON.parse(decrypted);
+                                    setMessages(prev => {
+                                        const newMessages = [...prev];
+                                        const lastIdx = newMessages.length - 1;
+                                        const lastMessage = newMessages[lastIdx];
+                                        if (lastMessage && lastMessage.role === 'assistant') {
+                                            newMessages[lastIdx] = {
+                                                ...lastMessage,
+                                                suggestions: currentSuggestions
+                                            };
+                                        }
+                                        return newMessages;
+                                    });
                                 } else if (data.suggestions) {
                                     currentSuggestions = data.suggestions; // Update local tracker
                                     setMessages(prev => {
@@ -1035,6 +1058,17 @@ export default function AssistantPage() {
                                 );
                                 contentToAppend = decrypted;
                                 currentSessionKey = sessionKey;
+                            } else if (data.encrypted_suggestions && data.suggestions_iv) {
+                                // Decrypt suggestions if they come encrypted in final buffer
+                                const { decrypted, sessionKey } = await decryptStreamChunk(
+                                    data.encrypted_suggestions,
+                                    data.suggestions_iv,
+                                    data.encapsulated_key,
+                                    currentSessionKey
+                                );
+                                currentSessionKey = sessionKey;
+                                currentSuggestions = JSON.parse(decrypted);
+                                console.log('[Stream] Found encrypted suggestions in final buffer');
                             } else if (data.suggestions) {
                                 currentSuggestions = data.suggestions; // Update local tracker
                                 console.log('[Stream] Found suggestions in final buffer');
@@ -1691,8 +1725,8 @@ export default function AssistantPage() {
             {/* Main Content Area */}
             <div className="flex-1 relative flex flex-col overflow-hidden">
 
-                {isLoading || (!isContentReady && messages.length === 0) ? (
-                    // LOADING SKELETON - Simple pulsating paragraph
+                {isInitialLoading || (!isContentReady && messages.length === 0) ? (
+                    // LOADING SKELETON - Simple pulsating paragraph (only on initial load)
                     <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth">
                         <div className="max-w-4xl mx-auto space-y-2">
                             {/* Pulsating skeleton lines - simulating paragraph text */}

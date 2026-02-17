@@ -29,6 +29,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import { Kbd } from "@/components/ui/kbd"
 import {
   CommandDialog,
   CommandEmpty,
@@ -289,17 +291,38 @@ export const AppSidebar = React.memo(function AppSidebar({
         <SidebarMenu className="mt-3 mb-1">
           <NavNew />
           <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => setSearchOpen(true)}
-              tooltip="Search Chats (Ctrl+K)"
-              className="relative group/menu-button"
-            >
-              <IconSearch className="size-4 shrink-0" />
-              <span>Search</span>
-              <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-60 transition-opacity group-data-[collapsible=icon]:hidden sm:flex">
-                <span className="text-[10px]">Ctrl</span>K
-              </kbd>
-            </SidebarMenuButton>
+            {state === 'collapsed' ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SidebarMenuButton
+                    onClick={() => setSearchOpen(true)}
+                    className="size-8 justify-center p-0"
+                  >
+                    <IconSearch className="size-4 shrink-0" />
+                  </SidebarMenuButton>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <div className="flex items-center gap-1">
+                    Search Chats
+                    <Kbd>
+                      <span className="text-[10px]">Ctrl</span>K
+                    </Kbd>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <SidebarMenuButton
+                onClick={() => setSearchOpen(true)}
+                tooltip="Search Chats (Ctrl+K)"
+                className="relative group/menu-button"
+              >
+                <IconSearch className="size-4 shrink-0" />
+                <span>Search</span>
+                <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-60 transition-opacity group-data-[collapsible=icon]:hidden sm:flex">
+                  <span className="text-[10px]">Ctrl</span>K
+                </kbd>
+              </SidebarMenuButton>
+            )}
           </SidebarMenuItem>
         </SidebarMenu>
 
