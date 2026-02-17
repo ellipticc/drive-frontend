@@ -128,22 +128,22 @@ export function NavAssistant({ item }: NavAssistantProps) {
         onClick={() => handleNavigate("/new")}
         tooltip={item.title}
         isActive={isAssistantActive && !currentConversationId && isAssistantExpanded}
-        className="group/assist-btn"
+        className="group/assist-btn pr-8"
       >
         {item.icon && <item.icon />}
         <span>{item.title}</span>
-        <div
-          role="button"
-          onClick={handleAssistantToggle}
-          className="ml-auto p-1 rounded-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-        >
-          {isAssistantExpanded ? (
-            <IconFolderOpen className="size-4" />
-          ) : (
-            <IconFolder className="size-4" />
-          )}
-        </div>
       </SidebarMenuButton>
+      <div
+        role="button"
+        onClick={handleAssistantToggle}
+        className="absolute right-1 top-1.5 p-1 rounded-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors z-20 cursor-pointer text-sidebar-foreground"
+      >
+        {isAssistantExpanded ? (
+          <IconFolderOpen className="size-4" />
+        ) : (
+          <IconFolder className="size-4" />
+        )}
+      </div>
 
       {isAssistantExpanded && (
         <SidebarMenuSub className="ml-3.5 border-l border-border/50">
