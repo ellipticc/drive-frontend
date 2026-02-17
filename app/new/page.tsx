@@ -90,7 +90,7 @@ export default function AssistantPage() {
     const isLoadingOlderRef = React.useRef(false)
     const hasScrolledRef = React.useRef(false);
     const shouldAutoScrollRef = React.useRef(true);
-    
+
     const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats, chats, renameChat, deleteChat } = useAICrypto();
 
     // Available models for system rerun popovers
@@ -1763,11 +1763,18 @@ export default function AssistantPage() {
                         >
                             {/* Standard List Rendering */}
                             <div className="flex flex-col items-center w-full min-h-full">
-                                {messages.map((message, index) => (
+                                {messages.map((message, index) => {
+                                    // Determine spacing: more gap between follow-ups (assistant) and user prompt, less between user prompt and assistant response
+                                    const isUserMsg = message.role === 'user';
+                                    const nextMsg = messages[index + 1];
+                                    const isFollowedByAssistant = nextMsg?.role === 'assistant';
+                                    const spacing = isUserMsg && isFollowedByAssistant ? 'mb-1' : 'mb-4';
+                                    
+                                    return (
                                     <div
                                         key={message.id || index}
                                         id={`message-${message.id}`}
-                                        className="w-full flex justify-center mb-2 animate-in fade-in duration-300"
+                                        className={cn("w-full flex justify-center animate-in fade-in duration-300", spacing)}
                                     >
                                         <div className="w-full max-w-3xl">
                                             {message.isCheckpoint ? (
@@ -1813,7 +1820,8 @@ export default function AssistantPage() {
                                             )}
                                         </div>
                                     </div>
-                                ))
+                                    );
+                                })
                                 }
                                 {/* Scroll Anchor */}
                                 <div ref={scrollEndRef} className="h-1 w-full" />

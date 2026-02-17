@@ -13,6 +13,7 @@ import {
   IconDeviceMobile,
   IconBrightnessFilled,
 } from "@tabler/icons-react"
+import { cn } from "@/lib/utils"
 
 import {
   Avatar,
@@ -166,7 +167,7 @@ export function NavUser({
 
   return (
     <>
-      <SidebarMenu>
+      <SidebarMenu className={cn(state === 'collapsed' ? 'sticky bottom-0' : '')}>
         <SidebarMenuItem>
           <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             {state === 'collapsed' ? (

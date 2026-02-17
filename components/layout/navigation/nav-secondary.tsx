@@ -81,11 +81,10 @@ export function NavSecondary({
   }
 
   return (
-    <SidebarGroup {...props} className={cn("p-0", props.className)}>
+    <SidebarGroup {...props} className={cn("p-0", state === 'collapsed' ? 'sticky bottom-0' : '', props.className)}>
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => {
-            const collapsedTooltipLabel = item.id === 'feedback' ? `${item.title} (F)` : item.id === 'help' ? `${item.title} (H)` : item.id === 'settings' ? `${item.title} (S)` : item.title;
             return (
               <SidebarMenuItem key={item.title}>
                 {item.id === "help" ? (
@@ -103,7 +102,12 @@ export function NavSecondary({
                             </SidebarMenuButton>
                           </DropdownMenuTrigger>
                         </TooltipTrigger>
-                        <TooltipContent side="right">{item.title}</TooltipContent>
+                        <TooltipContent side="right">
+                          <div className="flex items-center gap-1">
+                            {item.title}
+                            {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
+                          </div>
+                        </TooltipContent>
                       </Tooltip>
                     ) : (
                       <DropdownMenuTrigger asChild>
@@ -176,7 +180,12 @@ export function NavSecondary({
                           <span className="sr-only">{item.title}</span>
                         </SidebarMenuButton>
                       </TooltipTrigger>
-                      <TooltipContent side="right">{collapsedTooltipLabel}</TooltipContent>
+                      <TooltipContent side="right">
+                        <div className="flex items-center gap-1">
+                          {item.title}
+                          {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
+                        </div>
+                      </TooltipContent>
                     </Tooltip>
                   ) : (
                     <SidebarMenuButton
@@ -185,7 +194,7 @@ export function NavSecondary({
                         window.location.hash = `#settings/${tab}`;
                       }}
                       isActive={settingsOpen}
-                      className="pr-8"
+                      className="pr-8 group/nav"
                     >
                       {(() => {
                         const IconComponent = getIcon(item, settingsOpen)
@@ -193,7 +202,7 @@ export function NavSecondary({
                       })()}
                       <span>{item.title}</span>
                       {item.shortcut && (
-                        <div className="ms-auto opacity-0 group-hover:opacity-60 transition-opacity">
+                        <div className="ms-auto opacity-0 group-hover/nav:opacity-60 transition-opacity">
                           <Kbd>{item.shortcut}</Kbd>
                         </div>
                       )}
@@ -213,7 +222,12 @@ export function NavSecondary({
                           </SidebarMenuButton>
                         </TooltipTrigger>
                       </FeedbackPopover>
-                      <TooltipContent side="right">{collapsedTooltipLabel}</TooltipContent>
+                      <TooltipContent side="right">
+                        <div className="flex items-center gap-1">
+                          {item.title}
+                          {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
+                        </div>
+                      </TooltipContent>
                     </Tooltip>
                   ) : (
                     <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
