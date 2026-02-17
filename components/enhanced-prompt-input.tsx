@@ -30,6 +30,13 @@ import {
     ModelSelectorName,
     ModelSelectorTrigger,
 } from "@/components/ai-elements/model-selector"
+import {
+    Context,
+    ContextTrigger,
+    ContextContent,
+    ContextContentHeader,
+    ContextWindowBreakdown,
+} from "@/components/ai-elements/context"
 import { Square } from "lucide-react";
 
 interface AttachedFile {
@@ -98,6 +105,14 @@ interface EnhancedPromptInputProps {
     onModelChange?: (model: string) => void;
     contextItems?: Array<{ id: string; type: 'text' | 'code'; content: string }>;
     onRemoveContextItem?: (id: string) => void;
+    // Context window tracking (only show indicator if conversationId is present)
+    conversationId?: string;
+    maxContextTokens?: number;
+    usedContextTokens?: number;
+    systemTokens?: number;
+    toolDefinitionTokens?: number;
+    messageTokens?: number;
+    toolResultTokens?: number;
 }
 
 export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
@@ -107,7 +122,14 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     model: externalModel,
     onModelChange,
     contextItems = [],
-    onRemoveContextItem
+    onRemoveContextItem,
+    conversationId,
+    maxContextTokens = 128000,
+    usedContextTokens = 0,
+    systemTokens = 0,
+    toolDefinitionTokens = 0,
+    messageTokens = 0,
+    toolResultTokens = 0,
 }) => {
     const [message, setMessage] = useState("");
     const [files, setFiles] = useState<AttachedFile[]>([]);
@@ -250,6 +272,26 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                 "flex flex-col mx-2 md:mx-0 items-stretch transition-all duration-200 relative z-10 rounded-2xl border border-border/20 bg-muted/15",
                 isLoading && "opacity-60 pointer-events-none"
             )}>
+
+                {/* Context Window Indicator (Top-Right) */}
+                {conversationId && usedContextTokens > 0 && (
+                    <div className="absolute top-3 right-4 z-20">
+                        <Context
+                            usedTokens={usedContextTokens}
+                            maxTokens={maxContextTokens}
+                            systemTokens={systemTokens}
+                            toolDefinitionTokens={toolDefinitionTokens}
+                            messageTokens={messageTokens}
+                            toolResultTokens={toolResultTokens}
+                        >
+                            <ContextTrigger />
+                            <ContextContent className="w-64">
+                                <ContextContentHeader />
+                                <ContextWindowBreakdown />
+                            </ContextContent>
+                        </Context>
+                    </div>
+                )}
 
                 <div className="flex flex-col px-4 pt-4 pb-3 gap-2">
 
