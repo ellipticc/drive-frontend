@@ -73,6 +73,7 @@ export default function AssistantPage() {
 
     const [messages, setMessages] = React.useState<Message[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
+    const [isContentReady, setIsContentReady] = React.useState(false)
     const [isCancelling, setIsCancelling] = React.useState(false);
     const [isFeedbackModalOpen, setIsFeedbackModalOpen] = React.useState(false);
     const [feedbackMessageId, setFeedbackMessageId] = React.useState<string>("");
@@ -255,23 +256,29 @@ export default function AssistantPage() {
     React.useEffect(() => {
         if (typeof window !== 'undefined') {
             let title = 'New Chat | Ellipticc';
-            let chatTitle = 'New Chat';
+            let chatTitleToSet: string | null = null;
 
             if (conversationId) {
                 const currentChat = chats.find(chat => chat.id === conversationId);
                 if (currentChat) {
                     title = `${currentChat.title} | Ellipticc`;
-                    chatTitle = currentChat.title;
-                } else {
-                    title = 'Chat | Ellipticc';
-                    chatTitle = 'Chat';
+                    chatTitleToSet = currentChat.title;
                 }
+                // Don't default to 'Chat' - let the API fetch handle it
+            } else {
+                title = 'New Chat | Ellipticc';
+                chatTitleToSet = 'New Chat';
             }
 
             document.title = title;
-            setChatTitle(chatTitle);
-            if (!displayedTitle || displayedTitle === "") { // Only update if empty to avoid jumping
-                setDisplayedTitle(chatTitle);
+            
+            // Only update chatTitle if we have a new value from chats array
+            // Otherwise keep what was set by the API fetch
+            if (chatTitleToSet) {
+                setChatTitle(chatTitleToSet);
+                if (!displayedTitle || displayedTitle === "") {
+                    setDisplayedTitle(chatTitleToSet);
+                }
             }
         }
     }, [conversationId, chats]);
@@ -341,6 +348,80 @@ export default function AssistantPage() {
             setContextBreakdown(null);
         }
     }, [messages, model, conversationId]);
+
+    // Track content readiness - production-grade rendering detection
+    React.useEffect(() => {
+        if (!isLoading && messages.length > 0) {
+            // Use MutationObserver and ResizeObserver to detect actual rendering completion
+            const messagesContainer = scrollContainerRef.current;
+            if (!messagesContainer) {
+                setIsContentReady(true);
+                return;
+            }
+
+            let renderStabilityTimer: NodeJS.Timeout | null = null;
+            let lastMutationTime = Date.now();
+            const STABILITY_THRESHOLD = 100; // Wait 100ms without mutations to consider rendering complete
+            
+            const clearStabilityTimer = () => {
+                if (renderStabilityTimer) {
+                    clearTimeout(renderStabilityTimer);
+                    renderStabilityTimer = null;
+                }
+            };
+
+            const scheduleStabilityCheck = () => {
+                clearStabilityTimer();
+                lastMutationTime = Date.now();
+                
+                renderStabilityTimer = setTimeout(() => {
+                    // Verify all message elements exist and have content
+                    const messageElements = messagesContainer.querySelectorAll('[id^="message-"]');
+                    if (messageElements.length === messages.length) {
+                        setIsContentReady(true);
+                        observer.disconnect();
+                        resizeObserver.disconnect();
+                    }
+                }, STABILITY_THRESHOLD);
+            };
+
+            // MutationObserver to detect DOM changes
+            const observer = new MutationObserver(() => {
+                scheduleStabilityCheck();
+            });
+
+            // ResizeObserver to detect layout changes
+            const resizeObserver = new ResizeObserver(() => {
+                scheduleStabilityCheck();
+            });
+
+            // Start observing
+            observer.observe(messagesContainer, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                characterData: true,
+                attributeFilter: ['class', 'style', 'data-state'],
+            });
+
+            resizeObserver.observe(messagesContainer);
+
+            // Initial stability check after a short delay to let React render
+            scheduleStabilityCheck();
+
+            // Cleanup
+            return () => {
+                clearStabilityTimer();
+                observer.disconnect();
+                resizeObserver.disconnect();
+            };
+        } else if (!isLoading && messages.length === 0 && !conversationId) {
+            // New chat is ready immediately
+            setIsContentReady(true);
+        } else {
+            setIsContentReady(false);
+        }
+    }, [isLoading, messages.length, conversationId]);
 
     // Keyboard shortcut: Esc to stop active generation
     React.useEffect(() => {
@@ -1595,7 +1676,7 @@ export default function AssistantPage() {
             {/* Main Content Area */}
             <div className="flex-1 relative flex flex-col overflow-hidden">
 
-                {isLoading && messages.length === 0 ? (
+                {isLoading || (!isContentReady && messages.length === 0) ? (
                     // LOADING SKELETON
                     <div className="flex flex-col h-full w-full relative">
                         <div className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth min-h-0 max-w-full overflow-x-hidden">
@@ -1801,10 +1882,8 @@ export default function AssistantPage() {
                                             <Button
                                                 variant="outline"
                                                 size="icon"
-                                                className="rounded-full shadow-md bg-background hover:bg-muted border-border/50 size-8 transition-all duration-300 animate-in fade-in zoom-in-95 opacity-100 dark:bg-muted/80 dark:border-border/60 text-foreground ring-1 ring-border/10"
+                                                className="rounded-full shadow-md bg-background hover:bg-muted border-border/50 size-8 transition-all duration-300 animate-in fade-in zoom-in-95 opacity-100 dark:bg-muted dark:border-border/60 text-foreground ring-1 ring-border/10"
                                                 onClick={() => scrollToBottom()}
-                                                aria-label="Scroll to bottom"
-                                                title="Scroll to bottom"
                                             >
                                                 <IconArrowDown className="size-4 text-foreground" />
                                             </Button>

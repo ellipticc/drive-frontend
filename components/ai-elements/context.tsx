@@ -148,8 +148,8 @@ export const ContextTrigger = ({ children, ...props }: ContextTriggerProps) => {
   return (
     <HoverCardTrigger asChild>
       {children ?? (
-        <Button type="button" variant="ghost" {...props}>
-          <span className="font-medium text-muted-foreground">
+        <Button type="button" variant="ghost" className="transition-all duration-200 ease-in-out hover:text-foreground" {...props}>
+          <span className="font-medium text-muted-foreground transition-colors duration-200">
             {renderedPercent}
           </span>
           <ContextIcon />
@@ -524,7 +524,7 @@ export const ContextWindowBreakdown = ({
               {/** User messages */}
               {userMessageTokens > 0 && (
                 <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="text-muted-foreground">— User messages</span>
+                  <span className="text-muted-foreground">    User messages</span>
                   <span className="font-mono">{calculatePercent(userMessageTokens).toFixed(1)}% · {new Intl.NumberFormat('en-US',{notation: 'compact'}).format(userMessageTokens)}</span>
                 </div>
               )}
@@ -532,7 +532,7 @@ export const ContextWindowBreakdown = ({
               {/** Assistant messages */}
               {assistantMessageTokens > 0 && (
                 <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="text-muted-foreground">— Assistant messages</span>
+                  <span className="text-muted-foreground">    Assistant messages</span>
                   <span className="font-mono">{calculatePercent(assistantMessageTokens).toFixed(1)}% · {new Intl.NumberFormat('en-US',{notation: 'compact'}).format(assistantMessageTokens)}</span>
                 </div>
               )}
