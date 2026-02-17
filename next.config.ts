@@ -26,6 +26,18 @@ const nextConfig: NextConfig = {
       crypto: false,
     };
 
+    // Completely exclude Sentry Session Replay / rrweb from the client bundle.
+    // Even with replaysSessionSampleRate: 0, the replay packages still load and
+    // patch native DOM methods (insertBefore, removeChild, appendChild) which
+    // causes React's fiber reconciler to crash with NotFoundError.
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@sentry-internal/replay': false,
+      '@sentry-internal/replay-canvas': false,
+      'rrweb': false,
+      'rrweb-snapshot': false,
+    };
+
     // CSS optimization
     if (!config.optimization) config.optimization = {};
     config.optimization.splitChunks = {
