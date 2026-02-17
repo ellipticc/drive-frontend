@@ -11,9 +11,10 @@ import {
     IconDeviceDesktop,
     IconDeviceMobile,
     IconBrightnessFilled,
-    IconStack2Filled,
-    IconRosetteDiscountCheckFilled
+    IconCheck,
+    IconStack2Filled
 } from "@tabler/icons-react"
+import { cn } from "@/lib/utils"
 
 import {
     Avatar,
@@ -123,11 +124,7 @@ export function HeaderUser() {
                             <AvatarImage src={safeUser.avatar || getDiceBearAvatar(safeUser.id)} alt={displayName} />
                             <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                         </Avatar>
-                        {safeUser.is_checkmarked && safeUser.show_checkmark !== false && (
-                            <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-[1px]">
-                                <IconRosetteDiscountCheckFilled className="w-3.5 h-3.5 text-blue-500 fill-blue-500" />
-                            </div>
-                        )}
+                        
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -135,9 +132,7 @@ export function HeaderUser() {
                         <div className="flex flex-col space-y-1">
                             <div className="flex items-center gap-1.5 direction-row">
                                 <p className="text-sm font-medium leading-none">{displayName}</p>
-                                {safeUser.is_checkmarked && safeUser.show_checkmark !== false && (
-                                    <IconRosetteDiscountCheckFilled className="size-4 text-blue-500 fill-blue-500" />
-                                )}
+        
                             </div>
                             <p className="text-xs leading-none text-muted-foreground">
                                 {safeUser.email}
@@ -187,18 +182,15 @@ export function HeaderUser() {
                             <DropdownMenuSubContent>
                                 <DropdownMenuItem onClick={() => handleThemeChange("light")}>
                                     <IconSun className="mr-2 h-4 w-4" />
-                                    <span>{t("theme.light", { defaultValue: "Light" })}</span>
-                                    {theme === 'light' && <IconRosetteDiscountCheckFilled className="ml-auto h-4 w-4" />}
+                                    <span className={cn(theme === 'light' ? 'text-muted-foreground' : '')}>{t("theme.light", { defaultValue: "Light" })}</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleThemeChange("dark")}>
                                     <IconMoon className="mr-2 h-4 w-4" />
-                                    <span>{t("theme.dark", { defaultValue: "Dark" })}</span>
-                                    {theme === 'dark' && <IconRosetteDiscountCheckFilled className="ml-auto h-4 w-4" />}
+                                    <span className={cn(theme === 'dark' ? 'text-muted-foreground' : '')}>{t("theme.dark", { defaultValue: "Dark" })}</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleThemeChange("system")}>
                                     <IconDeviceDesktop className="mr-2 h-4 w-4" />
-                                    <span>{t("theme.system", { defaultValue: "System" })}</span>
-                                    {theme === 'system' && <IconRosetteDiscountCheckFilled className="ml-auto h-4 w-4" />}
+                                    <span className={cn(theme === 'system' ? 'text-muted-foreground' : '')}>{t("theme.system", { defaultValue: "System" })}</span>
                                 </DropdownMenuItem>
                             </DropdownMenuSubContent>
                         </DropdownMenuSub>

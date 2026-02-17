@@ -197,9 +197,26 @@ export const useAudioRecording = ({
             scheduleNextChunk();
 
         } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : 'Failed to access microphone';
+            // Detect explicit permission denial vs other getUserMedia errors
+            let errorMsg = 'Failed to access microphone';
+
+            if (err instanceof DOMException) {
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    errorMsg = 'Microphone access denied. Check your browser settings.';
+                    toast.error(errorMsg);
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    errorMsg = 'No microphone found. Please connect a microphone.';
+                    toast.error(errorMsg);
+                } else {
+                    errorMsg = err.message || errorMsg;
+                    toast.error(errorMsg);
+                }
+            } else {
+                errorMsg = err instanceof Error ? err.message : errorMsg;
+                toast.error(errorMsg);
+            }
+
             setError(errorMsg);
-            toast.error(errorMsg);
             setState('idle');
             setStream(null);
         }

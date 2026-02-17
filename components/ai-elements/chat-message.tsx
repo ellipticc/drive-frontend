@@ -574,7 +574,7 @@ function RegeneratePanel({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean, 
                         <Button
                             variant="ghost"
                             size="icon"
-                            className={cn("h-6 w-6 text-muted-foreground hover:text-foreground", isOpen && "text-foreground bg-muted")}
+                            className={cn("h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors", isOpen && "text-foreground bg-muted")}
                         >
                             <IconRefresh className="size-3.5" />
                         </Button>

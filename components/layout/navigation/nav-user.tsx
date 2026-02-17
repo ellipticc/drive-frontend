@@ -6,12 +6,12 @@ import {
   IconLogout,
   IconBellRinging,
   IconSettings,
-  IconRosetteDiscountCheckFilled,
   IconSun,
   IconMoon,
   IconDeviceDesktop,
   IconDeviceMobile,
   IconBrightnessFilled,
+  IconCheck,
 } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 
@@ -249,9 +249,7 @@ export function NavUser({
                       </TooltipTrigger>
                       <TooltipContent>Change avatar</TooltipContent>
                     </Tooltip>
-                    {user.is_checkmarked && user.show_checkmark !== false && (
-                      <IconRosetteDiscountCheckFilled className="absolute -bottom-1 -right-1 z-20 text-background size-5 fill-sky-500" />
-                    )}
+
                   </div>
                   <div className="grid flex-1 text-start text-sm leading-tight">
                     <span className="truncate font-medium">{displayName}</span>
@@ -315,17 +313,17 @@ export function NavUser({
                     <DropdownMenuItem onClick={() => handleThemeChange("light")}>
                       <IconSun className="mr-2 h-4 w-4" />
                       <span>{t("theme.light", { defaultValue: "Light" })}</span>
-                      {theme === 'light' && <div className="ml-auto h-4 w-4" />}
+                      {theme === 'light' && <IconCheck className="ml-auto h-4 w-4 text-muted-foreground opacity-80" />}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleThemeChange("dark")}>
                       <IconMoon className="mr-2 h-4 w-4" />
                       <span>{t("theme.dark", { defaultValue: "Dark" })}</span>
-                      {theme === 'dark' && <div className="ml-auto h-4 w-4" />}
+                      {theme === 'dark' && <IconCheck className="ml-auto h-4 w-4 text-muted-foreground opacity-80" />}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleThemeChange("system")}>
                       <IconDeviceDesktop className="mr-2 h-4 w-4" />
                       <span>{t("theme.system", { defaultValue: "System" })}</span>
-                      {theme === 'system' && <div className="ml-auto h-4 w-4" />}
+                      {theme === 'system' && <IconCheck className="ml-auto h-4 w-4 text-muted-foreground opacity-80" />}
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
