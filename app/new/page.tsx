@@ -168,7 +168,7 @@ export default function AssistantPage() {
     React.useEffect(() => {
         if (!conversationId) {
             setChatTitle("New Chat");
-                setDisplayedTitle("New Chat");
+            setDisplayedTitle("New Chat");
         }
 
         const fetchChatDetails = async () => {
@@ -268,17 +268,20 @@ export default function AssistantPage() {
             }
 
             document.title = title;
-            
+
             // Only update chatTitle if we have a new value from chats array
             // Otherwise keep what was set by the API fetch
-            if (chatTitleToSet) {
-                setChatTitle(chatTitleToSet);
-                if (!displayedTitle || displayedTitle === "") {
-                    setDisplayedTitle(chatTitleToSet);
-                }
+            document.title = title;
+            setChatTitle(chatTitleToSet || 'New Chat'); // Ensure chatTitle is always set
+
+            // Force update displayed title if we found a valid chat title that differs
+            if (chatTitleToSet && chatTitleToSet !== 'Chat' && chatTitleToSet !== 'New Chat' && displayedTitle !== chatTitleToSet) {
+                setDisplayedTitle(chatTitleToSet);
+            } else if (!displayedTitle || displayedTitle === "") {
+                setDisplayedTitle(chatTitleToSet || 'New Chat');
             }
         }
-    }, [conversationId, chats]);
+    }, [conversationId, chats, displayedTitle]);
 
     // Load History when conversationId changes
     React.useEffect(() => {
@@ -336,7 +339,7 @@ export default function AssistantPage() {
                 messages,
                 model,
                 // Standard system prompt estimation
-                undefined, 
+                undefined,
                 // Tool definitions (if applicable)
                 undefined
             );
@@ -359,7 +362,7 @@ export default function AssistantPage() {
             let renderStabilityTimer: NodeJS.Timeout | null = null;
             let lastMutationTime = Date.now();
             const STABILITY_THRESHOLD = 100; // Wait 100ms without mutations to consider rendering complete
-            
+
             const clearStabilityTimer = () => {
                 if (renderStabilityTimer) {
                     clearTimeout(renderStabilityTimer);
@@ -370,7 +373,7 @@ export default function AssistantPage() {
             const scheduleStabilityCheck = () => {
                 clearStabilityTimer();
                 lastMutationTime = Date.now();
-                
+
                 renderStabilityTimer = setTimeout(() => {
                     // Verify all message elements exist and have content
                     const messageElements = messagesContainer.querySelectorAll('[id^="message-"]');
@@ -541,15 +544,24 @@ export default function AssistantPage() {
         }
 
         // Optimistic Update
-        // Generate a temporary ID for the user message to allow scrolling
+        // Generate a temporary ID for the user message        // Optimistic UI
         const tempId = crypto.randomUUID();
-        const tempUserMessage: Message = {
+        const optimisticUserMessage: Message = {
             id: tempId,
             role: 'user',
             content: finalContent,
-            // attachments: attachments.map(f => f.name) // Store names for UI if needed (schema update required)
+            createdAt: Date.now(),
         };
-        setMessages(prev => [...prev, tempUserMessage]);
+
+        // Scroll this message to top of viewport
+        setTimeout(() => {
+            const el = document.getElementById(`message-${tempId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 10);
+
+        setMessages(prev => [...prev, optimisticUserMessage]);
 
         // Scroll the new user message to the top of the viewport for better focus
         shouldAutoScrollRef.current = false;
@@ -700,7 +712,7 @@ export default function AssistantPage() {
                 while (true) {
                     const { done, value } = await reader.read()
                     if (done) break
-                    
+
                     // Check if abort was signaled - stop immediately
                     if (controller.signal.aborted) {
                         console.log('[Stream] Abort signal detected, stopping reader');
@@ -1597,7 +1609,7 @@ export default function AssistantPage() {
             toast.success("Chat renamed");
         } catch (e) {
             console.error("Failed to rename chat", e);
-            
+
             // Rollback on failure
             setChatTitle(previousTitle);
             setDisplayedTitle(previousDisplayedTitle);
@@ -1663,8 +1675,10 @@ export default function AssistantPage() {
                     <Button
                         variant="ghost"
                         className={cn(
-                            "h-8 font-semibold px-2 hover:bg-secondary/50 shrink-0 max-w-[300px] sm:max-w-[400px] justify-start",
-                            isTypingTitle && "cursor-default hover:bg-transparent"
+                            "h-8 font-semibold px-2 shrink-0 max-w-[300px] sm:max-w-[400px] justify-start",
+                            isTypingTitle || displayedTitle === "New Chat"
+                                ? "cursor-default hover:bg-transparent"
+                                : "hover:bg-muted/80 dark:hover:bg-muted/50 cursor-pointer"
                         )}
                         onClick={() => {
                             if (!isTypingTitle && displayedTitle !== "New Chat") {
@@ -1672,7 +1686,6 @@ export default function AssistantPage() {
                                 setIsEditingTitle(true);
                             }
                         }}
-                        title={displayedTitle}
                         disabled={isTypingTitle || displayedTitle === "New Chat"}
                     >
                         <span className="truncate">
@@ -1803,57 +1816,57 @@ export default function AssistantPage() {
                                     const nextMsg = messages[index + 1];
                                     const isFollowedByAssistant = nextMsg?.role === 'assistant';
                                     const spacing = isUserMsg && isFollowedByAssistant ? 'mb-1' : 'mb-4';
-                                    
+
                                     return (
-                                    <div
-                                        key={message.id || index}
-                                        id={`message-${message.id}`}
-                                        className={cn("w-full flex justify-center animate-in fade-in duration-300", spacing)}
-                                    >
-                                        <div className="w-full max-w-3xl">
-                                            {message.isCheckpoint ? (
-                                                <Checkpoint className="my-4">
-                                                    <CheckpointIcon>
-                                                        <IconBookmark className="size-4 shrink-0" />
-                                                    </CheckpointIcon>
-                                                    <span className="text-xs font-medium">Checkpoint {index + 1}</span>
-                                                    <CheckpointTrigger
-                                                        tooltip="Restore checkpoint"
-                                                        onClick={() => handleRestoreCheckpoint(message.id || '')}
-                                                    >
-                                                        <IconRotateClockwise className="size-3" />
-                                                    </CheckpointTrigger>
-                                                </Checkpoint>
-                                            ) : (
-                                                <ChatMessage
-                                                    message={message}
-                                                    isLast={index === messages.length - 1}
-                                                    onCopy={handleCopy}
-                                                    onFeedback={handleFeedback}
-                                                    onRetry={() => handleRetry(message.id || '')}
-                                                    onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
-                                                    onEdit={(content) => handleEditMessage(message.id || '', content)}
-                                                    onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
-                                                    onCheckpoint={() => handleAddCheckpoint()}
-                                                    availableModels={availableModels}
-                                                    onRerunSystemWithModel={handleRerunSystemWithModel}
-                                                    onAddToChat={(text) => {
-                                                        setContextItems(prev => [...prev, {
-                                                            id: crypto.randomUUID(),
-                                                            type: 'text',
-                                                            content: text
-                                                        }]);
-                                                        toast.success("Added to context");
-                                                        const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
-                                                        if (inputRef) inputRef.focus();
-                                                    }}
-                                                    onSuggestionClick={(text) => {
-                                                        handleSubmit(text);
-                                                    }}
-                                                />
-                                            )}
+                                        <div
+                                            key={message.id || index}
+                                            id={`message-${message.id}`}
+                                            className={cn("w-full flex justify-center animate-in fade-in duration-300", spacing)}
+                                        >
+                                            <div className="w-full max-w-3xl">
+                                                {message.isCheckpoint ? (
+                                                    <Checkpoint className="my-4">
+                                                        <CheckpointIcon>
+                                                            <IconBookmark className="size-4 shrink-0" />
+                                                        </CheckpointIcon>
+                                                        <span className="text-xs font-medium">Checkpoint {index + 1}</span>
+                                                        <CheckpointTrigger
+                                                            tooltip="Restore checkpoint"
+                                                            onClick={() => handleRestoreCheckpoint(message.id || '')}
+                                                        >
+                                                            <IconRotateClockwise className="size-3" />
+                                                        </CheckpointTrigger>
+                                                    </Checkpoint>
+                                                ) : (
+                                                    <ChatMessage
+                                                        message={message}
+                                                        isLast={index === messages.length - 1}
+                                                        onCopy={handleCopy}
+                                                        onFeedback={handleFeedback}
+                                                        onRetry={() => handleRetry(message.id || '')}
+                                                        onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
+                                                        onEdit={(content) => handleEditMessage(message.id || '', content)}
+                                                        onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
+                                                        onCheckpoint={() => handleAddCheckpoint()}
+                                                        availableModels={availableModels}
+                                                        onRerunSystemWithModel={handleRerunSystemWithModel}
+                                                        onAddToChat={(text) => {
+                                                            setContextItems(prev => [...prev, {
+                                                                id: crypto.randomUUID(),
+                                                                type: 'text',
+                                                                content: text
+                                                            }]);
+                                                            toast.success("Added to context");
+                                                            const inputRef = document.querySelector('textarea[placeholder*="How can I help"]') as HTMLTextAreaElement;
+                                                            if (inputRef) inputRef.focus();
+                                                        }}
+                                                        onSuggestionClick={(text) => {
+                                                            handleSubmit(text);
+                                                        }}
+                                                    />
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
                                     );
                                 })
                                 }

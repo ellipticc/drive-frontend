@@ -120,7 +120,14 @@ export function NavDrafts({ item }: { item: any }) {
     return (
         <SidebarMenuItem>
             <SidebarMenuButton
-                tooltip={item.title}
+                tooltip={{
+                    children: (
+                        <div className="flex items-center gap-2">
+                            <span>{item.title}</span>
+                            <Kbd className="h-5">D</Kbd>
+                        </div>
+                    )
+                }}
                 isActive={pathname === item.url || pathname.startsWith('/paper/')}
                 onClick={() => handleNavigate(item.url)}
                 className={cn(

@@ -234,52 +234,56 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                 {isUser ? (
                     // ... User Message Render ...
                     <>
-                        {isEditingPrompt ? (
-                            <div className="w-full space-y-2">
-                                <div className="bg-muted rounded-2xl p-4">
-                                    <Input
-                                        value={editContent}
-                                        onChange={(e) => setEditContent(e.target.value)}
-                                        className="bg-background border"
-                                        placeholder="Edit your message..."
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !e.shiftKey) {
-                                                e.preventDefault();
-                                                handleEditPromptSubmit();
-                                            }
-                                            if (e.key === 'Escape') {
-                                                setIsEditingPrompt(false);
-                                            }
-                                        }}
-                                        autoFocus
-                                    />
-                                </div>
-                                <div className="flex gap-2 justify-end mt-2">
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => setIsEditingPrompt(false)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        onClick={handleEditPromptSubmit}
-                                    >
-                                        Send Updated Prompt
-                                    </Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="relative flex items-start">
-                                    {/* Message bubble (reduced padding slightly) */}
-                                    <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-full selection:bg-primary-foreground/20 selection:text-inherit">
-                                        {message.content}
+                        {/* Edit Mode Overlay */}
+                        <div className="relative w-full">
+                            {isEditingPrompt ? (
+                                <div className="absolute inset-0 z-10 w-full h-full min-h-[120px] -m-2 p-2">
+                                    <div className="bg-background/95 backdrop-blur-sm border rounded-2xl shadow-lg p-3 h-full flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-200">
+                                        <Textarea
+                                            value={editContent}
+                                            onChange={(e) => setEditContent(e.target.value)}
+                                            className="flex-1 bg-transparent border-none resize-none focus-visible:ring-0 p-1 text-sm leading-relaxed"
+                                            placeholder="Edit your message..."
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleEditPromptSubmit();
+                                                }
+                                                if (e.key === 'Escape') {
+                                                    setIsEditingPrompt(false);
+                                                }
+                                            }}
+                                            autoFocus
+                                        />
+                                        <div className="flex gap-2 justify-end">
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2"
+                                                onClick={() => setIsEditingPrompt(false)}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                className="h-7 px-2"
+                                                onClick={handleEditPromptSubmit}
+                                            >
+                                                Save
+                                            </Button>
+                                        </div>
                                     </div>
+                                </div>
+                            ) : null}
 
-                                    {/* Bookmark overlay commented out for now (disabled per request) */}
-                                    {/*
+                            <div className={cn("relative flex items-start transition-all duration-200", isEditingPrompt ? "opacity-40 blur-[2px]" : "")}>
+                                {/* Message bubble (reduced padding slightly) */}
+                                <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-full selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap">
+                                    {message.content}
+                                </div>
+
+                                {/* Bookmark overlay commented out for now (disabled per request) */}
+                                {/*
                                     <div className="absolute left-0 right-0 -top-3 pointer-events-none">
                                         <div className="border-t border-dashed border-border/50 w-full" />
                                         <div className="flex justify-end pr-2 mt-0.5">
@@ -302,35 +306,46 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                         </div>
                                     </div>
                                     */}
-                                </div>
+                            </div>
 
-                                <div className="flex items-center gap-1 mt-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <ActionButton
-                                        icon={IconRefresh}
-                                        label="Retry"
-                                        onClick={onRetry}
-                                    />
-                                    <ActionButton
-                                        icon={IconEdit}
-                                        label="Edit"
-                                        onClick={() => setIsEditingPrompt(true)}
-                                    />
-                                    <ActionButton
-                                        icon={copied ? IconCheck : IconCopy}
-                                        label="Copy"
-                                        onClick={handleCopy}
-                                    />
-                                    {/* Continue button - shown when response was stopped by user */}
-                                    {message.content && /Stopped by user/i.test(message.content) && (
-                                        <ActionButton
-                                            icon={IconArrowRight}
-                                            label="Continue"
-                                            onClick={() => onRegenerate?.('continue')}
-                                        />
-                                    )}
-                                </div>
-                            </>
-                        )}
+                            {/* Date with Tooltip */}
+                            {message.createdAt && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span className="text-[10px] text-muted-foreground mr-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-default">
+                                            {new Date(message.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                        <p>{new Date(message.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric' })}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            )}
+
+                            <ActionButton
+                                icon={IconRefresh}
+                                label="Retry"
+                                onClick={onRetry}
+                            />
+                            <ActionButton
+                                icon={IconEdit}
+                                label="Edit"
+                                onClick={() => setIsEditingPrompt(true)}
+                            />
+                            <ActionButton
+                                icon={copied ? IconCheck : IconCopy}
+                                label="Copy"
+                                onClick={handleCopy}
+                            />
+                            {/* Continue button - shown when response was stopped by user */}
+                            {message.content && /Stopped by user/i.test(message.content) && (
+                                <ActionButton
+                                    icon={IconArrowRight}
+                                    label="Continue"
+                                    onClick={() => onRegenerate?.('continue')}
+                                />
+                            )}
+                        </div>
                     </>
                 ) : (
                     <div className="w-full space-y-0.5 selection:bg-primary/20 selection:text-foreground">{/* Reasoning / Chain of Thought */}

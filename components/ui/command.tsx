@@ -51,7 +51,11 @@ function CommandDialog({
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <DialogContent
-        className={cn("overflow-hidden p-0 fixed left-1/2 top-[10%] -translate-x-1/2 w-full max-w-6xl px-4 sm:px-6 max-h-[80vh] rounded-xl shadow-lg transition-all duration-300 ease-in-out", className)}
+        className={cn(
+          "overflow-hidden p-0 fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl rounded-2xl shadow-2xl border border-border/50 bg-background/80 backdrop-blur-xl transition-all duration-300 ease-in-out",
+          "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+          className
+        )}
         showCloseButton={showCloseButton}
       >
 
