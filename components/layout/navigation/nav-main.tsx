@@ -350,7 +350,7 @@ export function NavMain({
                       }
                     }}
                     className={cn(
-                      "cursor-pointer relative",
+                      "cursor-pointer relative group/nav-item",
                       state === 'collapsed' ? "" : "pr-8"
                     )}
                     data-space-id="root"
@@ -363,7 +363,7 @@ export function NavMain({
                     })()}
                     <span>{item.title}</span>
                     {item.shortcut && (
-                      <kbd className="pointer-events-none ml-auto hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100 sm:inline-flex">
+                      <kbd className="pointer-events-none ml-auto h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/nav-item:opacity-100 transition-opacity sm:inline-flex">
                         {item.shortcut}
                       </kbd>
                     )}

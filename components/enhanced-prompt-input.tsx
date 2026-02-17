@@ -387,36 +387,45 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
 
                         <div className="flex items-center gap-1">
                             {/* Model Selector */}
-                            <ModelSelector open={modelOpen} onOpenChange={(open) => setModelOpen(open)}>
-                                <ModelSelectorTrigger className="inline-flex items-center justify-center h-8 px-2.5 gap-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all">
-                                    <span className="inline text-[12px] max-w-[80px] truncate">{currentModel.name}</span>
-                                    <Icons.SelectArrow className="shrink-0 opacity-75 w-3 h-3" />
-                                </ModelSelectorTrigger>
-                                <ModelSelectorContent>
-                                    <ModelSelectorInput placeholder="Search models..." />
-                                    <ModelSelectorList>
-                                        <ModelSelectorEmpty>No model found.</ModelSelectorEmpty>
-                                        <ModelSelectorGroup heading="Platform Models">
-                                            {models.map((model) => (
-                                                <ModelSelectorItem
-                                                    key={model.id}
-                                                    onSelect={() => {
-                                                        handleModelChange(model.id);
-                                                        setModelOpen(false);
-                                                    }}
-                                                >
-                                                    <ModelSelectorLogo provider={model.provider as any} />
-                                                    <div className="flex flex-col ml-2">
-                                                        <ModelSelectorName>{model.name}</ModelSelectorName>
-                                                        <span className="text-[10px] text-muted-foreground">{model.description}</span>
-                                                    </div>
-                                                    {effectiveModel === model.id && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
-                                                </ModelSelectorItem>
-                                            ))}
-                                        </ModelSelectorGroup>
-                                    </ModelSelectorList>
-                                </ModelSelectorContent>
-                            </ModelSelector>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <div className="flex items-center">
+                                        <ModelSelector open={modelOpen} onOpenChange={(open) => setModelOpen(open)}>
+                                            <ModelSelectorTrigger className="inline-flex items-center justify-center h-8 px-2.5 gap-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all">
+                                                <span className="inline text-[12px] max-w-[80px] truncate">{currentModel.name}</span>
+                                                <Icons.SelectArrow className="shrink-0 opacity-75 w-3 h-3" />
+                                            </ModelSelectorTrigger>
+                                            <ModelSelectorContent>
+                                                <ModelSelectorInput placeholder="Search models..." />
+                                                <ModelSelectorList>
+                                                    <ModelSelectorEmpty>No model found.</ModelSelectorEmpty>
+                                                    <ModelSelectorGroup heading="Platform Models">
+                                                        {models.map((model) => (
+                                                            <ModelSelectorItem
+                                                                key={model.id}
+                                                                onSelect={() => {
+                                                                    handleModelChange(model.id);
+                                                                    setModelOpen(false);
+                                                                }}
+                                                            >
+                                                                <ModelSelectorLogo provider={model.provider as any} />
+                                                                <div className="flex flex-col ml-2">
+                                                                    <ModelSelectorName>{model.name}</ModelSelectorName>
+                                                                    <span className="text-[10px] text-muted-foreground">{model.description}</span>
+                                                                </div>
+                                                                {effectiveModel === model.id && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
+                                                            </ModelSelectorItem>
+                                                        ))}
+                                                    </ModelSelectorGroup>
+                                                </ModelSelectorList>
+                                            </ModelSelectorContent>
+                                        </ModelSelector>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs">
+                                    Select AI model
+                                </TooltipContent>
+                            </Tooltip>
 
                             {/* Send/Stop Button */}
                             {isLoading ? (

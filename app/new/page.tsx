@@ -1522,10 +1522,6 @@ export default function AssistantPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start" className="w-48">
-                                <DropdownMenuLabel className="truncate font-normal text-xs text-muted-foreground p-2">
-                                    {displayedTitle}
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={handleToggleStar}>
                                     <IconStar className={cn("mr-2 size-4", isStarred ? "fill-primary text-primary" : "")} />
                                     {isStarred ? "Unstar" : "Star"}
@@ -1567,21 +1563,71 @@ export default function AssistantPage() {
                     // LOADING SKELETON
                     <div className="flex flex-col h-full w-full relative">
                         <div className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth min-h-0 max-w-full overflow-x-hidden">
-                            <div className="flex flex-col items-center w-full min-h-full">
-                                <div className="w-full max-w-4xl mx-auto py-8 space-y-4 break-words">
-                                    <div className="text-center">
-                                        <IconLoader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
-                                        <p className="text-sm text-muted-foreground">Loading chat history...</p>
-                                    </div>
-                                    {[...Array(4)].map((_, i) => (
-                                        <div key={i} className={`p-4 rounded-xl bg-muted/40 border border-border/40 ${i % 2 === 0 ? 'self-end ml-auto max-w-[80%]' : 'self-start mr-auto max-w-[80%]'} w-full mb-4`}>
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <Skeleton className="h-4 w-24" />
+                            <div className="flex flex-col items-start w-full gap-6 max-w-4xl mx-auto">
+                                {/* User message skeleton */}
+                                <div className="flex justify-end w-full mb-4">
+                                    <div className="max-w-[80%] flex flex-col items-end gap-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex justify-end w-full">
+                                                <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 space-y-2">
+                                                    <Skeleton className="h-4 w-48" />
+                                                    <Skeleton className="h-4 w-56" />
+                                                    <Skeleton className="h-4 w-40" />
+                                                </div>
                                             </div>
-                                            <Skeleton className="h-4 w-full mb-2" />
-                                            <Skeleton className="h-4 w-2/3" />
                                         </div>
-                                    ))}
+                                        <div className="text-xs text-muted-foreground">
+                                            <Skeleton className="h-3 w-20" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Assistant response skeleton */}
+                                <div className="flex justify-start w-full mb-4">
+                                    <div className="max-w-[85%] flex flex-col items-start gap-2">
+                                        <div className="flex items-start gap-2">
+                                            <div className="p-4 rounded-2xl bg-muted/50 border border-border/50 space-y-2 w-full">
+                                                <Skeleton className="h-4 w-full" />
+                                                <Skeleton className="h-4 w-[90%]" />
+                                                <Skeleton className="h-4 w-[70%]" />
+                                                <Skeleton className="h-4 w-full" />
+                                                <Skeleton className="h-4 w-[80%]" />
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            <Skeleton className="h-3 w-20" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Another user message skeleton */}
+                                <div className="flex justify-end w-full mb-4">
+                                    <div className="max-w-[70%] flex flex-col items-end gap-2">
+                                        <div className="flex justify-end w-full">
+                                            <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 space-y-2">
+                                                <Skeleton className="h-4 w-32" />
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            <Skeleton className="h-3 w-20" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Loading indicator */}
+                                <div className="flex justify-start w-full">
+                                    <div className="max-w-[85%] flex flex-col items-start gap-2">
+                                        <div className="p-4 rounded-2xl bg-muted/50 border border-border/50">
+                                            <div className="flex gap-1">
+                                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
+                                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{animationDelay: '100ms'}} />
+                                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{animationDelay: '200ms'}} />
+                                            </div>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            <Skeleton className="h-3 w-20" />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1719,7 +1765,7 @@ export default function AssistantPage() {
                                             <Button
                                                 variant="outline"
                                                 size="icon"
-                                                className="rounded-full shadow-md bg-background/80 backdrop-blur-sm hover:bg-background border-border/50 size-8 transition-all duration-300 animate-in fade-in zoom-in-95"
+                                                className="rounded-full shadow-md bg-background hover:bg-muted border-border/50 size-8 transition-all duration-300 animate-in fade-in zoom-in-95"
                                                 onClick={() => scrollToBottom()}
                                             >
                                                 <IconArrowDown className="size-4" />
@@ -1792,7 +1838,7 @@ export default function AssistantPage() {
                         />
                     </div>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setIsRenameDialogOpen(false)}>
+                        <Button variant="outline" onClick={() => setIsRenameDialogOpen(false)}>
                             Cancel
                         </Button>
                         <Button onClick={() => {
@@ -1815,7 +1861,7 @@ export default function AssistantPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:gap-0">
-                        <Button variant="ghost" onClick={() => setIsDeleteDialogOpen(false)}>
+                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
                             Cancel
                         </Button>
                         <Button
