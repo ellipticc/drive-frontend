@@ -58,6 +58,17 @@ if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SENTRY_DSN 
             return null;
           }
 
+          // Filter out DOM manipulation errors (handled by DOMErrorBoundary, not app bugs)
+          const errorMessage = event.exception?.values?.[0]?.value || event.message || '';
+          if (
+            errorMessage.includes('insertBefore') ||
+            errorMessage.includes('removeChild') ||
+            errorMessage.includes('appendChild') ||
+            errorMessage.includes('not a child of this node')
+          ) {
+            return null;
+          }
+
           // ONLY send error and exception events - filter everything else
           if (event.level !== 'error' && event.type !== 'error') {
             return null;
