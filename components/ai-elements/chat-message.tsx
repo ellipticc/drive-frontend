@@ -182,11 +182,24 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
     };
 
     const handleDownload = () => {
-        const blob = new Blob([message.content], { type: 'text/markdown' });
+        const ts = message.createdAt ? new Date(message.createdAt) : new Date();
+        const exportedAt = new Date();
+        const header = [
+            `# Message export`,
+            `This message was downloaded from Ellipticc (https://ellipticc.com). AI chats may display inaccurate or offensive information (see https://ellipticc.com/privacy-policy for more info).`,
+            `Exported: ${exportedAt.toLocaleString()}`,
+            `Message timestamp: ${ts.toLocaleString()}`,
+            '---',
+            ''
+        ].join('\n');
+
+        const body = `${header}\n**${message.role.toUpperCase()}** — ${ts.toLocaleString()}\n\n${message.content}\n`;
+        const blob = new Blob([body], { type: 'text/markdown' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
+        const safeDate = ts.toISOString().replace(/[:.]/g, '-');
         a.href = url;
-        a.download = `response-${message.id || Date.now()}.md`;
+        a.download = `message-${message.id || Date.now()}-${safeDate}.md`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -407,7 +420,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className={cn("h-6 w-6", feedbackGiven && message.feedback === 'like' ? "text-green-500" : "text-muted-foreground hover:text-green-500")}
+                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'like' ? "text-green-500" : "text-muted-foreground hover:text-green-500 hover:bg-muted/80 dark:hover:bg-muted/50")}
                                                 onClick={() => handleFeedback('like')}
                                             >
                                                 <IconThumbUp className="size-3.5" />
@@ -422,7 +435,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className={cn("h-6 w-6", feedbackGiven && message.feedback === 'dislike' ? "text-red-500" : "text-muted-foreground hover:text-red-500")}
+                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'dislike' ? "text-red-500" : "text-muted-foreground hover:text-red-500 hover:bg-muted/80 dark:hover:bg-muted/50")}
                                                 onClick={() => handleFeedback('dislike')}
                                             >
                                                 <IconThumbDown className="size-3.5" />
@@ -649,7 +662,7 @@ function ActionButton({ icon: Icon, label, onClick, className, delayDuration }: 
         <TooltipProvider>
             <Tooltip delayDuration={delayDuration}>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className={cn("h-6 w-6 text-muted-foreground hover:text-foreground", className)} onClick={onClick}>
+                    <Button variant="ghost" size="icon" className={cn("h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors", className)} onClick={onClick}>
                         <Icon className="size-3.5" />
                     </Button>
                 </TooltipTrigger>

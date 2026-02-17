@@ -1671,27 +1671,61 @@ export default function AssistantPage() {
                     />
                 </div>
             ) : (
-                <Button
-                    variant="ghost"
-                    className={cn(
-                        "h-8 font-semibold px-2 shrink-0 max-w-[300px] sm:max-w-[400px] justify-start",
-                        isTypingTitle || displayedTitle === "New Chat"
-                            ? "cursor-default hover:bg-transparent"
-                            : "hover:bg-muted/80 dark:hover:bg-muted/50 cursor-pointer"
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        className={cn(
+                            "h-8 font-semibold px-2 shrink-0 max-w-[300px] sm:max-w-[400px] justify-start",
+                            isTypingTitle || displayedTitle === "New Chat"
+                                ? "cursor-default hover:bg-transparent"
+                                : "hover:bg-muted/80 dark:hover:bg-muted/50 cursor-pointer"
+                        )}
+                        onClick={() => {
+                            if (!isTypingTitle && displayedTitle !== "New Chat") {
+                                setTempTitle(displayedTitle);
+                                setIsEditingTitle(true);
+                            }
+                        }}
+                        disabled={isTypingTitle || displayedTitle === "New Chat"}
+                    >
+                        <span className="truncate">
+                            {displayedTitle}
+                            {isTypingTitle && <span className="animate-pulse ml-0.5">|</span>}
+                        </span>
+                    </Button>
+
+                    {/* Dropdown moved directly next to the conversation title */}
+                    {(!isTypingTitle && displayedTitle && displayedTitle !== "New Chat") && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/50 hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors">
+                                    <IconChevronDown className="size-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-48">
+                                <DropdownMenuItem onClick={handleToggleStar}>
+                                    <IconStar className={cn("mr-2 size-4", isStarred ? "fill-primary text-primary" : "")} />
+                                    {isStarred ? "Unstar" : "Star"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                    setTempTitle(chatTitle || "New Chat");
+                                    setIsRenameDialogOpen(true);
+                                }}>
+                                    <IconPencil className="mr-2 size-4" />
+                                    Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={() => setIsDeleteDialogOpen(true)}
+                                    className="text-destructive focus:bg-destructive focus:text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground group/del"
+                                >
+                                    <IconTrash className="mr-2 size-4 group-hover/del:text-destructive-foreground transition-colors" />
+                                    Delete
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     )}
-                    onClick={() => {
-                        if (!isTypingTitle && displayedTitle !== "New Chat") {
-                            setTempTitle(displayedTitle);
-                            setIsEditingTitle(true);
-                        }
-                    }}
-                    disabled={isTypingTitle || displayedTitle === "New Chat"}
-                >
-                    <span className="truncate">
-                        {displayedTitle}
-                        {isTypingTitle && <span className="animate-pulse ml-0.5">|</span>}
-                    </span>
-                </Button>
+                </div>
             )}
         </div>
     );
@@ -1701,7 +1735,7 @@ export default function AssistantPage() {
         <div className="flex items-center gap-1">
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors">
                         <IconStar className={cn("size-4", isStarred ? "fill-primary text-primary" : "")} onClick={handleToggleStar} />
                     </Button>
                 </TooltipTrigger>
@@ -1712,13 +1746,31 @@ export default function AssistantPage() {
 
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground" onClick={() => {
-                        // Simple download trigger
-                        const blob = new Blob([messages.map(m => `${m.role.toUpperCase()}:\n${m.content}\n---\n`).join('\n')], { type: 'text/markdown' });
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors" onClick={() => {
+                        // Conversation export with timestamps + Ellipticc notice
+                        const lines: string[] = [];
+                        const exportedAt = new Date();
+                        lines.push(`# Conversation export`);
+                        lines.push(`This conversation was generated with Ellipticc (https://ellipticc.com). AI chats may display inaccurate or offensive information (see https://ellipticc.com/privacy-policy for more info).`);
+                        lines.push(`Exported: ${exportedAt.toLocaleString()}`);
+                        if (conversationId) lines.push(`Conversation ID: ${conversationId}`);
+                        if (model) lines.push(`Model: ${model}`);
+                        lines.push('---\n');
+
+                        for (const m of messages) {
+                            const ts = m.createdAt ? new Date(m.createdAt).toLocaleString() : '';
+                            lines.push(`**${m.role.toUpperCase()}**${ts ? ` — ${ts}` : ''}`);
+                            lines.push('');
+                            lines.push(m.content || '');
+                            lines.push('\n---\n');
+                        }
+
+                        const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement('a');
+                        const safeDate = exportedAt.toISOString().replace(/[:.]/g, '-');
                         a.href = url;
-                        a.download = `chat-${conversationId || 'export'}.md`;
+                        a.download = `conversation-${conversationId || 'export'}-${safeDate}.md`;
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
@@ -1731,35 +1783,6 @@ export default function AssistantPage() {
                     <p>Download</p>
                 </TooltipContent>
             </Tooltip>
-
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/50 hover:text-foreground">
-                        <IconChevronDown className="size-4" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={handleToggleStar}>
-                        <IconStar className={cn("mr-2 size-4", isStarred ? "fill-primary text-primary" : "")} />
-                        {isStarred ? "Unstar" : "Star"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {
-                        setTempTitle(chatTitle || "New Chat");
-                        setIsRenameDialogOpen(true);
-                    }}>
-                        <IconPencil className="mr-2 size-4" />
-                        Rename
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                        onClick={() => setIsDeleteDialogOpen(true)}
-                        className="text-destructive focus:bg-destructive focus:text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground group/del"
-                    >
-                        <IconTrash className="mr-2 size-4 group-hover/del:text-destructive-foreground transition-colors" />
-                        Delete
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
         </div>
     ) : null;
 
