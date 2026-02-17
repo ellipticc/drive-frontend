@@ -127,26 +127,30 @@ export const useAudioRecording = ({
             source.connect(analyser);
             analyserRef.current = analyser;
 
-            // Create media recorder
-            const mediaRecorder = new MediaRecorder(mediaStream, {
-                mimeType: 'audio/webm;codecs=opus',
-            });
-
+            // Create media recorder with best supported format
+            // Try webm first, fall back to wav if needed
+            let options: MediaRecorderOptions = {};
+            const supportedTypes = [
+                'audio/webm',
+                'audio/webm;codecs=opus',
+                'audio/wav',
+                'audio/mp4'
+            ];
+            
+            for (const mimeType of supportedTypes) {
+                if (MediaRecorder.isTypeSupported(mimeType)) {
+                    options.mimeType = mimeType;
+                    break;
+                }
+            }
+            
+            const mediaRecorder = new MediaRecorder(mediaStream, options);
             mediaRecorderRef.current = mediaRecorder;
 
-            let isFirstChunk = true;
-
-            // Handle data available event
-            mediaRecorder.addEventListener('dataavailable', async (event) => {
+            // Collect all chunks for final transcription
+            mediaRecorder.addEventListener('dataavailable', (event) => {
                 if (event.data.size > 0) {
-                    const audioBlob = new Blob([event.data], { type: 'audio/webm;codecs=opus' });
-                    chunksRef.current.push(audioBlob);
-
-                    // Send interim transcription every chunk
-                    if (!isFirstChunk) {
-                        await sendAudioChunk(audioBlob, false);
-                    }
-                    isFirstChunk = false;
+                    chunksRef.current.push(event.data);
                 }
             });
 
@@ -162,7 +166,7 @@ export const useAudioRecording = ({
         }
     }, [sendAudioChunk, scheduleNextChunk, chunkDurationMs]);
 
-    // Stop recording and send final chunk
+    // Stop recording and send final complete recording
     const stopRecording = useCallback(async () => {
         if (chunkTimerRef.current) {
             clearTimeout(chunkTimerRef.current);
@@ -176,12 +180,20 @@ export const useAudioRecording = ({
                 const handler = async () => {
                     mediaRecorderRef.current?.removeEventListener('stop', handler);
 
-                    // Combine all chunks for final transcription
+                    // Send complete recording for final transcription
                     if (chunksRef.current.length > 0) {
-                        const finalBlob = new Blob(chunksRef.current, {
-                            type: 'audio/webm;codecs=opus',
-                        });
-                        await sendAudioChunk(finalBlob, true);
+                        // Get the mime type from the recorder or use fallback
+                        const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+                        const finalBlob = new Blob(chunksRef.current, { type: mimeType });
+                        
+                        // Only send if we have a reasonable amount of audio (>100ms typical)
+                        if (finalBlob.size > 100) {
+                            await sendAudioChunk(finalBlob, true);
+                        } else {
+                            setError('Recording too short');
+                            toast.error('Please record at least 1 second of audio');
+                            setState('idle');
+                        }
                     }
 
                     resolve(null);

@@ -75,15 +75,36 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   compact = false,
   isStreaming = false,
 }) => {
-  // Normalize problematic unicode characters
+  // Normalize problematic unicode characters while preserving math delimiters
   const safeContent = React.useMemo(() => {
     if (!content) return content;
+    
+    let normalized = content;
+    
+    // Preserve math regions and don't normalize inside them
+    const mathRegex = /(\$\$[\s\S]*?\$\$|\$[^\$\n]*?\$)/g;
+    const mathBlocks: string[] = [];
+    let mathIndex = 0;
+    const placeholder = '\u0000MATH_PLACEHOLDER_';
+    
+    // Extract math blocks
+    normalized = normalized.replace(mathRegex, (match) => {
+      mathBlocks.push(match);
+      return placeholder + (mathIndex++) + '\u0000';
+    });
+    
     // Normalize various dashes and hyphens to regular hyphen
-    let normalized = content.replace(/[\u2010-\u2015]/g, '-'); // Includes hyphen, non-breaking hyphen, en-dash, em-dash, etc.
+    normalized = normalized.replace(/[\u2010-\u2015]/g, '-'); // Includes hyphen, non-breaking hyphen, en-dash, em-dash
     // Normalize other problematic Unicode characters
-    normalized = normalized.replace(/[\u2018\u2019]/g, "'"); // Curly quotes to straight quotes
+    normalized = normalized.replace(/[\u2018\u2019]/g, "'"); // Curly single quotes to straight quotes
     normalized = normalized.replace(/[\u201C\u201D]/g, '"'); // Curly double quotes to straight quotes
     normalized = normalized.replace(/[\u00AD]/g, '-'); // Soft hyphen to hyphen
+    
+    // Restore math blocks
+    mathBlocks.forEach((block, idx) => {
+      normalized = normalized.replace(placeholder + idx + '\u0000', block);
+    });
+    
     return normalized;
   }, [content]);
 
@@ -172,8 +193,13 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   );
 
   // Remark plugins for Markdown parsing
+  // remarkMath detects $...$ and $$...$$ delimiters for inline and block math
   const remarkPlugins = useMemo(
-    () => [remarkGfm, remarkMath, remarkBreaks],
+    () => [
+      remarkGfm,
+      remarkMath,
+      remarkBreaks
+    ],
     []
   );
 
@@ -183,10 +209,12 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       [
         rehypeKatex,
         {
-          strict: 'ignore', // Silently ignore unknown symbols instead of warning
-          throwOnError: false,
+          strict: false, // Allow macros and relaxed parsing
+          throwOnError: false, // Don't throw on problematic math, just skip rendering
           errorColor: '#cc0000',
           trust: true,
+          fleqn: false, // Default equation alignment
+          leqno: false, // Don't number equations
         },
       ] as any,
     ],
