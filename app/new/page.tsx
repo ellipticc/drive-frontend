@@ -1736,8 +1736,8 @@ export default function AssistantPage() {
         <div className="flex items-center gap-1">
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors">
-                        <IconStar className={cn("size-4", isStarred ? "fill-primary text-primary" : "")} onClick={handleToggleStar} />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors" onClick={handleToggleStar}>
+                        <IconStar className={cn("size-4", isStarred ? "fill-primary text-primary" : "")} />
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
