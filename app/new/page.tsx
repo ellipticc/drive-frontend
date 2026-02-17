@@ -30,6 +30,7 @@ import { EnhancedPromptInput } from "@/components/enhanced-prompt-input"
 import { SiteHeader } from "@/components/layout/header/site-header"
 import { useAICrypto } from "@/hooks/use-ai-crypto";
 import { parseFile } from "@/lib/file-parser";
+import { calculateContextBreakdown, ContextBreakdown, trimHistoryByTokens } from "@/lib/context-calculator"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { FeedbackModal } from "@/components/ai-elements/feedback-modal";
@@ -98,8 +99,9 @@ export default function AssistantPage() {
     // Available models for system rerun popovers
     const availableModels = [
         { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B" },
-        { id: "qwen/qwen3-32b", name: "Qwen 3 32B" },
         { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B" },
+        { id: "qwen/qwen3-32b", name: "Qwen 3 32B" },
+        { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2" },
     ];
 
     const handleRerunSystemWithModel = async (systemMessageId: string, modelId: string) => {
@@ -132,6 +134,9 @@ export default function AssistantPage() {
     const conversationId = searchParams.get('conversationId') || ""
 
     const lastCreatedConversationId = React.useRef<string | null>(null);
+
+    // Context breakdown for displaying token usage
+    const [contextBreakdown, setContextBreakdown] = React.useState<ContextBreakdown | null>(null);
 
     // Scroll Container Ref
     const scrollContainerRef = React.useRef<HTMLDivElement>(null)
@@ -319,6 +324,23 @@ export default function AssistantPage() {
     }, [conversationId, isReady, decryptHistory, router]);
 
     const [contextItems, setContextItems] = React.useState<Array<{ id: string; type: 'text' | 'code'; content: string }>>([]);
+
+    // Calculate context breakdown whenever messages or model changes
+    React.useEffect(() => {
+        if (messages.length > 0 && conversationId) {
+            const breakdown = calculateContextBreakdown(
+                messages,
+                model,
+                // Standard system prompt estimation
+                undefined, 
+                // Tool definitions (if applicable)
+                undefined
+            );
+            setContextBreakdown(breakdown);
+        } else {
+            setContextBreakdown(null);
+        }
+    }, [messages, model, conversationId]);
 
     // Keyboard shortcut: Esc to stop active generation
     React.useEffect(() => {
@@ -510,12 +532,18 @@ export default function AssistantPage() {
                 }
             }
 
-            // Prepare history for context (Sanitize UI flags)
-            // Optimization: Only send last 30 messages to save bandwidth/tokens
-            const historyPayload = messages
-                .filter(m => !m.isThinking && m.content) // Remove thinking placeholders or empty msgs
-                .slice(-30)
-                .map(m => ({ role: m.role, content: m.content }));
+            // Prepare history for context - Smart trimming (VS Code approach)
+            // Token-counts messages and dynamically removes old ones when approaching 85% threshold
+            // Preserves most recent messages and is model-aware
+            const cleanedMessages = messages.filter(m => !m.isThinking && m.content);
+            const trimmedMessages = trimHistoryByTokens(
+                cleanedMessages,
+                model,
+                value,
+                undefined,
+                25000 // Reserve 25k tokens for response generation
+            );
+            const historyPayload = trimmedMessages.map(m => ({ role: m.role, content: m.content }));
 
             // Add current user message
             const fullPayload = [...historyPayload, { role: 'user' as const, content: value }];
@@ -1143,7 +1171,17 @@ export default function AssistantPage() {
             return newMessages;
         });
 
-        const historyPayload = messages.slice(0, messageIndex).map(m => ({
+        // Smart context trimming for regenerate (model-aware, token-based)
+        const contextMessages = messages.slice(0, messageIndex);
+        const cleanedContextMessages = contextMessages.filter(m => !m.isThinking && m.content);
+        const trimmedContext = trimHistoryByTokens(
+            cleanedContextMessages,
+            model,
+            instruction || "",
+            undefined,
+            25000
+        );
+        const historyPayload = trimmedContext.map(m => ({
             role: m.role,
             content: m.content
         }));
@@ -1786,6 +1824,13 @@ export default function AssistantPage() {
                                         onModelChange={setModel}
                                         contextItems={contextItems}
                                         onRemoveContextItem={(id) => setContextItems(prev => prev.filter(i => i.id !== id))}
+                                        conversationId={conversationId}
+                                        maxContextTokens={contextBreakdown?.maxTokens || 128000}
+                                        usedContextTokens={contextBreakdown?.totalUsed || 0}
+                                        systemTokens={contextBreakdown?.systemTokens || 0}
+                                        toolDefinitionTokens={contextBreakdown?.toolDefinitionTokens || 0}
+                                        messageTokens={contextBreakdown?.messageTokens || 0}
+                                        toolResultTokens={contextBreakdown?.toolResultTokens || 0}
                                     />
                                     {/* Disclaimer Text */}
                                     <p className="text-xs text-center text-muted-foreground mt-2 select-none" aria-hidden="false">
