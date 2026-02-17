@@ -1691,7 +1691,6 @@ export default function AssistantPage() {
                     >
                         <span className="truncate">
                             {displayedTitle}
-                            {isTypingTitle && <span className="animate-pulse ml-0.5">|</span>}
                         </span>
                     </Button>
 
@@ -1718,7 +1717,7 @@ export default function AssistantPage() {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     onClick={() => setIsDeleteDialogOpen(true)}
-                                    className="text-destructive focus:bg-destructive focus:text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground group/del"
+                                    className="text-destructive focus:bg-destructive/10 focus:text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground group/del"
                                 >
                                     <IconTrash className="mr-2 size-4 group-hover/del:text-destructive-foreground transition-colors" />
                                     Delete
