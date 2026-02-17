@@ -92,12 +92,12 @@ export function NavSecondary({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <DropdownMenuTrigger asChild>
-                          <SidebarMenuButton isActive={helpOpen} className="size-8 justify-center p-0 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0">
+                          <SidebarMenuButton isActive={helpOpen} className="group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0">
                             {(() => {
                               const IconComponent = getIcon(item, helpOpen)
                               return <IconComponent className="size-4" />
                             })()}
-                            <span className="sr-only">{item.title}</span>
+                            <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
                           </SidebarMenuButton>
                         </DropdownMenuTrigger>
                       </TooltipTrigger>
@@ -155,7 +155,7 @@ export function NavSecondary({
                       side: "right",
                       hidden: state !== "collapsed"
                     }}
-                    className="pr-8 group/nav group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 justify-center"
+                    className="pr-8 group/nav group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
                   >
                     {(() => {
                       const IconComponent = getIcon(item, settingsOpen)
@@ -169,31 +169,31 @@ export function NavSecondary({
                     )}
                   </SidebarMenuButton>
                 ) : item.id === "feedback" ? (
-                  <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
-                    <SidebarMenuButton
-                      isActive={feedbackOpen}
-                      tooltip={{
-                        children: (
-                          <div className="flex items-center gap-1">
-                            {item.title}
-                            {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
+                  <Tooltip>
+                    <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+                      <TooltipTrigger asChild>
+                        <SidebarMenuButton
+                          isActive={feedbackOpen}
+                          className="pr-8 group/nav group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
+                        >
+                          {(() => {
+                            const IconComponent = getIcon(item, feedbackOpen)
+                            return <IconComponent className="size-4 shrink-0" />
+                          })()}
+                          <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
+                          <div className="ms-auto opacity-0 group-hover/nav:opacity-60 transition-opacity group-data-[collapsible=icon]:hidden">
+                            <Kbd>F</Kbd>
                           </div>
-                        ),
-                        side: "right",
-                        hidden: state !== "collapsed"
-                      }}
-                      className="pr-8 group/nav group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 justify-center"
-                    >
-                      {(() => {
-                        const IconComponent = getIcon(item, feedbackOpen)
-                        return <IconComponent className="size-4 shrink-0" />
-                      })()}
-                      <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
-                      <div className="ms-auto opacity-0 group-hover/nav:opacity-60 transition-opacity group-data-[collapsible=icon]:hidden">
-                        <Kbd>F</Kbd>
+                        </SidebarMenuButton>
+                      </TooltipTrigger>
+                    </FeedbackPopover>
+                    <TooltipContent side="right" hidden={state !== 'collapsed' || isMobile}>
+                      <div className="flex items-center gap-1">
+                        {item.title}
+                        {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
                       </div>
-                    </SidebarMenuButton>
-                  </FeedbackPopover>
+                    </TooltipContent>
+                  </Tooltip>
                 ) : (
                   <SidebarMenuButton
                     asChild
@@ -202,7 +202,7 @@ export function NavSecondary({
                       side: "right",
                       hidden: state !== "collapsed"
                     }}
-                    className="pr-8 group/nav group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 justify-center"
+                    className="pr-8 group/nav group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
                   >
                     <a href={item.url}>
                       <item.icon className="size-4 shrink-0" />
@@ -215,6 +215,6 @@ export function NavSecondary({
           })}
         </SidebarMenu>
       </SidebarGroupContent>
-    </SidebarGroup>
+    </SidebarGroup >
   )
 }

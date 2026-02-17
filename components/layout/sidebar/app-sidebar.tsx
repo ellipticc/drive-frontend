@@ -291,30 +291,28 @@ export const AppSidebar = React.memo(function AppSidebar({
         <SidebarMenu className="mt-3 mb-1">
           <NavNew />
           <SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={() => setSearchOpen(true)}
-                tooltip={{
-                  children: (
-                    <div className="flex items-center gap-1">
-                      Search Chats
-                      <Kbd>
-                        <span className="text-[10px]">Ctrl</span>K
-                      </Kbd>
-                    </div>
-                  ),
-                  side: "right",
-                  hidden: state !== "collapsed"
-                }}
-                className="relative group/menu-button justify-center group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
-              >
-                <IconSearch className="size-4 shrink-0" />
-                <span className="group-data-[collapsible=icon]:hidden">Search</span>
-                <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-60 transition-opacity flex group-data-[collapsible=icon]:hidden sm:flex">
-                  <span className="text-[10px]">Ctrl</span>K
-                </kbd>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => setSearchOpen(true)}
+              tooltip={{
+                children: (
+                  <div className="flex items-center gap-1">
+                    Search Chats
+                    <Kbd>
+                      <span className="text-[10px]">Ctrl</span>K
+                    </Kbd>
+                  </div>
+                ),
+                side: "right",
+                hidden: state !== "collapsed"
+              }}
+              className="relative group/menu-button group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
+            >
+              <IconSearch className="size-4 shrink-0" />
+              <span className="group-data-[collapsible=icon]:hidden">Search</span>
+              <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-60 transition-opacity flex group-data-[collapsible=icon]:hidden sm:flex">
+                <span className="text-[10px]">Ctrl</span>K
+              </kbd>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
 
@@ -339,17 +337,17 @@ export const AppSidebar = React.memo(function AppSidebar({
                   <IconBubbleText className="mr-2 h-4 w-4" />
                   <span>{chat.title}</span>
                   <span className="ml-auto text-xs text-muted-foreground">{(() => {
-                      if (!chat.createdAt) return '';
-                      const d = new Date(chat.createdAt);
-                      const now = new Date();
-                      const diff = now.getTime() - d.getTime();
-                      const day = 24 * 60 * 60 * 1000;
-                      if (diff < day) return 'Today';
-                      if (diff < 7 * day) return 'Past week';
-                      if (diff < 30 * day) return 'Past month';
-                      if (diff < 365 * day) return 'Past year';
-                      return d.toLocaleDateString();
-                    })()}</span>
+                    if (!chat.createdAt) return '';
+                    const d = new Date(chat.createdAt);
+                    const now = new Date();
+                    const diff = now.getTime() - d.getTime();
+                    const day = 24 * 60 * 60 * 1000;
+                    if (diff < day) return 'Today';
+                    if (diff < 7 * day) return 'Past week';
+                    if (diff < 30 * day) return 'Past month';
+                    if (diff < 365 * day) return 'Past year';
+                    return d.toLocaleDateString();
+                  })()}</span>
                 </CommandItem>
               ))}
             </CommandGroup>
