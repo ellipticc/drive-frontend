@@ -13,7 +13,7 @@ import { NotificationProvider } from "@/components/notifications/notification-pr
 import { LanguageProvider } from "@/lib/i18n/language-context";
 
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
-import { IconLoader2 as Loader2 } from "@tabler/icons-react";
+
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DOMErrorBoundary } from "@/components/error-boundary-dom";
 import "./globals.css";
@@ -219,8 +219,23 @@ export default function RootLayout({
         className={`${spaceGrotesk.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} antialiased`}
       >
 
+        {/* 
+          IMPORTANT: This overlay is removed via document.getElementById().remove()
+          in user-context.tsx and auth-guard.tsx. We use suppressHydrationWarning
+          and render children outside React's tree so that removing this DOM node
+          does NOT desync React's virtual DOM (which causes NotFoundError).
+        */}
         <div
           id="initial-loading-overlay"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `
+              <div style="display:flex;flex-direction:column;align-items:center;gap:16px">
+                <svg class="h-8 w-8 animate-spin" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                <p style="font-size:0.875rem;margin-top:0.5rem" class="text-muted-foreground">Loading…</p>
+              </div>
+            `
+          }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -232,12 +247,7 @@ export default function RootLayout({
             transition: 'opacity 0.5s ease-in-out',
             opacity: 1
           }}
-        >
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-8 w-8 animate-spin" />
-            <p className="text-sm text-muted-foreground mt-2">Loading…</p>
-          </div>
-        </div>
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
