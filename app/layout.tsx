@@ -258,7 +258,7 @@ export default function RootLayout({
                           <ConditionalLayout>{children}</ConditionalLayout>
                         </DOMErrorBoundary>
                         <Toaster
-                          position="bottom-right"
+                          position="top-right"
                           richColors
                           duration={5000}
                           style={{

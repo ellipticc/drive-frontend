@@ -1690,82 +1690,31 @@ export default function AssistantPage() {
             <div className="flex-1 relative flex flex-col overflow-hidden">
 
                 {isLoading || (!isContentReady && messages.length === 0) ? (
-                    // LOADING SKELETON
-                    <div className="flex flex-col h-full w-full relative">
-                        <div className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth min-h-0 max-w-full overflow-x-hidden">
-                            <div className="flex flex-col items-start w-full gap-6 max-w-4xl mx-auto">
-                                {/* User message skeleton */}
-                                <div className="flex justify-end w-full mb-4">
-                                    <div className="max-w-[80%] flex flex-col items-end gap-2">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex justify-end w-full">
-                                                <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 space-y-2">
-                                                    <Skeleton className="h-4 w-48" />
-                                                    <Skeleton className="h-4 w-56" />
-                                                    <Skeleton className="h-4 w-40" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                            <Skeleton className="h-3 w-20" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Assistant response skeleton */}
-                                <div className="flex justify-start w-full mb-4">
-                                    <div className="max-w-[85%] flex flex-col items-start gap-2">
-                                        <div className="flex items-start gap-2">
-                                            <div className="p-4 rounded-2xl bg-muted/50 border border-border/50 space-y-2 w-full">
-                                                <Skeleton className="h-4 w-full" />
-                                                <Skeleton className="h-4 w-[90%]" />
-                                                <Skeleton className="h-4 w-[70%]" />
-                                                <Skeleton className="h-4 w-full" />
-                                                <Skeleton className="h-4 w-[80%]" />
-                                            </div>
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                            <Skeleton className="h-3 w-20" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Another user message skeleton */}
-                                <div className="flex justify-end w-full mb-4">
-                                    <div className="max-w-[70%] flex flex-col items-end gap-2">
-                                        <div className="flex justify-end w-full">
-                                            <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 space-y-2">
-                                                <Skeleton className="h-4 w-32" />
-                                            </div>
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                            <Skeleton className="h-3 w-20" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Loading indicator */}
-                                <div className="flex justify-start w-full">
-                                    <div className="max-w-[85%] flex flex-col items-start gap-2">
-                                        <div className="p-4 rounded-2xl bg-muted/50 border border-border/50">
-                                            <div className="flex gap-1">
-                                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
-                                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{animationDelay: '100ms'}} />
-                                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{animationDelay: '200ms'}} />
-                                            </div>
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                            <Skeleton className="h-3 w-20" />
-                                        </div>
+                    // LOADING SKELETON - Simple paragraph placeholder
+                    <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth">
+                        <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+                            {/* User message skeleton */}
+                            <div className="flex justify-end">
+                                <div className="max-w-[70%] p-4 rounded-2xl bg-primary/10 border border-primary/20">
+                                    <div className="space-y-2">
+                                        <Skeleton className="h-4 w-48" />
+                                        <Skeleton className="h-4 w-40" />
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        {/* Sticky Input Footer Skeleton */}
-                        <div className="sticky bottom-0 z-40 w-full bg-background/95 backdrop-blur-sm pb-4 pt-0">
-                            <div className="flex justify-center w-full">
-                                <div className="max-w-4xl w-full px-4">
-                                    <div className="h-14 bg-muted/20 rounded-xl border border-border/40 w-full" />
+
+                            {/* Assistant response skeleton - Main paragraph loading */}
+                            <div className="flex justify-start">
+                                <div className="max-w-[85%] p-4 rounded-2xl bg-muted/50 border border-border/50 w-full">
+                                    <div className="space-y-2">
+                                        <Skeleton className="h-4 w-full" />
+                                        <Skeleton className="h-4 w-full" />
+                                        <Skeleton className="h-4 w-[95%]" />
+                                        <Skeleton className="h-4 w-full" />
+                                        <Skeleton className="h-4 w-[90%]" />
+                                        <Skeleton className="h-4 w-full" />
+                                        <Skeleton className="h-4 w-[85%]" />
+                                    </div>
                                 </div>
                             </div>
                         </div>

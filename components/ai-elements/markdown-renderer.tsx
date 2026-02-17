@@ -93,12 +93,18 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       return placeholder + (mathIndex++) + '\u0000';
     });
     
-    // Normalize various dashes and hyphens to regular hyphen
-    normalized = normalized.replace(/[\u2010-\u2015]/g, '-'); // Includes hyphen, non-breaking hyphen, en-dash, em-dash
-    // Normalize other problematic Unicode characters
-    normalized = normalized.replace(/[\u2018\u2019]/g, "'"); // Curly single quotes to straight quotes
-    normalized = normalized.replace(/[\u201C\u201D]/g, '"'); // Curly double quotes to straight quotes
-    normalized = normalized.replace(/[\u00AD]/g, '-'); // Soft hyphen to hyphen
+    // Normalize ALL hyphens/dashes to regular ASCII hyphen-minus (U+002D)
+    // This includes: hyphen, non-breaking hyphen, en-dash, em-dash, etc.
+    normalized = normalized.replace(/[\u2010-\u2015‐‑‒–—]/g, '-');
+    
+    // Normalize ALL spaces to regular space
+    // This includes: non-breaking space, thin space, hair space, etc.
+    normalized = normalized.replace(/[\u00A0\u2000-\u200B\u202F\u205F]/g, ' ');
+    
+    // Normalize quotes
+    normalized = normalized.replace(/[\u2018\u2019]/g, "'"); // Curly single quotes
+    normalized = normalized.replace(/[\u201C\u201D]/g, '"'); // Curly double quotes
+    normalized = normalized.replace(/[\u00AD]/g, '-'); // Soft hyphen
     
     // Restore math blocks
     mathBlocks.forEach((block, idx) => {

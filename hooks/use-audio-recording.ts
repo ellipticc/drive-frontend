@@ -2,16 +2,20 @@ import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import apiClient from '@/lib/api';
 
-export type AudioRecordingState = 'idle' | 'recording' | 'processing' | 'transcribing_interim' | 'transcribing_final' | 'done';
+export type AudioRecordingState = 'idle' | 'recording' | 'processing' | 'transcribing_interim' | 'transcribing_final' | 'done' | 'no_audio_detected';
 
 interface UseAudioRecordingOptions {
     onTranscript?: (text: string, isFinal: boolean) => void;
+    onNoAudioDetected?: () => void;
     chunkDurationMs?: number;
+    silenceTimeoutMs?: number; // Time in ms before showing "no audio detected" (default 5000ms)
 }
 
 export const useAudioRecording = ({
     onTranscript,
+    onNoAudioDetected,
     chunkDurationMs = 1500,
+    silenceTimeoutMs = 5000,
 }: UseAudioRecordingOptions = {}) => {
     const [state, setState] = useState<AudioRecordingState>('idle');
     const [transcript, setTranscript] = useState('');
@@ -24,19 +28,47 @@ export const useAudioRecording = ({
     const chunkTimerRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
+    const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const lastAudioLevelRef = useRef<number>(0);
+
+    // Monitor audio levels and detect prolonged silence
+    const monitorSilence = useCallback(() => {
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        
+        let silenceCounter = 0;
+        const checkInterval = setInterval(() => {
+            if (!analyserRef.current) {
+                clearInterval(checkInterval);
+                return;
+            }
+
+            const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+            analyserRef.current.getByteFrequencyData(dataArray);
+            const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+            lastAudioLevelRef.current = average;
+
+            // If volume is below threshold (muted/no audio)
+            if (average < 5) {
+                silenceCounter++;
+                // Trigger after N checks (roughly 5 seconds at ~1 check/sec)
+                if (silenceCounter > 5) {
+                    setState('no_audio_detected');
+                    onNoAudioDetected?.();
+                    clearInterval(checkInterval);
+                    return;
+                }
+            } else {
+                silenceCounter = 0; // Reset counter if we detect audio
+            }
+        }, 1000); // Check every second
+
+        // Cleanup timer
+        silenceTimerRef.current = setTimeout(() => clearInterval(checkInterval), 60000); // Stop after 60 seconds
+    }, [onNoAudioDetected]);
 
     // Detect if user is actively speaking
     const isUserSpeaking = useCallback((): boolean => {
-        if (!analyserRef.current) return false;
-
-        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-        analyserRef.current.getByteFrequencyData(dataArray);
-
-        // Calculate average frequency energy
-        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-        
-        // Threshold for speech detection (adjust based on needs)
-        return average > 30;
+        return lastAudioLevelRef.current > 30;
     }, []);
 
     // Send audio chunk to STT endpoint
@@ -127,6 +159,9 @@ export const useAudioRecording = ({
             source.connect(analyser);
             analyserRef.current = analyser;
 
+            // Start monitoring for prolonged silence (no audio detected)
+            monitorSilence();
+
             // Create media recorder with best supported format
             // Try webm first, fall back to wav if needed
             let options: MediaRecorderOptions = {};
@@ -170,6 +205,9 @@ export const useAudioRecording = ({
     const stopRecording = useCallback(async () => {
         if (chunkTimerRef.current) {
             clearTimeout(chunkTimerRef.current);
+        }
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
         }
 
         if (mediaRecorderRef.current?.state === 'recording' || mediaRecorderRef.current?.state === 'paused') {
@@ -215,6 +253,9 @@ export const useAudioRecording = ({
     const cancelRecording = useCallback(() => {
         if (chunkTimerRef.current) {
             clearTimeout(chunkTimerRef.current);
+        }
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
         }
 
         if (mediaRecorderRef.current?.state === 'recording' || mediaRecorderRef.current?.state === 'paused') {

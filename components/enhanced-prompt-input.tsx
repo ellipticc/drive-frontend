@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { IconPlus, IconChevronDown, IconArrowUp, IconX, IconFileText, IconLoader2, IconCheck, IconArchive, IconBrain, IconWorld, IconSquareFilled, IconAlertCircle } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/utils";
@@ -164,9 +165,10 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                 setMessage(text);
             }
         },
+        onNoAudioDetected: () => {
+            toast.error('No audio detected. Make sure your microphone is connected and unmuted.');
+        },
     });
-
-    const audioLinesRef = useRef<any>(null);
 
     const effectiveModel = externalModel || localModel;
     const handleModelChange = (m: string) => {
@@ -555,27 +557,28 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                     Dictation
                                 </TooltipContent>
                             </Tooltip>
-                        ) : audioState !== 'idle' ? (
-                            // Recording/Transcribing Controls
-                            <div className="flex items-center gap-1">
-                                {/* Audio Lines Animation */}
+                        ) : audioState !== 'idle' && audioState !== 'no_audio_detected' ? (
+                            // Recording/Transcribing Controls - Simplified
+                            <div className="flex items-center gap-2">
+                                {/* Cancel Dictation */}
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <div>
-                                            <AudioLinesIcon
-                                                ref={audioLinesRef}
-                                                stream={stream}
-                                                size={20}
-                                                className="text-primary"
-                                            />
-                                        </div>
+                                        <button
+                                            onClick={cancelRecording}
+                                            disabled={audioState.includes('transcribing')}
+                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-destructive/90 text-destructive-foreground hover:bg-destructive transition-colors disabled:opacity-50"
+                                            type="button"
+                                            aria-label="Cancel dictation"
+                                        >
+                                            <Icons.X className="w-4 h-4" />
+                                        </button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="text-xs">
-                                        {audioState === 'recording' ? 'Recording...' : 'Transcribing...'}
+                                        Cancel Dictation
                                     </TooltipContent>
                                 </Tooltip>
 
-                                {/* Stop Recording Button */}
+                                {/* Submit Dictation */}
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <button
@@ -583,31 +586,13 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                             disabled={audioState.includes('transcribing')}
                                             className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
                                             type="button"
-                                            aria-label="Stop recording"
+                                            aria-label="Submit dictation"
                                         >
                                             <Icons.Check className="w-4 h-4" />
                                         </button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="text-xs">
-                                        {audioState.includes('transcribing') ? 'Transcribing...' : 'Done'}
-                                    </TooltipContent>
-                                </Tooltip>
-
-                                {/* Cancel Recording Button */}
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            onClick={cancelRecording}
-                                            disabled={audioState.includes('transcribing')}
-                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
-                                            type="button"
-                                            aria-label="Cancel recording"
-                                        >
-                                            <Icons.X className="w-4 h-4" />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="text-xs">
-                                        Cancel
+                                        Submit Dictation
                                     </TooltipContent>
                                 </Tooltip>
                             </div>
