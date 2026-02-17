@@ -1765,12 +1765,12 @@ export default function AssistantPage() {
                             lines.push('\n---\n');
                         }
 
-                        const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+                        const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         const safeDate = exportedAt.toISOString().replace(/[:.]/g, '-');
                         a.href = url;
-                        a.download = `conversation-${conversationId || 'export'}-${safeDate}.md`;
+                        a.download = `conversation-${conversationId || 'export'}-${safeDate}.txt`;
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
@@ -2051,7 +2051,7 @@ export default function AssistantPage() {
                             This will permanently delete this chat history. This action cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter className="gap-2 sm:gap-0">
+                    <DialogFooter className="gap-2 sm:gap-2">
                         <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
                             Cancel
                         </Button>
