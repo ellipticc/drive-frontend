@@ -1546,12 +1546,25 @@ export default function AssistantPage() {
             return;
         }
 
+        // Store previous title for rollback
+        const previousTitle = chatTitle;
+        const previousDisplayedTitle = displayedTitle;
+
+        // Optimistic update - update UI immediately
+        setChatTitle(tempTitle);
+        setDisplayedTitle(tempTitle);
+        setIsEditingTitle(false);
+
         try {
+            // Call API in background
             await renameChat(conversationId, tempTitle);
-            setChatTitle(tempTitle);
-            setIsEditingTitle(false);
+            toast.success("Chat renamed");
         } catch (e) {
             console.error("Failed to rename chat", e);
+            
+            // Rollback on failure
+            setChatTitle(previousTitle);
+            setDisplayedTitle(previousDisplayedTitle);
             toast.error("Failed to rename chat");
         }
     };

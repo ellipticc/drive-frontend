@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/utils";
 import { isPromptTooLong } from "@/lib/constants/prompt-limits";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAudioRecording } from "@/hooks/use-audio-recording";
+import { AudioLinesIcon } from "@/components/ui/audio-lines";
 
 export const Icons = {
     Plus: IconPlus,
@@ -143,6 +145,28 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const [searchMode, setSearchMode] = useState(false);
     const [modelOpen, setModelOpen] = useState(false);
     const [tokenError, setTokenError] = useState(false);
+
+    // Audio recording state
+    const {
+        state: audioState,
+        transcript,
+        stream,
+        startRecording,
+        stopRecording,
+        cancelRecording,
+    } = useAudioRecording({
+        onTranscript: (text, isFinal) => {
+            if (isFinal) {
+                // Final text - user can now edit manually
+                setMessage(text);
+            } else {
+                // Interim text - overwrite with new interim
+                setMessage(text);
+            }
+        },
+    });
+
+    const audioLinesRef = useRef<any>(null);
 
     const effectiveModel = externalModel || localModel;
     const handleModelChange = (m: string) => {
@@ -494,46 +518,123 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                 </TooltipContent>
                             </Tooltip>
 
-                            {/* Send/Stop Button */}
-                            {isLoading ? (
+                        {/* Send/Stop/Audio Button */}
+                        {isLoading ? (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={onStop}
+                                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
+                                        type="button"
+                                        aria-label="Stop generation"
+                                    >
+                                        <Icons.SquareFilled className="w-4 h-4" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs">
+                                    Stop generation (Esc)
+                                </TooltipContent>
+                            </Tooltip>
+                        ) : !hasContent && audioState === 'idle' ? (
+                            // Audio Recording Button - Show when input is empty
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={startRecording}
+                                        className={cn(
+                                            "inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all",
+                                            "bg-primary text-primary-foreground hover:bg-primary/90"
+                                        )}
+                                        type="button"
+                                        aria-label="Start dictation"
+                                    >
+                                        <AudioLinesIcon size={16} className="text-primary-foreground" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs">
+                                    Dictation
+                                </TooltipContent>
+                            </Tooltip>
+                        ) : audioState !== 'idle' ? (
+                            // Recording/Transcribing Controls
+                            <div className="flex items-center gap-1">
+                                {/* Audio Lines Animation */}
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div>
+                                            <AudioLinesIcon
+                                                ref={audioLinesRef}
+                                                stream={stream}
+                                                size={20}
+                                                className="text-primary"
+                                            />
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-xs">
+                                        {audioState === 'recording' ? 'Recording...' : 'Transcribing...'}
+                                    </TooltipContent>
+                                </Tooltip>
+
+                                {/* Stop Recording Button */}
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <button
-                                            onClick={onStop}
-                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors"
+                                            onClick={stopRecording}
+                                            disabled={audioState.includes('transcribing')}
+                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
                                             type="button"
-                                            aria-label="Stop generation"
+                                            aria-label="Stop recording"
                                         >
-                                            <Icons.SquareFilled className="w-4 h-4" />
+                                            <Icons.Check className="w-4 h-4" />
                                         </button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="text-xs">
-                                        Stop generation (Esc)
+                                        {audioState.includes('transcribing') ? 'Transcribing...' : 'Done'}
                                     </TooltipContent>
                                 </Tooltip>
-                            ) : (
+
+                                {/* Cancel Recording Button */}
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <button
-                                            onClick={handleSend}
-                                            disabled={!hasContent}
-                                            className={cn(
-                                                "inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all",
-                                                hasContent
-                                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                                    : "bg-muted text-muted-foreground cursor-not-allowed"
-                                            )}
+                                            onClick={cancelRecording}
+                                            disabled={audioState.includes('transcribing')}
+                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
                                             type="button"
-                                            aria-label="Send message"
+                                            aria-label="Cancel recording"
                                         >
-                                            <Icons.ArrowUp className="w-4 h-4" />
+                                            <Icons.X className="w-4 h-4" />
                                         </button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="text-xs">
-                                        {hasContent ? 'Send message (Enter)' : 'Message is empty'}
+                                        Cancel
                                     </TooltipContent>
                                 </Tooltip>
-                            )}
+                            </div>
+                        ) : (
+                            // Regular Send Button
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={handleSend}
+                                        disabled={!hasContent}
+                                        className={cn(
+                                            "inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all",
+                                            hasContent
+                                                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                                : "bg-muted text-muted-foreground cursor-not-allowed"
+                                        )}
+                                        type="button"
+                                        aria-label="Send message"
+                                    >
+                                        <Icons.ArrowUp className="w-4 h-4" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs">
+                                    {hasContent ? 'Send message (Enter)' : 'Message is empty'}
+                                </TooltipContent>
+                            </Tooltip>
+                        )}
                         </div>
                     </div>
                 </div>

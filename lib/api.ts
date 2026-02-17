@@ -3366,6 +3366,18 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Speech-to-Text endpoint (returns ApiResponse like other APIs)
+  async stt(audioBlob: Blob, isFinal: boolean): Promise<ApiResponse<{ text: string; isFinal: boolean; timestamp: string }>> {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'audio.webm');
+    formData.append('isFinal', String(isFinal));
+
+    return this.request('/ai/stt', {
+      method: 'POST',
+      body: formData,
+    });
+  }
 }
 
 // AttestationDocument type removed — attestations feature disabled
