@@ -28,18 +28,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { type Value } from "platejs";
-import { paperService } from "@/lib/paper-service";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { paperService } from "@/lib/paper-service";;
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Plate, usePlateEditor } from "platejs/react";
-import { Editor, EditorContainer } from "@/components/ui/editor";
+import { Editor } from "@/components/ui/editor";
 import { EditorKit } from "@/components/editor-kit";
-import { useEmojiDropdownMenuState } from "@platejs/emoji/react";
 import { FixedToolbar } from "@/components/ui/fixed-toolbar";
 import { FixedToolbarButtons } from "@/components/ui/fixed-toolbar-buttons";
-import { EmojiPopover, EmojiPicker } from "@/components/ui/emoji-toolbar-button";
 import { VersionHistoryModal } from "@/components/modals/version-history-modal";
 import { MoveToTrashModal } from "@/components/modals/move-to-trash-modal";
 import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
@@ -78,7 +74,6 @@ interface PaperHeaderProps {
     setPaperTitle: (title: string) => void;
     handleTitleSave: (title: string) => void;
     icon: string | null;
-    onSelectEmoji: (emoji: any) => void;
     saving: boolean;
     isUnsaved: boolean;
     onHistoryOpen: (open: boolean, versionId?: string | null) => void;
@@ -127,7 +122,6 @@ function PaperHeader({
     setPaperTitle,
     handleTitleSave,
     icon,
-    onSelectEmoji,
     saving,
     isUnsaved,
     onHistoryOpen,
@@ -146,7 +140,6 @@ function PaperHeader({
 }: PaperHeaderProps) {
     const { theme, setTheme } = useTheme();
     const router = useRouter();
-    const { emojiPickerState, isOpen, setIsOpen } = useEmojiDropdownMenuState();
     const [isRenaming, setIsRenaming] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     // Track whether the title (main) dropdown is open so we can visually mute the title when active
@@ -238,39 +231,11 @@ function PaperHeader({
     return (
         <header className="flex h-14 md:h-16 min-h-[3.5rem] md:min-h-[4rem] items-center gap-2 border-b px-4 shrink-0 bg-background z-50 transition-all duration-200 ease-in-out">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <SidebarTrigger className="h-9 w-9 md:h-10 md:w-10" />
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                        <span className="text-xs">Toggle sidebar · <kbd className="rounded bg-muted/40 px-1">Ctrl</kbd>/<kbd className="rounded bg-muted/40 px-1">Cmd</kbd> + <kbd className="rounded bg-muted/40 px-1">B</kbd></span>
-                    </TooltipContent>
-                </Tooltip>
+                <SidebarTrigger className="h-9 w-9 md:h-10 md:w-10" />
 
-                <div className="h-6 w-px bg-border mx-1 hidden md:block" />
-
-                <EmojiPopover
-                    isOpen={isOpen}
-                    setIsOpen={setIsOpen}
-                    control={
-                        <Button
-                            variant="ghost"
-                            className="w-6 h-6 md:w-7 md:h-7 rounded-md bg-transparent flex items-center justify-center shrink-0 hover:bg-muted p-0 text-sm md:text-base overflow-hidden"
-                        >
-                            {displayIcon}
-                        </Button>
-                    }
-                >
-                    <EmojiPicker
-                        {...emojiPickerState}
-                        isOpen={isOpen}
-                        setIsOpen={setIsOpen}
-                        onSelectEmoji={(emoji) => {
-                            onSelectEmoji(emoji);
-                            setIsOpen(false);
-                        }}
-                    />
-                </EmojiPopover>
+                <div className="w-6 h-6 md:w-7 md:h-7 rounded-md bg-muted/10 flex items-center justify-center shrink-0 text-sm md:text-base overflow-hidden">
+                    {displayIcon}
+                </div>
 
                 {/* Title Dropdown Menu */}
                 {!isRenaming ? (
@@ -569,7 +534,6 @@ function PaperEditorView({
                         setPaperTitle={setPaperTitle}
                         handleTitleSave={handleTitleSave}
                         icon={icon}
-                        onSelectEmoji={onSelectEmoji}
                         saving={saving}
                         isUnsaved={isUnsaved}
                         onHistoryOpen={onHistoryOpen}

@@ -1577,8 +1577,8 @@ export const Table01DividerLineSm = ({
             const second = String(now.getSeconds()).padStart(2, '0');
             const filename = `Untitled paper ${year}-${month}-${day} ${hour}.${minute}.${second}`;
 
-            // Open new tab immediately for better UX
-            const newWin = window.open('/paper/new?creating=1', '_blank');
+            // Navigate to paper creation page in the same tab
+            router.push('/paper/new?creating=1');
             toast('Creating paper...');
 
             try {
@@ -1586,16 +1586,11 @@ export const Table01DividerLineSm = ({
 
                 if (newPaperId) {
                     toast.success('Paper created');
-                    if (newWin && !newWin.closed) {
-                        newWin.location.href = `/paper?fileId=${newPaperId}`;
-                    } else {
-                        window.open(`/paper?fileId=${newPaperId}`, '_blank');
-                    }
+                    router.push(`/paper?fileId=${newPaperId}`);
                 }
             } catch (err) {
                 console.error('Failed to create new paper:', err);
                 toast.error('Failed to create new paper');
-                if (newWin && !newWin.closed) newWin.close();
             }
         } catch (error) {
             console.error("Failed to create new paper:", error);
@@ -1955,7 +1950,7 @@ export const Table01DividerLineSm = ({
                     if (item.type === 'file') {
                         handlePreviewClick(item.id, item.name, item.mimeType);
                     } else if (item.type === 'paper') {
-                        window.open(`/paper?fileId=${item.id}`, '_blank');
+                        router.push(`/paper?fileId=${item.id}`);
                     }
                     break;
                 case 'copyLink':
@@ -1966,7 +1961,7 @@ export const Table01DividerLineSm = ({
                     if (item.type === 'file') {
                         handlePreviewClick(item.id, item.name, item.mimeType);
                     } else if (item.type === 'paper') {
-                        window.open(`/paper?fileId=${item.id}`, '_blank');
+                        router.push(`/paper?fileId=${item.id}`);
                     }
                     break;
 
@@ -3305,7 +3300,7 @@ export const Table01DividerLineSm = ({
                                                             item={item}
                                                             isSelected={isSelected}
                                                             isDraggingSomewhere={isDraggingSomewhere}
-                                                            onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : (item.type === 'paper' ? () => window.open('/paper?fileId=' + item.id, '_blank') : undefined))}
+                                                            onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : (item.type === 'paper' ? () => router.push('/paper?fileId=' + item.id) : undefined))}
                                                             className="group hover:bg-muted/50 transition-colors duration-150"
                                                             onContextMenu={handleContextMenu}
                                                         >
@@ -3519,7 +3514,7 @@ export const Table01DividerLineSm = ({
                                                     } else if (item.type === 'file') {
                                                         handlePreviewClick(item.id, item.name, item.mimeType);
                                                     } else if (item.type === 'paper') {
-                                                        window.open('/paper?fileId=' + item.id, '_blank');
+                                                        router.push('/paper?fileId=' + item.id);
                                                     }
                                                     return;
                                                 }
@@ -3546,7 +3541,7 @@ export const Table01DividerLineSm = ({
                                                 } else if (item.type === 'file') {
                                                     handlePreviewClick(item.id, item.name, item.mimeType);
                                                 } else if (item.type === 'paper') {
-                                                    window.open('/paper?fileId=' + item.id, '_blank');
+                                                    router.push('/paper?fileId=' + item.id);
                                                 }
                                             }}
                                             onContextMenu={(e) => handleContextMenu(e, item)}
