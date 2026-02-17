@@ -170,66 +170,39 @@ export function NavUser({
       <SidebarMenu className={cn(state === 'collapsed' ? 'sticky bottom-0' : '')}>
         <SidebarMenuItem>
           <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-            {state === 'collapsed' ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <SidebarMenuButton
-                      size="lg"
-                      className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground relative"
-                    >
-                      <div className="relative">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Avatar className="h-8 w-8 rounded-lg cursor-pointer" onClick={(e) => { e.stopPropagation(); setDropdownOpen(false); window.location.hash = '#settings/General?open=avatar'; }} role="button" tabIndex={0}>
-                              <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
-                              <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
-                            </Avatar>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">Change avatar</TooltipContent>
-                        </Tooltip>
-                        {hasUnread && <NotificationDot />}
-                      </div>
-                      <div className="grid flex-1 text-start text-sm leading-tight">
-                        <span className="truncate font-medium">{displayName}</span>
-                        <span className="text-muted-foreground truncate text-xs">
-                          {user.email}
-                        </span>
-                      </div>
-                      <IconDotsVertical className="ms-auto size-4" />
-                    </SidebarMenuButton>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="right">{displayName}</TooltipContent>
-              </Tooltip>
-            ) : (
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground relative"
-                >
-                  <div className="relative">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Avatar className="h-8 w-8 rounded-lg cursor-pointer" onClick={(e) => { e.stopPropagation(); setDropdownOpen(false); window.location.hash = '#settings/General?open=avatar'; }} role="button" tabIndex={0}>
-                          <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
-                          <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
-                        </Avatar>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">Change avatar</TooltipContent>
-                    </Tooltip>
-                    {hasUnread && <NotificationDot />}
-                  </div>
-                  <div className="grid flex-1 text-start text-sm leading-tight">
-                    <span className="truncate font-medium">{displayName}</span>
-                    <span className="text-muted-foreground truncate text-xs">
-                      {user.email}
-                    </span>
-                  </div>
-                  <IconDotsVertical className="ms-auto size-4" />
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton
+                    size="lg"
+                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground relative"
+                  >
+                    <div className="relative">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Avatar className="h-8 w-8 rounded-lg cursor-pointer" onClick={(e) => { e.stopPropagation(); setDropdownOpen(false); window.location.hash = '#settings/General?open=avatar'; }} role="button" tabIndex={0}>
+                            <AvatarImage src={user.avatar || getDiceBearAvatar(user.id)} alt={displayName} />
+                            <AvatarFallback className="rounded-lg">{getInitials(displayName)}</AvatarFallback>
+                          </Avatar>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">Change avatar</TooltipContent>
+                      </Tooltip>
+                      {hasUnread && <NotificationDot />}
+                    </div>
+                    <div className="grid flex-1 text-start text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                      <span className="truncate font-medium">{displayName}</span>
+                      <span className="text-muted-foreground truncate text-xs">
+                        {user.email}
+                      </span>
+                    </div>
+                    <IconDotsVertical className="ms-auto size-4 group-data-[collapsible=icon]:hidden" />
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="right" hidden={state !== 'collapsed' || isMobile}>
+                {displayName}
+              </TooltipContent>
+            </Tooltip>
 
             <DropdownMenuContent
               className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"

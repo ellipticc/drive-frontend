@@ -82,7 +82,7 @@ export default function AssistantPage() {
     const [feedbackPromptContext, setFeedbackPromptContext] = React.useState<string>("");
     const [feedbackResponseContext, setFeedbackResponseContext] = React.useState<string>("");
     const abortControllerRef = React.useRef<AbortController | null>(null)
-    const [model, setModel] = React.useState("llama-3.3-70b-versatile")
+    const [model, setModel] = React.useState("auto")
     const [isWebSearchEnabled, setIsWebSearchEnabled] = React.useState(false);
     const [chatTitle, setChatTitle] = React.useState<string>('Chat');
     const lastScrollTopRef = React.useRef(0)

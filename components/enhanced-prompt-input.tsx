@@ -141,7 +141,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const [message, setMessage] = useState("");
     const [files, setFiles] = useState<AttachedFile[]>([]);
     const [isDragging, setIsDragging] = useState(false);
-    const [localModel, setLocalModel] = useState("llama-3.1-8b-instant");
+    const [localModel, setLocalModel] = useState('auto');
     const [thinkingMode, setThinkingMode] = useState(false);
     const [searchMode, setSearchMode] = useState(false);
     const [modelOpen, setModelOpen] = useState(false);
@@ -188,6 +188,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const models = [
+        { id: "auto", name: "Auto", description: "Balances speed & quality", provider: "auto" },
         { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", description: "Versatile, 131k context", provider: "llama" },
         { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", description: "Vision, General", provider: "openai" },
         { id: "qwen/qwen3-32b", name: "Qwen 3 32B", description: "Code, Reasoning", provider: "alibaba" },
@@ -389,6 +390,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                 onPaste={handlePaste}
                                 onKeyDown={handleKeyDown}
                                 placeholder="How can I help you today?"
+                                data-has-content={hasContent ? "true" : undefined}
                                 className="w-full bg-transparent border-0 outline-none text-foreground text-[16px] placeholder:text-muted-foreground resize-none overflow-hidden py-0 leading-relaxed block font-normal antialiased"
                                 rows={1}
                                 autoFocus

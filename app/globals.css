@@ -274,6 +274,13 @@ button {
   box-shadow: 0 0 0 1px var(--accent) !important;
 }
 
+/* Remove focus-outline when the user is actively typing in the prompt input */
+textarea[data-has-content="true"]:focus {
+  box-shadow: none !important;
+  border-color: inherit !important;
+  outline: none !important;
+} 
+
 .heading-sm {
   font-family: var(--font-sans);
   font-size: 1.5rem;

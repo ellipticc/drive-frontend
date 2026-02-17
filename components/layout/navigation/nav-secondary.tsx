@@ -89,42 +89,25 @@ export function NavSecondary({
               <SidebarMenuItem key={item.title}>
                 {item.id === "help" ? (
                   <DropdownMenu open={helpOpen} onOpenChange={setHelpOpen}>
-                    {state === 'collapsed' ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <DropdownMenuTrigger asChild>
-                            <SidebarMenuButton isActive={helpOpen} className="size-8 justify-center p-0">
-                              {(() => {
-                                const IconComponent = getIcon(item, helpOpen)
-                                return <IconComponent className="size-4" />
-                              })()}
-                              <span className="sr-only">{item.title}</span>
-                            </SidebarMenuButton>
-                          </DropdownMenuTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          <div className="flex items-center gap-1">
-                            {item.title}
-                            {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <DropdownMenuTrigger asChild>
-                        <SidebarMenuButton isActive={settingsOpen} className="pr-8 group/nav">
-                          {(() => {
-                            const IconComponent = getIcon(item, settingsOpen)
-                            return <IconComponent />
-                          })()}
-                          <span>{item.title}</span>
-                          {item.shortcut && (
-                            <div className="ms-auto opacity-0 group-hover/nav:opacity-60 transition-opacity">
-                              <Kbd>{item.shortcut}</Kbd>
-                            </div>
-                          )}
-                        </SidebarMenuButton>
-                      </DropdownMenuTrigger>
-                    )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <SidebarMenuButton isActive={helpOpen} className="size-8 justify-center p-0 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0">
+                            {(() => {
+                              const IconComponent = getIcon(item, helpOpen)
+                              return <IconComponent className="size-4" />
+                            })()}
+                            <span className="sr-only">{item.title}</span>
+                          </SidebarMenuButton>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" hidden={state !== 'collapsed' || isMobile}>
+                        <div className="flex items-center gap-1">
+                          {item.title}
+                          {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
 
                     <DropdownMenuContent
                       side={isMobile ? "bottom" : "right"}
@@ -144,12 +127,6 @@ export function NavSecondary({
                         </a>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <a href="https://discord.gg/THSnb9mHuB" target="_blank" rel="noreferrer">
-                          <IconBrandDiscord className="mr-2 h-4 w-4" />
-                          Community
-                        </a>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
                         <a href="https://github.com/ellipticc/drive-frontend" target="_blank" rel="noreferrer">
                           <IconBrandGithub className="mr-2 h-4 w-4" />
                           GitHub
@@ -162,108 +139,76 @@ export function NavSecondary({
                     </SupportRequestDialog>
                   </DropdownMenu>
                 ) : item.id === "settings" ? (
-                  state === 'collapsed' ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <SidebarMenuButton
-                          onClick={() => {
-                            const tab = 'General';
-                            window.location.hash = `#settings/${tab}`;
-                          }}
-                          isActive={settingsOpen}
-                          className="size-8 justify-center p-0"
-                        >
-                          {(() => {
-                            const IconComponent = getIcon(item, settingsOpen)
-                            return <IconComponent className="size-4" />
-                          })()}
-                          <span className="sr-only">{item.title}</span>
-                        </SidebarMenuButton>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">
+                  <SidebarMenuButton
+                    onClick={() => {
+                      const tab = 'General';
+                      window.location.hash = `#settings/${tab}`;
+                    }}
+                    isActive={settingsOpen}
+                    tooltip={{
+                      children: (
                         <div className="flex items-center gap-1">
                           {item.title}
                           {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
                         </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
+                      ),
+                      side: "right",
+                      hidden: state !== "collapsed"
+                    }}
+                    className="pr-8 group/nav group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 justify-center"
+                  >
+                    {(() => {
+                      const IconComponent = getIcon(item, settingsOpen)
+                      return <IconComponent className="size-4 shrink-0" />
+                    })()}
+                    <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
+                    {item.shortcut && (
+                      <div className="ms-auto opacity-0 group-hover/nav:opacity-60 transition-opacity group-data-[collapsible=icon]:hidden">
+                        <Kbd>{item.shortcut}</Kbd>
+                      </div>
+                    )}
+                  </SidebarMenuButton>
+                ) : item.id === "feedback" ? (
+                  <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
                     <SidebarMenuButton
-                      onClick={() => {
-                        const tab = 'General';
-                        window.location.hash = `#settings/${tab}`;
+                      isActive={feedbackOpen}
+                      tooltip={{
+                        children: (
+                          <div className="flex items-center gap-1">
+                            {item.title}
+                            {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
+                          </div>
+                        ),
+                        side: "right",
+                        hidden: state !== "collapsed"
                       }}
-                      isActive={settingsOpen}
-                      className="pr-8 group/nav"
+                      className="pr-8 group/nav group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 justify-center"
                     >
                       {(() => {
-                        const IconComponent = getIcon(item, settingsOpen)
-                        return <IconComponent />
+                        const IconComponent = getIcon(item, feedbackOpen)
+                        return <IconComponent className="size-4 shrink-0" />
                       })()}
-                      <span>{item.title}</span>
-                      {item.shortcut && (
-                        <div className="ms-auto opacity-0 group-hover/nav:opacity-60 transition-opacity">
-                          <Kbd>{item.shortcut}</Kbd>
-                        </div>
-                      )}
+                      <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
+                      <div className="ms-auto opacity-0 group-hover/nav:opacity-60 transition-opacity group-data-[collapsible=icon]:hidden">
+                        <Kbd>F</Kbd>
+                      </div>
                     </SidebarMenuButton>
-                  )
-                ) : item.id === "feedback" ? (
-                  state === 'collapsed' ? (
-                    <Tooltip>
-                      <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
-                        <TooltipTrigger asChild>
-                          <SidebarMenuButton isActive={feedbackOpen} className="size-8 justify-center p-0">
-                            {(() => {
-                              const IconComponent = getIcon(item, feedbackOpen)
-                              return <IconComponent className="size-4" />
-                            })()}
-                            <span className="sr-only">{item.title}</span>
-                          </SidebarMenuButton>
-                        </TooltipTrigger>
-                      </FeedbackPopover>
-                      <TooltipContent side="right">
-                        <div className="flex items-center gap-1">
-                          {item.title}
-                          {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
-                      <SidebarMenuButton isActive={feedbackOpen} className="pr-8 group/nav">
-                        {(() => {
-                          const IconComponent = getIcon(item, feedbackOpen)
-                          return <IconComponent />
-                        })()}
-                        <span>{item.title}</span>
-                        <div className="ms-auto opacity-0 group-hover/nav:opacity-60 transition-opacity">
-                          <Kbd>F</Kbd>
-                        </div>
-                      </SidebarMenuButton>
-                    </FeedbackPopover>
-                  )
+                  </FeedbackPopover>
                 ) : (
-                  state === 'collapsed' ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <SidebarMenuButton asChild className="size-8 justify-center p-0">
-                          <a href={item.url}>
-                            <item.icon className="size-4" />
-                            <span className="sr-only">{item.title}</span>
-                          </a>
-                        </SidebarMenuButton>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">{item.title}</TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <SidebarMenuButton asChild className="pr-8">
-                      <a href={item.url}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </a>
-                    </SidebarMenuButton>
-                  )
+                  <SidebarMenuButton
+                    asChild
+                    tooltip={{
+                      children: item.title,
+                      side: "right",
+                      hidden: state !== "collapsed"
+                    }}
+                    className="pr-8 group/nav group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 justify-center"
+                  >
+                    <a href={item.url}>
+                      <item.icon className="size-4 shrink-0" />
+                      <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
+                    </a>
+                  </SidebarMenuButton>
                 )}
               </SidebarMenuItem>
             );
