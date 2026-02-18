@@ -2,11 +2,22 @@
 
 import React, { createContext, useContext } from 'react';
 
-const PaperIdContext = createContext<string | undefined>(undefined);
+export interface WordCountStats {
+    words: number;
+    characters: number;
+    sentences: number;
+}
 
-export const PaperIdProvider: React.FC<{ paperId: string; children: React.ReactNode }> = ({ paperId, children }) => {
+interface PaperContextType {
+    paperId: string;
+    wordCountStats?: WordCountStats;
+}
+
+const PaperIdContext = createContext<PaperContextType | undefined>(undefined);
+
+export const PaperIdProvider: React.FC<{ paperId: string; wordCountStats?: WordCountStats; children: React.ReactNode }> = ({ paperId, wordCountStats, children }) => {
     return (
-        <PaperIdContext.Provider value={paperId}>
+        <PaperIdContext.Provider value={{ paperId, wordCountStats }}>
             {children}
         </PaperIdContext.Provider>
     );
@@ -17,5 +28,13 @@ export const usePaperId = () => {
     if (context === undefined) {
         throw new Error('usePaperId must be used within a PaperIdProvider');
     }
-    return context;
+    return context.paperId;
+};
+
+export const useWordCountStats = () => {
+    const context = useContext(PaperIdContext);
+    if (context === undefined) {
+        throw new Error('useWordCountStats must be used within a PaperIdProvider');
+    }
+    return context.wordCountStats;
 };

@@ -3,43 +3,62 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
-interface Message {
+interface Block {
     id?: string;
-    role: 'user' | 'assistant' | 'system';
-    content: string;
+    type: string;
+    content?: string;
 }
 
-interface ChatScrollNavigationProps {
-    messages: Message[];
-    scrollToMessage?: (id: string, behavior?: ScrollBehavior) => void;
+interface PaperScrollNavigationProps {
+    blocks: Block[];
+    scrollToBlock?: (id: string, behavior?: ScrollBehavior) => void;
+    highlightBlock?: (id: string) => void;
+    clearHighlight?: () => void;
 }
 
-export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNavigationProps) {
+export function PaperScrollNavigation({ 
+    blocks, 
+    scrollToBlock, 
+    highlightBlock,
+    clearHighlight 
+}: PaperScrollNavigationProps) {
     const [activeId, setActiveId] = useState<string | null>(null);
     const [isHovered, setIsHovered] = useState(false);
     const observerRef = useRef<IntersectionObserver | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Filter only user messages that have IDs
-    const userMessages = messages.filter(m => m.role === 'user' && m.id && m.content);
+    // Filter only blocks that have IDs
+    const navigableBlocks = blocks.filter(b => b.id && b.type);
 
-    // Handle Scroll logic (Exact Top, Instant)
+    // Handle Scroll logic
     const handleNavigationInfo = (id: string) => {
         // Prevent hover state from jittering during scroll interactions
         if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
         setIsHovered(true);
 
-        if (scrollToMessage) {
-            scrollToMessage(id, 'auto');
+        if (scrollToBlock) {
+            scrollToBlock(id, 'auto');
         } else {
             // Fallback if prop not provided
-            const element = document.getElementById(`message-${id}`);
+            const element = document.getElementById(`block-${id}`);
             if (element) {
                 element.scrollIntoView({ behavior: 'auto', block: 'start' });
             }
         }
+
         setActiveId(id);
+
+        // Highlight the block temporarily
+        if (highlightBlock) {
+            highlightBlock(id);
+            // Clear highlight after 2 seconds
+            if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+            highlightTimeoutRef.current = setTimeout(() => {
+                if (clearHighlight) clearHighlight();
+            }, 2000);
+        }
 
         // Update URL with content fragment
         window.history.replaceState(
@@ -63,7 +82,7 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
 
     // Intersection Observer for Active Highlight
     useEffect(() => {
-        if (userMessages.length === 0) return;
+        if (navigableBlocks.length === 0) return;
 
         // Cleanup previous observer
         if (observerRef.current) {
@@ -79,8 +98,8 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
         const callback: IntersectionObserverCallback = (entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    // Extract ID from message-{id}
-                    const id = entry.target.id.replace('message-', '');
+                    // Extract ID from block-{id}
+                    const id = entry.target.id.replace('block-', '');
                     setActiveId(id);
                 }
             });
@@ -88,16 +107,16 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
 
         observerRef.current = new IntersectionObserver(callback, options);
 
-        // Observe all user messages
-        userMessages.forEach(msg => {
-            if (msg.id) {
-                const el = document.getElementById(`message-${msg.id}`);
+        // Observe all navigable blocks
+        navigableBlocks.forEach(block => {
+            if (block.id) {
+                const el = document.getElementById(`block-${block.id}`);
                 if (el) observerRef.current?.observe(el);
             }
         });
 
         return () => observerRef.current?.disconnect();
-    }, [userMessages.length]); // Re-run when message count changes
+    }, [navigableBlocks.length]);
 
     // Handle URL hash on mount and navigation
     useEffect(() => {
@@ -105,8 +124,8 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
             const hash = window.location.hash;
             const match = hash.match(/content=([^&]*)/);
             if (match?.[1]) {
-                const messageId = match[1];
-                handleNavigationInfo(messageId);
+                const blockId = match[1];
+                handleNavigationInfo(blockId);
             }
         };
 
@@ -118,13 +137,13 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
         return () => window.removeEventListener('hashchange', handleHashChange);
     }, []);
 
-    if (userMessages.length === 0) return null;
+    if (navigableBlocks.length === 0) return null;
 
     return (
         <div
             ref={containerRef}
             className={cn(
-                "fixed right-6 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center transition-all duration-500 ease-in-out group/nav",
+                "fixed left-6 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center transition-all duration-500 ease-in-out group/nav",
                 isHovered ? "w-[260px] px-2" : "w-8"
             )}
             onMouseEnter={handleMouseEnter}
@@ -137,18 +156,18 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
                     isHovered ? "opacity-0 pointer-events-none absolute scale-50" : "opacity-100 scale-100"
                 )}
             >
-                {userMessages.map((msg) => (
+                {navigableBlocks.map((block) => (
                     <div
-                        key={`dash-${msg.id}`}
+                        key={`dash-${block.id}`}
                         className={cn(
                             "h-0.5 rounded-full transition-all duration-300 cursor-pointer",
-                            activeId === msg.id
+                            activeId === block.id
                                 ? "bg-primary w-4"
                                 : "bg-muted-foreground/30 hover:bg-muted-foreground/60 w-1.5"
                         )}
                         onClick={(e) => {
                             e.stopPropagation();
-                            if (msg.id) handleNavigationInfo(msg.id);
+                            if (block.id) handleNavigationInfo(block.id);
                         }}
                     />
                 ))}
@@ -157,29 +176,33 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
             {/* Hover State: List */}
             <div
                 className={cn(
-                    "flex flex-col w-full overflow-hidden transition-all duration-500 ease-in-out origin-right rounded-2xl bg-sidebar/95 backdrop-blur shadow-2xl border border-sidebar-border",
+                    "flex flex-col w-full overflow-hidden transition-all duration-500 ease-in-out origin-left rounded-2xl bg-sidebar/95 backdrop-blur shadow-2xl border border-sidebar-border",
                     isHovered
                         ? "opacity-100 scale-100 translate-x-0"
-                        : "opacity-0 scale-95 translate-x-4 pointer-events-none absolute"
+                        : "opacity-0 scale-95 -translate-x-4 pointer-events-none absolute"
                 )}
             >
                 <div className="flex flex-col p-3 gap-1 max-h-[60vh] overflow-y-auto w-full scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40 pr-1">
-                    {userMessages.map((msg, idx) => (
+                    {navigableBlocks.map((block, idx) => (
                         <button
-                            key={`item-${msg.id}`}
-                            onClick={() => msg.id && handleNavigationInfo(msg.id)}
+                            key={`item-${block.id}`}
+                            onClick={() => block.id && handleNavigationInfo(block.id)}
                             className={cn(
                                 "text-left text-[11px] leading-tight px-3 py-2.5 rounded-xl transition-all w-full group/item",
-                                activeId === msg.id
+                                activeId === block.id
                                     ? "text-primary font-semibold bg-primary/5"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted/5"
                             )}
                         >
                             <span className={cn(
                                 "line-clamp-2 break-words transition-colors",
-                                activeId === msg.id ? "text-primary" : "group-hover/item:text-foreground"
+                                activeId === block.id ? "text-primary" : "group-hover/item:text-foreground"
                             )}>
-                                {msg.content || `Message ${idx + 1}`}
+                                <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase">
+                                    {block.type}
+                                </span>
+                                {' '}
+                                {block.content || `Block ${idx + 1}`}
                             </span>
                         </button>
                     ))}

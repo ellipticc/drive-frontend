@@ -41,11 +41,9 @@ import { MoveToTrashModal } from "@/components/modals/move-to-trash-modal";
 import { MoveToFolderModal } from "@/components/modals/move-to-folder-modal";
 import { CopyModal } from "@/components/modals/copy-modal";
 import { SupportRequestDialog } from "@/components/support-request-dialog";
-import { PaperIdProvider } from "@/components/paper-id-context";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { PaperIdProvider, type WordCountStats } from "@/components/paper-id-context";
 import { useTheme } from "next-themes";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { PaperScrollNavigation } from "@/components/ai-elements/paper-navigation";
 
 // Print-specific styles to show only editor content
 if (typeof document !== 'undefined') {
@@ -64,6 +62,28 @@ if (typeof document !== 'undefined') {
                 max-width: 100% !important;
             }
         }
+
+        /* Block highlight effect */
+        [data-highlighted-block="true"] {
+            box-shadow: inset 0 0 0 2px var(--primary, #3b82f6);
+            background-color: var(--primary, #3b82f6);
+            background-color: rgba(59, 130, 246, 0.1);
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            animation: pulse-highlight 0.6s ease-in-out;
+        }
+
+        @keyframes pulse-highlight {
+            0% {
+                box-shadow: inset 0 0 0 2px var(--primary, #3b82f6), 0 0 0 0 rgba(59, 130, 246, 0.4);
+            }
+            50% {
+                box-shadow: inset 0 0 0 2px var(--primary, #3b82f6), 0 0 0 8px rgba(59, 130, 246, 0.2);
+            }
+            100% {
+                box-shadow: inset 0 0 0 2px var(--primary, #3b82f6), 0 0 0 0 rgba(59, 130, 246, 0);
+            }
+        }
     `;
     document.head.appendChild(style);
 }
@@ -73,7 +93,6 @@ interface PaperHeaderProps {
     paperTitle: string;
     setPaperTitle: (title: string) => void;
     handleTitleSave: (title: string) => void;
-    icon: string | null;
     saving: boolean;
     isUnsaved: boolean;
     onHistoryOpen: (open: boolean, versionId?: string | null) => void;
@@ -92,8 +111,8 @@ interface PaperHeaderProps {
 }
 
 // Helper to count words from editor value
-function countWords(value: Value | undefined): { words: number; characters: number; charactersNoSpaces: number } {
-    if (!value || !Array.isArray(value)) return { words: 0, characters: 0, charactersNoSpaces: 0 };
+function countWords(value: Value | undefined): { words: number; characters: number; charactersNoSpaces: number; sentences: number } {
+    if (!value || !Array.isArray(value)) return { words: 0, characters: 0, charactersNoSpaces: 0, sentences: 0 };
 
     let text = '';
     const extractText = (nodes: any[]): void => {
@@ -112,8 +131,9 @@ function countWords(value: Value | undefined): { words: number; characters: numb
     const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
     const characters = text.length;
     const charactersNoSpaces = text.replace(/\s/g, '').length;
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
 
-    return { words, characters, charactersNoSpaces };
+    return { words, characters, charactersNoSpaces, sentences };
 }
 
 function PaperHeader({
@@ -121,7 +141,6 @@ function PaperHeader({
     paperTitle,
     setPaperTitle,
     handleTitleSave,
-    icon,
     saving,
     isUnsaved,
     onHistoryOpen,
@@ -225,17 +244,9 @@ function PaperHeader({
         document.startViewTransition(switchTheme);
     }, [theme, setTheme]);
 
-    // Determine display icon (emoji or first letter)
-    const displayIcon = icon || (paperTitle ? paperTitle.charAt(0).toUpperCase() : "U");
-
     return (
         <header className="flex h-14 md:h-16 min-h-[3.5rem] md:min-h-[4rem] items-center gap-2 border-b px-4 shrink-0 bg-background z-50 transition-all duration-200 ease-in-out">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-                <SidebarTrigger className="h-9 w-9 md:h-10 md:w-10" />
-
-                <div className="w-6 h-6 md:w-7 md:h-7 rounded-md bg-muted/10 flex items-center justify-center shrink-0 text-sm md:text-base overflow-hidden">
-                    {displayIcon}
-                </div>
 
                 {/* Title Dropdown Menu */}
                 {!isRenaming ? (
@@ -266,40 +277,6 @@ function PaperHeader({
                                 <IconHistory className="w-4 h-4 mr-2" />
                                 See version history
                             </DropdownMenuItem>
-
-                            <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>
-                                    <IconLetterCase className="w-4 h-4 mr-2" />
-                                    Word count
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuSubContent>
-                                    <div className="px-2 py-3 space-y-2 w-52">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">Words</span>
-                                            <span className="font-medium">{stats.words.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">Characters</span>
-                                            <span className="font-medium">{stats.characters.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">Characters (no spaces)</span>
-                                            <span className="font-medium">{stats.charactersNoSpaces.toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                    <DropdownMenuSeparator />
-                                    <div className="px-2 py-2">
-                                        <div className="flex items-center justify-between">
-                                            <Label htmlFor="word-count-menu-toggle" className="text-sm cursor-pointer">Show word count</Label>
-                                            <Switch
-                                                id="word-count-menu-toggle"
-                                                checked={showWordCount}
-                                                onCheckedChange={setShowWordCount}
-                                            />
-                                        </div>
-                                    </div>
-                                </DropdownMenuSubContent>
-                            </DropdownMenuSub>
 
                             <DropdownMenuSeparator />
 
@@ -438,8 +415,6 @@ function PaperEditorView({
     paperTitle,
     setPaperTitle,
     handleTitleSave,
-    icon,
-    onSelectEmoji,
     saving,
     isUnsaved,
     onHistoryOpen,
@@ -453,7 +428,8 @@ function PaperEditorView({
     onCopyAsMarkdown,
     setSupportDialogOpen,
     showWordCount,
-    setShowWordCount
+    setShowWordCount,
+    wordCountStats
 }: {
     initialValue: Value;
     onChange: (value: Value) => void;
@@ -461,8 +437,6 @@ function PaperEditorView({
     paperTitle: string;
     setPaperTitle: (title: string) => void;
     handleTitleSave: (title: string) => void;
-    icon: string | null;
-    onSelectEmoji: (emoji: any) => void;
     saving: boolean;
     isUnsaved: boolean;
     onHistoryOpen: (open: boolean, versionId?: string | null) => void;
@@ -477,21 +451,11 @@ function PaperEditorView({
     setSupportDialogOpen: (open: boolean) => void;
     showWordCount: boolean;
     setShowWordCount: (show: boolean) => void;
+    wordCountStats?: WordCountStats;
 }) {
     const [editorValue, setEditorValue] = useState<Value>(initialValue);
-    const [wordCountExpanded, setWordCountExpanded] = useState(false);
-    const [displayMode, setDisplayMode] = useState<'words' | 'characters'>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('wordCountDisplayMode');
-            return (saved as 'words' | 'characters') || 'words';
-        }
-        return 'words';
-    });
-
-    // Save display mode to localStorage
-    useEffect(() => {
-        localStorage.setItem('wordCountDisplayMode', displayMode);
-    }, [displayMode]);
+    const [blocks, setBlocks] = useState<any[]>([]);
+    const [highlightedBlockId, setHighlightedBlockId] = useState<string | null>(null);
 
     const editor = usePlateEditor({
         plugins: EditorKit,
@@ -501,13 +465,57 @@ function PaperEditorView({
         },
     });
 
-    // Track editor changes for word count
+    // Extract blocks from editor value for navigation
+    const extractBlocks = useCallback((content: Value): any[] => {
+        if (!Array.isArray(content)) return [];
+        
+        return (content as any[]).map((block, idx) => ({
+            id: block.id || `block-${idx}`,
+            type: block.type || 'paragraph',
+            content: 
+                block.children?.[0]?.text || 
+                block.children?.map((c: any) => c.text || '').join('') ||
+                ''
+        }));
+    }, []);
+
+    // Track editor changes for word count and block updates
     const handleChange = useCallback((value: Value) => {
         setEditorValue(value);
+        const extractedBlocks = extractBlocks(value);
+        setBlocks(extractedBlocks);
         onChange(value);
-    }, [onChange]);
+    }, [onChange, extractBlocks]);
 
-    const stats = useMemo(() => countWords(editorValue), [editorValue]);
+    // Highlight block function
+    const highlightBlock = useCallback((blockId: string) => {
+        setHighlightedBlockId(blockId);
+        const element = document.getElementById(`block-${blockId}`);
+        if (element) {
+            element.setAttribute('data-highlighted-block', 'true');
+            // Ensure it's visible and scrolled to
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, []);
+
+    // Clear highlight function
+    const clearHighlight = useCallback(() => {
+        if (highlightedBlockId) {
+            const element = document.getElementById(`block-${highlightedBlockId}`);
+            if (element) {
+                element.setAttribute('data-highlighted-block', 'false');
+            }
+            setHighlightedBlockId(null);
+        }
+    }, [highlightedBlockId]);
+
+    // Scroll to block function
+    const scrollToBlock = useCallback((blockId: string, behavior: ScrollBehavior = 'smooth') => {
+        const element = document.getElementById(`block-${blockId}`);
+        if (element) {
+            element.scrollIntoView({ behavior, block: 'start' });
+        }
+    }, []);
 
     // Add error boundary for editor operations
     React.useEffect(() => {
@@ -521,8 +529,46 @@ function PaperEditorView({
         return () => window.removeEventListener('error', handleError);
     }, []);
 
+    // Monitor editor DOM and add IDs to blocks
+    React.useEffect(() => {
+        const observer = new MutationObserver(() => {
+            const editorContainer = document.querySelector('[data-slate-editor]');
+            if (!editorContainer) return;
+
+            let blockIndex = 0;
+            // Get all direct children that are block elements
+            const blockElements = editorContainer.querySelectorAll(':scope > div');
+            
+            blockElements.forEach((blockEl, idx) => {
+                const blockId = `block-${blocks[idx]?.id || idx}`;
+                blockEl.setAttribute('id', blockId);
+            });
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: false
+        });
+
+        return () => observer.disconnect();
+    }, [blocks]);
+
+    // Handle URL hash on mount to navigate to initial block
+    React.useEffect(() => {
+        const hash = window.location.hash;
+        const match = hash.match(/content=([^&]*)/);
+        if (match?.[1]) {
+            const blockId = match[1];
+            // Give DOM time to render
+            setTimeout(() => {
+                highlightBlock(blockId);
+            }, 100);
+        }
+    }, [highlightBlock]);
+
     return (
-        <PaperIdProvider paperId={fileId}>
+        <PaperIdProvider paperId={fileId} wordCountStats={wordCountStats}>
             <Plate
                 editor={editor}
                 onChange={({ value }) => handleChange(value)}
@@ -533,7 +579,6 @@ function PaperEditorView({
                         paperTitle={paperTitle}
                         setPaperTitle={setPaperTitle}
                         handleTitleSave={handleTitleSave}
-                        icon={icon}
                         saving={saving}
                         isUnsaved={isUnsaved}
                         onHistoryOpen={onHistoryOpen}
@@ -556,6 +601,14 @@ function PaperEditorView({
                     </FixedToolbar>
 
                     <main className="flex-1 overflow-y-auto relative min-h-0" style={{ scrollbarGutter: 'stable' }}>
+                        {/* Paper Navigation (Left Side) */}
+                        <PaperScrollNavigation
+                            blocks={blocks}
+                            scrollToBlock={scrollToBlock}
+                            highlightBlock={highlightBlock}
+                            clearHighlight={clearHighlight}
+                        />
+
                         <div className="w-full md:max-w-[950px] mx-auto px-4 sm:px-6 md:px-12 pt-3 md:pt-4 pb-48">
                             <Editor
                                 className="min-h-full w-full border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
@@ -563,52 +616,6 @@ function PaperEditorView({
                                 placeholder="New Page"
                             />
                         </div>
-
-                        {/* Floating Word Count (Bottom Left - Conditionally Visible) */}
-                        {showWordCount && (
-                            <div className="fixed bottom-4 left-4 z-40">
-                                <div className={`bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden ${wordCountExpanded ? 'flex flex-col-reverse' : ''}`}>
-                                    {/* Dropdown Menu - Opens Above */}
-                                    {wordCountExpanded && (
-                                        <div className="border-b px-3 py-2 space-y-1">
-                                            <button
-                                                onClick={() => setDisplayMode('words')}
-                                                className={`flex items-center gap-2 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
-                                                    }`}
-                                            >
-                                                <span className="font-medium">Words</span>
-                                                <span className="font-medium">{stats.words.toLocaleString()}</span>
-                                            </button>
-                                            <button
-                                                onClick={() => setDisplayMode('characters')}
-                                                className={`flex items-center gap-2 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
-                                                    }`}
-                                            >
-                                                <span className="font-medium">Characters</span>
-                                                <span className="font-medium">{stats.characters.toLocaleString()}</span>
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {/* Main Button */}
-                                    <button
-                                        onClick={() => setWordCountExpanded(!wordCountExpanded)}
-                                        className={`flex items-center justify-between px-3 py-2 text-xs transition-colors ${wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
-                                            }`}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <span className="font-medium">{displayMode === 'words' ? 'Words' : 'Characters'}</span>
-                                            <span className="font-semibold">{displayMode === 'words' ? stats.words.toLocaleString() : stats.characters.toLocaleString()}</span>
-                                        </div>
-                                        {wordCountExpanded ? (
-                                            <IconChevronUp className="w-3 h-3 shrink-0 ml-2" />
-                                        ) : (
-                                            <IconChevronDown className="w-3 h-3 shrink-0 ml-2" />
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
                     </main>
                 </div>
             </Plate>
@@ -627,8 +634,6 @@ function PaperPageContent() {
     const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
     const [content, setContent] = useState<Value | undefined>(undefined);
     const [paperTitle, setPaperTitle] = useState<string>("Untitled Paper");
-    const [icon, setIcon] = useState<string | null>(null);
-    const [pageAlert, setPageAlert] = useState<{ message: string } | null>(null);
     const [showWordCount, setShowWordCount] = useState(false);
 
     // Modal states
@@ -639,22 +644,16 @@ function PaperPageContent() {
 
     const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
     const savingRef = useRef<boolean>(false);
-    const latestIconRef = useRef<string | null>(null);
-
-    useEffect(() => {
-        latestIconRef.current = icon;
-    }, [icon]);
 
     const lastSavedTitleRef = useRef<string>("Untitled Paper");
 
-    useEffect(() => {
-        const handler = (e: Event) => {
-            const detail = (e as CustomEvent).detail;
-            setPageAlert({ message: detail?.message || 'Upgrade required' });
-        };
-        window.addEventListener('export-requires-upgrade', handler as EventListener);
-        return () => window.removeEventListener('export-requires-upgrade', handler as EventListener);
-    }, []);
+    // Calculate word count stats to pass to context
+    const wordCountStats = useMemo<WordCountStats>(() => {
+        const stats = countWords(content);
+        return { words: stats.words, characters: stats.characters, sentences: stats.sentences };
+    }, [content]);
+
+
 
     const latestContentRef = useRef<Value | undefined>(undefined);
     const lastSavedContentRef = useRef<string>("");
@@ -677,24 +676,23 @@ function PaperPageContent() {
 
             // Aggressive flush on unmount/route change
             if (latestContentRef.current) {
-                const currentData = { content: latestContentRef.current, icon: latestIconRef.current };
-                const currentDataStr = JSON.stringify(currentData);
+                const currentDataStr = JSON.stringify(latestContentRef.current);
 
                 if (currentDataStr !== lastSavedContentRef.current) {
                     // If we have local changes, save them immediately before snapshotting
-                    paperService.savePaper(fileId, currentData)
-                        .then(() => paperService.snapshot(fileId, 'close', currentData))
+                    paperService.savePaper(fileId, latestContentRef.current)
+                        .then(() => paperService.snapshot(fileId, 'close', latestContentRef.current))
                         .catch(e => {
                             console.error("Final unmount save failed", e);
                             // Still try to snapshot what we have
-                            paperService.snapshot(fileId, 'close', currentData);
+                            paperService.snapshot(fileId, 'close', latestContentRef.current);
                         });
                 } else {
                     // No new changes, just snapshot
-                    paperService.snapshot(fileId, 'close', currentData).catch(e => console.error("Close snapshot failed", e));
+                    paperService.snapshot(fileId, 'close', latestContentRef.current).catch(e => console.error("Close snapshot failed", e));
                 }
             } else {
-                paperService.snapshot(fileId, 'close', latestContentRef.current ? { content: latestContentRef.current, icon: latestIconRef.current } : undefined).catch(e => console.error("Close snapshot failed", e));
+                paperService.snapshot(fileId, 'close', undefined).catch(e => console.error("Close snapshot failed", e));
             }
         };
     }, [fileId]);
@@ -799,14 +797,9 @@ function PaperPageContent() {
 
                 let loadedContent: Value;
                 const rawContent = paper.content;
-                let loadedIcon: string | null = null;
 
-                // Handle wrapped content (with icon) vs legacy array content
-                if (rawContent && typeof rawContent === 'object' && !Array.isArray(rawContent) && 'content' in rawContent && 'icon' in rawContent) {
-                    // It's our new wrapped format
-                    loadedContent = (rawContent as any).content;
-                    loadedIcon = (rawContent as any).icon;
-                } else if (Array.isArray(rawContent) && rawContent.length > 0) {
+                // Handle array content (no longer wrapped with icon)
+                if (Array.isArray(rawContent) && rawContent.length > 0) {
                     // Check if first element is valid (has children or is a known type)
                     if (rawContent[0] && typeof rawContent[0] === 'object' && 'children' in rawContent[0]) {
                         loadedContent = rawContent as Value;
@@ -856,9 +849,8 @@ function PaperPageContent() {
                 }
 
                 setContent(loadedContent);
-                setIcon(loadedIcon);
                 latestContentRef.current = loadedContent;
-                lastSavedContentRef.current = JSON.stringify({ content: loadedContent, icon: loadedIcon });
+                lastSavedContentRef.current = JSON.stringify(loadedContent);
 
             } catch (error) {
                 console.error("Error loading paper:", error);
@@ -876,12 +868,10 @@ function PaperPageContent() {
         window.location.reload();
     };
 
-    // Save Logic (Content + Icon)
+    // Save Logic (Content)
     const handleSave = useCallback(async (newValue: Value, newIcon?: string) => {
         if (!fileId) return;
-        const currentIcon = newIcon !== undefined ? newIcon : icon;
-        const dataToSave = { content: newValue, icon: currentIcon };
-        const contentString = JSON.stringify(dataToSave);
+        const contentString = JSON.stringify(newValue);
 
         // Prevent unnecessary saves if strictly identical to last save AND we know we are cleaner
         if (contentString === lastSavedContentRef.current) {
@@ -894,8 +884,8 @@ function PaperPageContent() {
         savingRef.current = true;
         try {
             if (!masterKeyManager.hasMasterKey()) return;
-            // We save the wrapped object
-            await paperService.savePaper(fileId, dataToSave);
+            // Save content directly (no icon wrapping)
+            await paperService.savePaper(fileId, newValue);
 
             // Only mark as clean if no new changes occurred during save
             if (lastChangeTimeRef.current <= saveStartTime) {
@@ -905,13 +895,11 @@ function PaperPageContent() {
 
             // Check if there are newer changes that need saving
             const latestContent = latestContentRef.current;
-            const latestIcon = latestIconRef.current;
             if (latestContent) {
-                const latestData = { content: latestContent, icon: latestIcon };
-                const latestString = JSON.stringify(latestData);
+                const latestString = JSON.stringify(latestContent);
                 if (latestString !== lastSavedContentRef.current) {
                     // There are newer changes, save them immediately
-                    setTimeout(() => handleSave(latestContent, latestIcon || undefined), 0);
+                    setTimeout(() => handleSave(latestContent), 0);
                     return;
                 }
             }
@@ -922,7 +910,7 @@ function PaperPageContent() {
             setSaving(false);
             savingRef.current = false;
         }
-    }, [fileId, icon]);
+    }, [fileId]);
 
     // Save Logic (Title)
     const handleTitleSave = async (newTitle: string) => {
@@ -947,7 +935,7 @@ function PaperPageContent() {
     // Auto-save debounce
     const onChange = (newValue: Value) => {
         // Compare stringified content to detect actual changes (not just selection/focus)
-        const newContentString = JSON.stringify({ content: newValue, icon });
+        const newContentString = JSON.stringify(newValue);
 
         // Only proceed if content actually changed
         if (newContentString === lastSavedContentRef.current) {
@@ -970,22 +958,6 @@ function PaperPageContent() {
             if (savingRef.current) return;
             handleSave(newValue);
         }, 800);
-    };
-
-    // Handle Emoji Select
-    const onSelectEmoji = (emoji: any) => {
-        const newIcon = emoji.skins[0].native;
-        setIcon(newIcon);
-        // Trigger save immediately for icon change
-        if (latestContentRef.current) {
-            // If a save is in progress, just update the latest icon for the next save
-            if (savingRef.current) {
-                latestIconRef.current = newIcon;
-                setIsUnsaved(true);
-            } else {
-                handleSave(latestContentRef.current, newIcon);
-            }
-        }
     };
 
     // Keyboard Shortcuts
@@ -1013,13 +985,12 @@ function PaperPageContent() {
 
         // Check if we need a final save
         if (latestContentRef.current && fileId) {
-            const currentData = { content: latestContentRef.current, icon: latestIconRef.current };
-            const currentDataStr = JSON.stringify(currentData);
+            const currentDataStr = JSON.stringify(latestContentRef.current);
 
             if (currentDataStr !== lastSavedContentRef.current) {
                 setSaving(true);
                 try {
-                    await paperService.savePaper(fileId, currentData);
+                    await paperService.savePaper(fileId, latestContentRef.current);
                     lastSavedContentRef.current = currentDataStr;
                     setIsUnsaved(false);
                 } catch (e) {
@@ -1082,48 +1053,302 @@ function PaperPageContent() {
 
         try {
             const title = paperTitle || 'Document';
+            const getExportFilename = (extension: string) => {
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const sanitized = title.replace(/[^a-z0-9\s-_]/gi, '').trim();
+                return `${sanitized || 'document'}-${timestamp}.${extension}`;
+            };
+
+            const downloadFile = (url: string, filename: string) => {
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            };
 
             switch (format) {
                 case 'image': {
-                    // Free for everyone - use print preview approach
                     toast.info('Opening print dialog for image export. Use "Save as PDF" or print to image.');
                     window.print();
                     break;
                 }
 
                 case 'markdown': {
-                    // Pro feature
-                    const event = new CustomEvent('export-requires-upgrade', {
-                        detail: { message: `Export to Markdown requires a Pro or Unlimited subscription.` }
-                    });
-                    window.dispatchEvent(event);
+                    const convertToMarkdown = (nodes: any[]): string => {
+                        let result = '';
+
+                        nodes.forEach((node: any) => {
+                            const processNode = (n: any): string => {
+                                if (typeof n === 'string') return n;
+                                if (n.text) return n.text;
+                                if (Array.isArray(n.children)) {
+                                    return n.children.map(processNode).join('');
+                                }
+                                return '';
+                            };
+
+                            let childContent = '';
+                            if (node.children && Array.isArray(node.children)) {
+                                childContent = node.children.map(processNode).join('');
+                            }
+
+                            switch (node.type) {
+                                case 'h1':
+                                    result += `# ${childContent}\n\n`;
+                                    break;
+                                case 'h2':
+                                    result += `## ${childContent}\n\n`;
+                                    break;
+                                case 'h3':
+                                    result += `### ${childContent}\n\n`;
+                                    break;
+                                case 'h4':
+                                    result += `#### ${childContent}\n\n`;
+                                    break;
+                                case 'h5':
+                                    result += `##### ${childContent}\n\n`;
+                                    break;
+                                case 'h6':
+                                    result += `###### ${childContent}\n\n`;
+                                    break;
+                                case 'blockquote':
+                                    result += `> ${childContent}\n\n`;
+                                    break;
+                                case 'code_block':
+                                    result += `\`\`\`\n${childContent}\n\`\`\`\n\n`;
+                                    break;
+                                case 'ul':
+                                case 'ol':
+                                    result += childContent;
+                                    break;
+                                case 'li':
+                                    result += `- ${childContent}\n`;
+                                    break;
+                                case 'p':
+                                default:
+                                    result += `${childContent}\n\n`;
+                                    break;
+                            }
+                        });
+
+                        return result;
+                    };
+
+                    const markdown = convertToMarkdown(latestContentRef.current as any[]);
+                    const url = `data:text/markdown;charset=utf-8,${encodeURIComponent(markdown)}`;
+                    downloadFile(url, getExportFilename('md'));
+                    toast.success('Markdown exported successfully');
                     break;
                 }
 
                 case 'html': {
-                    // Pro feature
-                    const event = new CustomEvent('export-requires-upgrade', {
-                        detail: { message: `Export to HTML requires a Pro or Unlimited subscription.` }
-                    });
-                    window.dispatchEvent(event);
+                    const convertToHtml = (nodes: any[]): string => {
+                        let result = '';
+                        
+                        const processNode = (n: any): string => {
+                            if (typeof n === 'string') return n;
+                            if (n.text) return n.text;
+                            if (Array.isArray(n.children)) {
+                                return n.children.map(processNode).join('');
+                            }
+                            return '';
+                        };
+
+                        nodes.forEach((node: any) => {
+                            let childContent = '';
+                            if (node.children && Array.isArray(node.children)) {
+                                childContent = node.children.map(processNode).join('');
+                            }
+
+                            switch (node.type) {
+                                case 'h1':
+                                    result += `<h1>${childContent}</h1>`;
+                                    break;
+                                case 'h2':
+                                    result += `<h2>${childContent}</h2>`;
+                                    break;
+                                case 'h3':
+                                    result += `<h3>${childContent}</h3>`;
+                                    break;
+                                case 'h4':
+                                    result += `<h4>${childContent}</h4>`;
+                                    break;
+                                case 'h5':
+                                    result += `<h5>${childContent}</h5>`;
+                                    break;
+                                case 'h6':
+                                    result += `<h6>${childContent}</h6>`;
+                                    break;
+                                case 'blockquote':
+                                    result += `<blockquote>${childContent}</blockquote>`;
+                                    break;
+                                case 'code_block':
+                                    result += `<pre><code>${childContent}</code></pre>`;
+                                    break;
+                                case 'ul':
+                                    result += `<ul>${childContent}</ul>`;
+                                    break;
+                                case 'ol':
+                                    result += `<ol>${childContent}</ol>`;
+                                    break;
+                                case 'li':
+                                    result += `<li>${childContent}</li>`;
+                                    break;
+                                case 'p':
+                                default:
+                                    result += `<p>${childContent}</p>`;
+                                    break;
+                            }
+                        });
+
+                        return result;
+                    };
+
+                    const html = convertToHtml(latestContentRef.current as any[]);
+                    const htmlContent = `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>${title}</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 20px;
+      }
+      h1, h2, h3, h4, h5, h6 { margin-top: 1em; margin-bottom: 0.5em; }
+      p { margin-bottom: 1em; }
+      blockquote { border-left: 4px solid #ddd; padding-left: 1em; margin-left: 0; color: #666; }
+      code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+      pre { background: #f4f4f4; padding: 1em; border-radius: 4px; overflow-x: auto; }
+      pre code { background: none; padding: 0; }
+    </style>
+  </head>
+  <body>
+    ${html}
+  </body>
+</html>`;
+                    const url = `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`;
+                    downloadFile(url, getExportFilename('html'));
+                    toast.success('HTML exported successfully');
                     break;
                 }
 
                 case 'pdf': {
-                    // Pro feature
-                    const event = new CustomEvent('export-requires-upgrade', {
-                        detail: { message: `Export to PDF requires a Pro or Unlimited subscription.` }
-                    });
-                    window.dispatchEvent(event);
+                    toast.info('PDF export: Opening print dialog. Use "Save as PDF" in the print dialog.');
+                    window.print();
                     break;
                 }
 
                 case 'docx': {
-                    // Pro feature
-                    const event = new CustomEvent('export-requires-upgrade', {
-                        detail: { message: `Export to DOCX requires a Pro or Unlimited subscription.` }
-                    });
-                    window.dispatchEvent(event);
+                    const convertToHtml = (nodes: any[]): string => {
+                        let result = '';
+                        
+                        const processNode = (n: any): string => {
+                            if (typeof n === 'string') return n;
+                            if (n.text) return n.text;
+                            if (Array.isArray(n.children)) {
+                                return n.children.map(processNode).join('');
+                            }
+                            return '';
+                        };
+
+                        nodes.forEach((node: any) => {
+                            let childContent = '';
+                            if (node.children && Array.isArray(node.children)) {
+                                childContent = node.children.map(processNode).join('');
+                            }
+
+                            switch (node.type) {
+                                case 'h1':
+                                    result += `<h1>${childContent}</h1>`;
+                                    break;
+                                case 'h2':
+                                    result += `<h2>${childContent}</h2>`;
+                                    break;
+                                case 'h3':
+                                    result += `<h3>${childContent}</h3>`;
+                                    break;
+                                case 'h4':
+                                    result += `<h4>${childContent}</h4>`;
+                                    break;
+                                case 'h5':
+                                    result += `<h5>${childContent}</h5>`;
+                                    break;
+                                case 'h6':
+                                    result += `<h6>${childContent}</h6>`;
+                                    break;
+                                case 'blockquote':
+                                    result += `<blockquote>${childContent}</blockquote>`;
+                                    break;
+                                case 'code_block':
+                                    result += `<pre><code>${childContent}</code></pre>`;
+                                    break;
+                                case 'ul':
+                                    result += `<ul>${childContent}</ul>`;
+                                    break;
+                                case 'ol':
+                                    result += `<ol>${childContent}</ol>`;
+                                    break;
+                                case 'li':
+                                    result += `<li>${childContent}</li>`;
+                                    break;
+                                case 'p':
+                                default:
+                                    result += `<p>${childContent}</p>`;
+                                    break;
+                            }
+                        });
+
+                        return result;
+                    };
+
+                    try {
+                        // @ts-ignore - no type definitions available
+                        const { default: htmlDocx } = await import('html-docx-js/dist/html-docx');
+                        
+                        const html = convertToHtml(latestContentRef.current as any[]);
+                        const htmlContent = `
+<html>
+  <head>
+    <meta charset="utf-8">
+    <style>
+      body {
+        font-family: 'Calibri', 'Arial', sans-serif;
+        font-size: 11pt;
+        line-height: 1.5;
+        color: #000000;
+      }
+      h1 { font-size: 26pt; }
+      h2 { font-size: 19pt; }
+      h3 { font-size: 14pt; }
+      p { margin-bottom: 1em; }
+      blockquote { border-left: 4px solid #ddd; padding-left: 1em; color: #666; }
+      code { background: #f4f4f4; padding: 2px 4px; }
+      pre { background: #f4f4f4; padding: 1em; }
+      img { max-width: 100%; height: auto; }
+    </style>
+  </head>
+  <body>
+    ${html}
+  </body>
+</html>`;
+                        
+                        const docxBlob = htmlDocx.asBlob(htmlContent);
+                        const url = URL.createObjectURL(docxBlob);
+                        downloadFile(url, getExportFilename('docx'));
+                        toast.success('DOCX exported successfully');
+                    } catch (error) {
+                        console.error('DOCX export error:', error);
+                        toast.error('Failed to export as DOCX');
+                    }
                     break;
                 }
 
@@ -1282,23 +1507,6 @@ function PaperPageContent() {
 
     return (
         <>
-            <AlertDialog open={!!pageAlert} onOpenChange={(open) => !open && setPageAlert(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Pro Feature</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            {pageAlert?.message || "This feature requires a Pro or Unlimited subscription. Upgrade to export your paper in various formats."}
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setPageAlert(null)}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => (window.location.href = '/pricing')}>
-                            Upgrade Now
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
             <PaperEditorView
                 initialValue={content}
                 onChange={onChange}
@@ -1306,8 +1514,6 @@ function PaperPageContent() {
                 paperTitle={paperTitle}
                 setPaperTitle={setPaperTitle}
                 handleTitleSave={handleTitleSave}
-                icon={icon}
-                onSelectEmoji={onSelectEmoji}
                 saving={saving}
                 isUnsaved={isUnsaved}
                 onHistoryOpen={handleHistoryOpen}
@@ -1322,6 +1528,7 @@ function PaperPageContent() {
                 setSupportDialogOpen={setSupportDialogOpen}
                 showWordCount={showWordCount}
                 setShowWordCount={setShowWordCount}
+                wordCountStats={wordCountStats}
             />
 
             <VersionHistoryModal

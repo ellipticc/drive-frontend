@@ -402,13 +402,11 @@ class PaperService {
             const masterKey = masterKeyManager.getMasterKey();
             const updateData: any = {};
 
-            // Handle wrapped content (from frontend: { content: blocks, icon: string })
+            // Handle wrapped content (from frontend: { content: blocks })
             let contentBlocks: any[] = [];
-            let icon: string | undefined = undefined;
 
             if (content && typeof content === 'object' && !Array.isArray(content) && 'content' in content) {
                 contentBlocks = (content as any).content;
-                icon = (content as any).icon;
             } else if (Array.isArray(content)) {
                 contentBlocks = content;
             }
@@ -543,8 +541,7 @@ class PaperService {
 
                 newManifest = {
                     version: 1,
-                    blocks: orderedManifestBlocks,
-                    icon: icon !== undefined ? icon : currentManifest.icon
+                    blocks: orderedManifestBlocks
                 };
 
 
@@ -1026,7 +1023,7 @@ class PaperService {
         return {
             id: paper.id,
             title,
-            content: { content, icon: manifest?.icon ?? null }, // Return wrapped object
+            content: content, // Return content directly without icon wrapper
             folderId: paper.folderId,
             createdAt: paper.createdAt,
             updatedAt: paper.updatedAt
