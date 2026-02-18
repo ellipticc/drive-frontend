@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useCallback } from "react"
+import React, { useState, useRef, useCallback, useEffect } from "react"
 import {
   IconDotsVertical,
   IconLogout,
@@ -12,6 +12,7 @@ import {
   IconDeviceMobile,
   IconBrightnessFilled,
   IconCheck,
+  IconKeyboard,
 } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 
@@ -31,6 +32,7 @@ import {
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
+  DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu"
 import {
   SidebarMenu,
@@ -46,6 +48,7 @@ import { masterKeyManager } from "@/lib/master-key"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { SettingsModal } from "@/components/modals/settings-modal"
 import { NotificationsModal } from "@/components/modals/notifications-modal"
+import { KeyboardShortcutsDialog } from "@/components/modals/keyboard-shortcuts-dialog"
 import { useNotifications } from "@/hooks/use-notifications"
 import { useLanguage } from "@/lib/i18n/language-context"
 import { toast } from 'sonner'
@@ -108,12 +111,22 @@ export function NavUser({
   const { updateUser, refetch } = useUser()
   const [settingsOpen, setSettingsOpen] = useSettingsOpen()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const { hasUnread } = useNotifications()
   const displayName = getDisplayName(user)
 
   // Click-to-copy for email
   const emailRef = useRef<HTMLSpanElement | null>(null)
+  const [metaKey, setMetaKey] = useState("Ctrl")
+
+  // Detect OS for shortcuts
+  useEffect(() => {
+    if (typeof navigator !== 'undefined') {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      setMetaKey(isMac ? "⌘" : "Ctrl")
+    }
+  }, [])
 
   // Copy email to clipboard and select the text
   const handleEmailClick = useCallback(async (e: React.MouseEvent) => {
@@ -136,6 +149,25 @@ export function NavUser({
       sel?.addRange(range)
     }
   }, [user.email])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Toggle Shortcuts: Cmd+/ or Ctrl+/
+      if ((e.metaKey || e.ctrlKey) && e.key === '/') {
+        e.preventDefault()
+        setShortcutsOpen((open) => !open)
+      }
+
+      // Sign Out: Shift+Cmd+Q or Shift+Ctrl+Q
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toUpperCase() === 'Q') {
+        e.preventDefault()
+        handleLogout()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const handleSettingsOpenChange = (open: boolean) => {
     setSettingsOpen(open)
@@ -259,6 +291,7 @@ export function NavUser({
                 }}>
                   <IconSettings />
                   {t("sidebar.settings")}
+                  {!isMobile && <DropdownMenuShortcut>S</DropdownMenuShortcut>}
                 </DropdownMenuItem>
 
                 <DropdownMenuItem onClick={() => setNotificationsOpen(true)}>
@@ -267,6 +300,13 @@ export function NavUser({
                     {hasUnread && <NotificationDot />}
                   </div>
                   {t("settings.notifications")}
+                  {!isMobile && <DropdownMenuShortcut>⇧{metaKey}N</DropdownMenuShortcut>}
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => setShortcutsOpen(true)} className="hidden md:flex">
+                  <IconKeyboard />
+                  Keyboard Shortcuts
+                  {!isMobile && <DropdownMenuShortcut>{metaKey}/</DropdownMenuShortcut>}
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
@@ -302,9 +342,10 @@ export function NavUser({
                 </DropdownMenuSub>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
-                <IconLogout />
-                {t("sidebar.logout")}
+              <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive group">
+                <IconLogout className="group-hover:text-destructive" />
+                Sign out
+                {!isMobile && <DropdownMenuShortcut>⇧{metaKey}Q</DropdownMenuShortcut>}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -312,6 +353,7 @@ export function NavUser({
       </SidebarMenu>
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
       <NotificationsModal open={notificationsOpen} onOpenChange={setNotificationsOpen} />
+      <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
     </>
   )
 }

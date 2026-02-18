@@ -25,11 +25,12 @@ import {
     DropdownMenuSubContent,
     DropdownMenuSubTrigger,
     DropdownMenuCheckboxItem,
+    DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { type Value } from "platejs";
-import { paperService } from "@/lib/paper-service";;
+import { paperService } from "@/lib/paper-service";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Plate, usePlateEditor } from "platejs/react";
@@ -254,11 +255,18 @@ function PaperHeader({
                 {/* Title Dropdown Menu */}
                 {!isRenaming ? (
                     <DropdownMenu open={titleMenuOpen} onOpenChange={setTitleMenuOpen}>
-                        <DropdownMenuTrigger asChild>
-                            <button className={`text-sm md:text-base font-semibold px-2 py-1 rounded-md transition-colors truncate text-left max-w-md ${titleMenuOpen ? 'bg-muted text-foreground' : 'hover:bg-muted'}`}>
-                                {paperTitle || "Untitled Paper"}
-                            </button>
-                        </DropdownMenuTrigger>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <DropdownMenuTrigger asChild>
+                                    <button className={`text-sm md:text-base font-semibold px-2 py-1 rounded-md transition-colors truncate text-left max-w-md ${titleMenuOpen ? 'bg-muted text-foreground' : 'hover:bg-muted'}`}>
+                                        {paperTitle || "Untitled Paper"}
+                                    </button>
+                                </DropdownMenuTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                                <p>Paper options</p>
+                            </TooltipContent>
+                        </Tooltip>
                         <DropdownMenuContent align="start" className="w-64">
                             <DropdownMenuItem onClick={() => setIsRenaming(true)}>
                                 <IconEdit className="w-4 h-4 mr-2" />
@@ -309,6 +317,7 @@ function PaperHeader({
                                     </div>
                                 </DropdownMenuSubContent>
                             </DropdownMenuSub>
+
                             <DropdownMenuItem onClick={() => onHistoryOpen(true)}>
                                 <IconHistory className="w-4 h-4 mr-2" />
                                 See version history
@@ -316,8 +325,8 @@ function PaperHeader({
 
                             <DropdownMenuSeparator />
 
-                            <DropdownMenuItem onClick={onMoveToTrash} className="text-destructive focus:text-destructive">
-                                <IconTrash className="w-4 h-4 mr-2" />
+                            <DropdownMenuItem onClick={onMoveToTrash} className="text-destructive focus:text-destructive group">
+                                <IconTrash className="w-4 h-4 mr-2 group-hover:text-destructive" />
                                 Move to trash
                             </DropdownMenuItem>
 
@@ -326,6 +335,7 @@ function PaperHeader({
                             <DropdownMenuItem onClick={onPrint}>
                                 <IconPrinter className="w-4 h-4 mr-2" />
                                 Print
+                                <DropdownMenuShortcut>⌘P</DropdownMenuShortcut>
                             </DropdownMenuItem>
 
                             <DropdownMenuSub>
@@ -520,12 +530,12 @@ function PaperEditorView({
     // Extract blocks from editor value for navigation
     const extractBlocks = useCallback((content: Value): any[] => {
         if (!Array.isArray(content)) return [];
-        
+
         return (content as any[]).map((block, idx) => ({
             id: block.id || `block-${idx}`,
             type: block.type || 'paragraph',
-            content: 
-                block.children?.[0]?.text || 
+            content:
+                block.children?.[0]?.text ||
                 block.children?.map((c: any) => c.text || '').join('') ||
                 ''
         }));
@@ -590,7 +600,7 @@ function PaperEditorView({
             let blockIndex = 0;
             // Get all direct children that are block elements
             const blockElements = editorContainer.querySelectorAll(':scope > div');
-            
+
             blockElements.forEach((blockEl, idx) => {
                 const blockId = `block-${blocks[idx]?.id || idx}`;
                 blockEl.setAttribute('id', blockId);
@@ -625,7 +635,7 @@ function PaperEditorView({
                 editor={editor}
                 onChange={({ value }) => handleChange(value)}
             >
-                <div className="flex flex-col h-screen bg-background w-full overflow-hidden">
+                <div className="flex flex-col h-screen bg-background w-full overflow-hidden relative">
                     <PaperHeader
                         fileId={fileId}
                         paperTitle={paperTitle}
@@ -660,53 +670,7 @@ function PaperEditorView({
                                 placeholder="New Page"
                             />
 
-                            {/* Floating Word Count (Bottom Left - Conditionally Visible) */}
-                            {showWordCount && (
-                                <div className="absolute bottom-4 left-4 z-40">
-                                    {/* Expanded panel — always renders above the pill */}
-                                    {wordCountExpanded && (
-                                        <div className="mb-1 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-3 py-2 space-y-1">
-                                            <button
-                                                onClick={() => setDisplayMode('words')}
-                                                className={`flex items-center justify-between gap-4 px-2 py-1 text-xs w-full rounded transition-colors ${
-                                                    displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
-                                                }`}
-                                            >
-                                                <span className="font-medium">Words</span>
-                                                <span className="font-medium">{stats.words.toLocaleString()}</span>
-                                            </button>
-                                            <button
-                                                onClick={() => setDisplayMode('characters')}
-                                                className={`flex items-center justify-between gap-4 px-2 py-1 text-xs w-full rounded transition-colors ${
-                                                    displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
-                                                }`}
-                                            >
-                                                <span className="font-medium">Characters</span>
-                                                <span className="font-medium">{stats.characters.toLocaleString()}</span>
-                                            </button>
-                                        </div>
-                                    )}
-                                    {/* Pill — always at the bottom */}
-                                    <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden">
-                                        <button
-                                            onClick={() => setWordCountExpanded(!wordCountExpanded)}
-                                            className={`flex items-center justify-between px-3 py-2 text-xs transition-colors ${
-                                                wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
-                                            }`}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <span className="font-medium">{displayMode === 'words' ? 'Words' : 'Characters'}</span>
-                                                <span className="font-semibold">{displayMode === 'words' ? stats.words.toLocaleString() : stats.characters.toLocaleString()}</span>
-                                            </div>
-                                            {wordCountExpanded ? (
-                                                <IconChevronDown className="w-3 h-3 shrink-0 ml-2" />
-                                            ) : (
-                                                <IconChevronUp className="w-3 h-3 shrink-0 ml-2" />
-                                            )}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+
 
                         </div>
 
@@ -718,6 +682,51 @@ function PaperEditorView({
                             clearHighlight={clearHighlight}
                         />
                     </main>
+
+                    {/* Floating Word Count (Bottom Left - Conditionally Visible) */}
+                    {showWordCount && (
+                        <div className="absolute bottom-4 left-4 z-40">
+                            {/* Expanded panel — always renders above the pill */}
+                            {wordCountExpanded && (
+                                <div className="mb-1 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-3 py-2 space-y-1">
+                                    <button
+                                        onClick={() => setDisplayMode('words')}
+                                        className={`flex items-center justify-between gap-4 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
+                                            }`}
+                                    >
+                                        <span className="font-medium">Words</span>
+                                        <span className="font-medium">{stats.words.toLocaleString()}</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setDisplayMode('characters')}
+                                        className={`flex items-center justify-between gap-4 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
+                                            }`}
+                                    >
+                                        <span className="font-medium">Characters</span>
+                                        <span className="font-medium">{stats.characters.toLocaleString()}</span>
+                                    </button>
+                                </div>
+                            )}
+                            {/* Pill — always at the bottom */}
+                            <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden">
+                                <button
+                                    onClick={() => setWordCountExpanded(!wordCountExpanded)}
+                                    className={`flex items-center justify-between px-3 py-2 text-xs transition-colors ${wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <span className="font-medium">{displayMode === 'words' ? 'Words' : 'Characters'}</span>
+                                        <span className="font-semibold">{displayMode === 'words' ? stats.words.toLocaleString() : stats.characters.toLocaleString()}</span>
+                                    </div>
+                                    {wordCountExpanded ? (
+                                        <IconChevronDown className="w-3 h-3 shrink-0 ml-2" />
+                                    ) : (
+                                        <IconChevronUp className="w-3 h-3 shrink-0 ml-2" />
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </Plate>
         </PaperIdProvider>
@@ -1248,7 +1257,7 @@ function PaperPageContent() {
                 case 'html': {
                     const convertToHtml = (nodes: any[]): string => {
                         let result = '';
-                        
+
                         const processNode = (n: any): string => {
                             if (typeof n === 'string') return n;
                             if (n.text) return n.text;
@@ -1351,7 +1360,7 @@ function PaperPageContent() {
                 case 'docx': {
                     const convertToHtml = (nodes: any[]): string => {
                         let result = '';
-                        
+
                         const processNode = (n: any): string => {
                             if (typeof n === 'string') return n;
                             if (n.text) return n.text;
@@ -1414,7 +1423,7 @@ function PaperPageContent() {
                     try {
                         // @ts-ignore - no type definitions available
                         const { default: htmlDocx } = await import('html-docx-js/dist/html-docx');
-                        
+
                         const html = convertToHtml(latestContentRef.current as any[]);
                         const htmlContent = `
 <html>
@@ -1441,7 +1450,7 @@ function PaperPageContent() {
     ${html}
   </body>
 </html>`;
-                        
+
                         const docxBlob = htmlDocx.asBlob(htmlContent);
                         const url = URL.createObjectURL(docxBlob);
                         downloadFile(url, getExportFilename('docx'));
