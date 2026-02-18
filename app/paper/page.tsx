@@ -3,18 +3,8 @@
 import React, { useEffect, useState, useCallback, useRef, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { masterKeyManager } from "@/lib/master-key";
-import { IconLoader2, IconCloudCheck, IconHistory, IconEdit, IconFolderSymlink, IconTrash, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase, IconChevronUp, IconChevronDown, IconLayoutSidebar, IconAbc } from "@tabler/icons-react";
+import { IconLoader2, IconCloudCheck, IconHistory, IconEdit, IconFolderSymlink, IconTrash, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase, IconChevronUp, IconChevronDown, IconLayoutSidebar, IconAbc, IconSparkles } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -48,6 +38,7 @@ import { useTheme } from "next-themes";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { PaperScrollNavigation } from "@/components/ai-elements/paper-navigation";
+import { PaperAIAssistant } from "@/components/paper/paper-ai-assistant";
 
 // Print-specific styles to show only editor content
 if (typeof document !== 'undefined') {
@@ -307,13 +298,16 @@ function PaperHeader({
                                             </div>
                                         </div>
                                         <DropdownMenuSeparator className="-mx-1" />
-                                        <DropdownMenuCheckboxItem
-                                            checked={showWordCount}
-                                            onCheckedChange={(checked) => setShowWordCount(checked)}
-                                            className="text-sm cursor-pointer py-2"
-                                        >
-                                            <span className="font-medium">Display Word Count</span>
-                                        </DropdownMenuCheckboxItem>
+                                        <div className="px-4 py-2 flex items-center justify-between">
+                                            <Label htmlFor="word-count-toggle" className="text-sm font-medium cursor-pointer">
+                                                Display Word Count
+                                            </Label>
+                                            <Switch
+                                                id="word-count-toggle"
+                                                checked={showWordCount}
+                                                onCheckedChange={setShowWordCount}
+                                            />
+                                        </div>
                                     </div>
                                 </DropdownMenuSubContent>
                             </DropdownMenuSub>
@@ -325,8 +319,8 @@ function PaperHeader({
 
                             <DropdownMenuSeparator />
 
-                            <DropdownMenuItem onClick={onMoveToTrash} className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                                <IconTrash className="w-4 h-4 mr-2 text-destructive" />
+                            <DropdownMenuItem onClick={onMoveToTrash} className="text-destructive focus:bg-destructive/10 focus:text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground group/del">
+                                <IconTrash className="mr-2 size-4 group-hover/del:text-destructive-foreground transition-colors" />
                                 Move to trash
                             </DropdownMenuItem>
 
@@ -511,6 +505,7 @@ function PaperEditorView({
     const [blocks, setBlocks] = useState<any[]>([]);
     const [highlightedBlockId, setHighlightedBlockId] = useState<string | null>(null);
     const wordCountRef = useRef<HTMLDivElement>(null);
+    const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
 
     // Save display mode to localStorage
     useEffect(() => {
@@ -733,23 +728,47 @@ function PaperEditorView({
                             <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden min-w-[140px]">
                                 <button
                                     onClick={() => setWordCountExpanded(!wordCountExpanded)}
-                                    className={`flex items-center justify-between px-3 py-2 text-xs transition-colors ${wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                                    className={`flex items-center justify-between px-3 py-2 text-xs transition-colors w-full ${wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
                                         }`}
                                 >
-                                    <div className="flex items-center gap-4">
-                                        <span className="font-medium">{displayMode === 'words' ? 'Words' : 'Characters'}</span>
+                                    <span className="font-medium">{displayMode === 'words' ? 'Words' : 'Characters'}</span>
+                                    <div className="flex items-center gap-2 shrink-0">
                                         <span className="font-semibold">{displayMode === 'words' ? stats.words.toLocaleString() : stats.characters.toLocaleString()}</span>
+                                        {wordCountExpanded ? (
+                                            <IconChevronDown className="w-3 h-3" />
+                                        ) : (
+                                            <IconChevronUp className="w-3 h-3" />
+                                        )}
                                     </div>
-                                    {wordCountExpanded ? (
-                                        <IconChevronDown className="w-3 h-3 shrink-0 ml-2" />
-                                    ) : (
-                                        <IconChevronUp className="w-3 h-3 shrink-0 ml-2" />
-                                    )}
                                 </button>
                             </div>
                         </div>
                     )}
                 </div>
+
+                {/* AI Assistant */}
+                <PaperAIAssistant
+                    isOpen={isAIAssistantOpen}
+                    onClose={() => setIsAIAssistantOpen(false)}
+                    paperTitle={paperTitle}
+                />
+
+                {/* AI Floating Trigger Button */}
+                {!isAIAssistantOpen && (
+                    <button
+                        onClick={() => setIsAIAssistantOpen(true)}
+                        className="fixed bottom-6 right-6 z-50 p-3 bg-white text-black rounded-full shadow-xl hover:scale-105 transition-transform duration-200 border border-gray-200 group"
+                        aria-label="Open AI Assistant"
+                    >
+                        <div className="relative">
+                            <IconSparkles className="w-6 h-6 stroke-1.5" />
+                            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+                            </span>
+                        </div>
+                    </button>
+                )}
             </Plate>
         </PaperIdProvider>
     );
@@ -1709,6 +1728,7 @@ function PaperPageContent() {
                 open={supportDialogOpen}
                 onOpenChange={setSupportDialogOpen}
             />
+
         </>
     );
 }
