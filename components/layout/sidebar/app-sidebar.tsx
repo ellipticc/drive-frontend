@@ -43,7 +43,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useUser } from "@/components/user-context"
 import { useAICrypto } from "@/hooks/use-ai-crypto"
-import { useWordCountStats } from "@/components/paper-id-context"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { useLanguage } from "@/lib/i18n/language-context"
 
@@ -52,32 +51,6 @@ const defaultUser = {
   email: "loading@example.com",
   avatar: getDiceBearAvatar("loading"),
   id: "",
-}
-
-// Word Count Display Component
-function WordCountDisplay() {
-  try {
-    const stats = useWordCountStats();
-    if (!stats) return null;
-    
-    return (
-      <div className="px-2 py-1 text-xs text-muted-foreground border-t group-data-[collapsible=icon]:hidden">
-        <div className="flex flex-col gap-0.5">
-          <div className="flex justify-between items-center">
-            <span>Words:</span>
-            <span className="font-medium">{stats.words.toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span>Characters:</span>
-            <span className="font-medium">{stats.characters.toLocaleString()}</span>
-          </div>
-        </div>
-      </div>
-    );
-  } catch (e) {
-    // Not in a PaperIdProvider context, don't render anything
-    return null;
-  }
 }
 
 export const AppSidebar = React.memo(function AppSidebar({
@@ -384,7 +357,6 @@ export const AppSidebar = React.memo(function AppSidebar({
       <SidebarContent>
         <NavMain items={data.navMain} />
       </SidebarContent>
-      <WordCountDisplay />
       <SidebarFooter>
         <NavSecondary items={data.navSecondary} />
         <NavUser user={data.user} />

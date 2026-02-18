@@ -454,8 +454,24 @@ function PaperEditorView({
     wordCountStats?: WordCountStats;
 }) {
     const [editorValue, setEditorValue] = useState<Value>(initialValue);
+    const [wordCountExpanded, setWordCountExpanded] = useState(false);
+    const [displayMode, setDisplayMode] = useState<'words' | 'characters'>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('wordCountDisplayMode');
+            return (saved as 'words' | 'characters') || 'words';
+        }
+        return 'words';
+    });
     const [blocks, setBlocks] = useState<any[]>([]);
     const [highlightedBlockId, setHighlightedBlockId] = useState<string | null>(null);
+
+    // Save display mode to localStorage
+    useEffect(() => {
+        localStorage.setItem('wordCountDisplayMode', displayMode);
+    }, [displayMode]);
+
+    // Calculate stats for word count display
+    const stats = useMemo(() => countWords(editorValue), [editorValue]);
 
     const editor = usePlateEditor({
         plugins: EditorKit,
@@ -601,21 +617,66 @@ function PaperEditorView({
                     </FixedToolbar>
 
                     <main className="flex-1 overflow-y-auto relative min-h-0" style={{ scrollbarGutter: 'stable' }}>
-                        {/* Paper Navigation (Left Side) */}
-                        <PaperScrollNavigation
-                            blocks={blocks}
-                            scrollToBlock={scrollToBlock}
-                            highlightBlock={highlightBlock}
-                            clearHighlight={clearHighlight}
-                        />
-
                         <div className="w-full md:max-w-[950px] mx-auto px-4 sm:px-6 md:px-12 pt-3 md:pt-4 pb-48">
                             <Editor
                                 className="min-h-full w-full border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
                                 autoFocus
                                 placeholder="New Page"
                             />
-                        </div>
+
+                            {/* Floating Word Count (Bottom Left - Conditionally Visible) */}
+                            {showWordCount && (
+                                <div className="fixed bottom-4 left-4 z-40">
+                                    <div className={`bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden ${wordCountExpanded ? 'flex flex-col-reverse' : ''}`}>
+                                        {/* Dropdown Menu - Opens Above */}
+                                        {wordCountExpanded && (
+                                            <div className="border-b px-3 py-2 space-y-1">
+                                                <button
+                                                    onClick={() => setDisplayMode('words')}
+                                                    className={`flex items-center gap-2 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
+                                                        }`}
+                                                >
+                                                    <span className="font-medium">Words</span>
+                                                    <span className="font-medium">{stats.words.toLocaleString()}</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => setDisplayMode('characters')}
+                                                    className={`flex items-center gap-2 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
+                                                        }`}
+                                                >
+                                                    <span className="font-medium">Characters</span>
+                                                    <span className="font-medium">{stats.characters.toLocaleString()}</span>
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {/* Main Button */}
+                                        <button
+                                            onClick={() => setWordCountExpanded(!wordCountExpanded)}
+                                            className={`flex items-center justify-between px-3 py-2 text-xs transition-colors ${wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <span className="font-medium">{displayMode === 'words' ? 'Words' : 'Characters'}</span>
+                                                <span className="font-semibold">{displayMode === 'words' ? stats.words.toLocaleString() : stats.characters.toLocaleString()}</span>
+                                            </div>
+                                            {wordCountExpanded ? (
+                                                <IconChevronUp className="w-3 h-3 shrink-0 ml-2" />
+                                            ) : (
+                                                <IconChevronDown className="w-3 h-3 shrink-0 ml-2" />
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                        {/* Paper Navigation (Right Side - mirrors chat) */}
+                        <PaperScrollNavigation
+                            blocks={blocks}
+                            scrollToBlock={scrollToBlock}
+                            highlightBlock={highlightBlock}
+                            clearHighlight={clearHighlight}
+                        />
                     </main>
                 </div>
             </Plate>
@@ -1465,34 +1526,40 @@ function PaperPageContent() {
 
     if (loading) {
         return (
-            <div className="h-screen w-full flex flex-col items-center justify-center gap-6 bg-background/50">
-                <div className="w-full max-w-[1100px] px-6">
-                    <div className="flex items-center justify-between mb-6">
+            <div className="h-screen w-full flex flex-col bg-background">
+                {/* Header Skeleton */}
+                <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b border-border">
+                    <div className="flex items-center justify-between px-4 py-3">
                         <div className="flex items-center gap-4">
-                            <Skeleton className="h-10 w-10 rounded-full" />
-                            <div className="space-y-2">
-                                <Skeleton className="h-6 w-64 rounded" />
-                                <Skeleton className="h-4 w-40 rounded" />
-                            </div>
+                            <Skeleton className="h-10 w-32 rounded" />
                         </div>
                         <div className="flex items-center gap-3">
-                            <Skeleton className="h-8 w-28 rounded" />
-                            <Skeleton className="h-8 w-16 rounded" />
+                            <Skeleton className="h-8 w-20 rounded" />
+                            <Skeleton className="h-8 w-20 rounded" />
                         </div>
                     </div>
+                </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div className="md:col-span-3 space-y-4">
-                            <Skeleton className="h-10 w-32 rounded" />
-                            <Skeleton className="h-[60vh] w-full rounded" />
+                {/* Toolbar Skeleton */}
+                <div className="border-b bg-background/50 h-12 flex items-center px-4 gap-2">
+                    <Skeleton className="h-6 w-6 rounded" />
+                    <Skeleton className="h-6 w-6 rounded" />
+                    <Skeleton className="h-6 w-6 rounded" />
+                </div>
+
+                {/* Main Content Area Skeleton */}
+                <div className="flex-1 overflow-y-auto relative">
+                    <div className="w-full md:max-w-[950px] mx-auto px-4 sm:px-6 md:px-12 pt-6 pb-48 space-y-4">
+                        <Skeleton className="h-8 w-96 rounded" />
+                        <Skeleton className="h-4 w-full rounded" />
+                        <Skeleton className="h-4 w-full rounded" />
+                        <Skeleton className="h-4 w-4/5 rounded" />
+                        <div className="pt-6 space-y-4">
+                            <Skeleton className="h-4 w-full rounded" />
+                            <Skeleton className="h-4 w-full rounded" />
+                            <Skeleton className="h-4 w-full rounded" />
+                            <Skeleton className="h-4 w-3/4 rounded" />
                         </div>
-
-                        <aside className="md:col-span-1 space-y-3">
-                            <Skeleton className="h-6 w-full rounded" />
-                            <Skeleton className="h-6 w-full rounded" />
-                            <Skeleton className="h-6 w-full rounded" />
-                            <Skeleton className="h-6 w-full rounded" />
-                        </aside>
                     </div>
                 </div>
             </div>

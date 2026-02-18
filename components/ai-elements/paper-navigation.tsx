@@ -24,6 +24,7 @@ export function PaperScrollNavigation({
 }: PaperScrollNavigationProps) {
     const [activeId, setActiveId] = useState<string | null>(null);
     const [isHovered, setIsHovered] = useState(false);
+    const [highlightedId, setHighlightedId] = useState<string | null>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -52,10 +53,12 @@ export function PaperScrollNavigation({
 
         // Highlight the block temporarily
         if (highlightBlock) {
+            setHighlightedId(id);
             highlightBlock(id);
             // Clear highlight after 2 seconds
             if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
             highlightTimeoutRef.current = setTimeout(() => {
+                setHighlightedId(null);
                 if (clearHighlight) clearHighlight();
             }, 2000);
         }
@@ -129,13 +132,29 @@ export function PaperScrollNavigation({
             }
         };
 
-        // Check initial hash
-        handleHashChange();
+        // Check initial hash on mount - this handles page reload with URL fragment
+        setTimeout(handleHashChange, 100);
 
         // Listen for hash changes
         window.addEventListener('hashchange', handleHashChange);
         return () => window.removeEventListener('hashchange', handleHashChange);
     }, []);
+
+    // Stop highlighting when clicking elsewhere
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            // If click is outside navigation component, clear highlight
+            if (containerRef.current && !containerRef.current.contains(target)) {
+                if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+                setHighlightedId(null);
+                if (clearHighlight) clearHighlight();
+            }
+        };
+
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, [clearHighlight]);
 
     if (navigableBlocks.length === 0) return null;
 
@@ -143,7 +162,7 @@ export function PaperScrollNavigation({
         <div
             ref={containerRef}
             className={cn(
-                "fixed left-6 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center transition-all duration-500 ease-in-out group/nav",
+                "fixed right-6 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center transition-all duration-500 ease-in-out group/nav",
                 isHovered ? "w-[260px] px-2" : "w-8"
             )}
             onMouseEnter={handleMouseEnter}
