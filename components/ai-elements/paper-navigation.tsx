@@ -16,6 +16,13 @@ interface PaperScrollNavigationProps {
     clearHighlight?: () => void;
 }
 
+// Helper to get heading level from block type
+const getHeadingLevel = (type: string): number => {
+    if (type === 'title') return 0;
+    const match = type.match(/h([1-6])/);
+    return match ? parseInt(match[1]) : 0;
+};
+
 export function PaperScrollNavigation({ 
     blocks, 
     scrollToBlock, 
@@ -29,20 +36,27 @@ export function PaperScrollNavigation({
     const containerRef = useRef<HTMLDivElement>(null);
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const isInitialMountRef = useRef(true);
+    const userInteractionRef = useRef(false);
 
-    // Filter only blocks that are headers (h1, h2, h3, etc.) and have IDs
-    const navigableBlocks = blocks.filter(b => b.id && b.type && /^h[1-6]$|title/.test(b.type));
+    // Filter only blocks that are headers (h1, h2, h3, etc.) with heading levels
+    const navigableBlocks = blocks
+        .filter(b => b.id && b.type && /^h[1-6]$|title/.test(b.type))
+        .map(b => ({
+            ...b,
+            level: getHeadingLevel(b.type as string)
+        }));
 
-    // Handle Scroll logic
+    // Handle navigation only on user interaction
     const handleNavigationInfo = (id: string) => {
-        // Prevent hover state from jittering during scroll interactions
+        userInteractionRef.current = true;
+        
         if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
         setIsHovered(true);
 
         if (scrollToBlock) {
             scrollToBlock(id, 'auto');
         } else {
-            // Fallback if prop not provided
             const element = document.getElementById(`block-${id}`);
             if (element) {
                 element.scrollIntoView({ behavior: 'auto', block: 'start' });
@@ -55,7 +69,6 @@ export function PaperScrollNavigation({
         if (highlightBlock) {
             setHighlightedId(id);
             highlightBlock(id);
-            // Clear highlight after 2 seconds
             if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
             highlightTimeoutRef.current = setTimeout(() => {
                 setHighlightedId(null);
@@ -77,31 +90,30 @@ export function PaperScrollNavigation({
     };
 
     const handleMouseLeave = () => {
-        // Small delay to prevent flickering when moving between dash and content
+        // Faster delay for snappier hover behavior
         hoverTimeoutRef.current = setTimeout(() => {
             setIsHovered(false);
-        }, 300);
+        }, 150);
     };
 
-    // Intersection Observer for Active Highlight
+    // Intersection Observer for Active Highlight - passive, doesn't open nav
     useEffect(() => {
         if (navigableBlocks.length === 0) return;
 
-        // Cleanup previous observer
         if (observerRef.current) {
             observerRef.current.disconnect();
         }
 
         const options = {
-            root: null, // viewport
-            rootMargin: '-10% 0px -80% 0px', // Highlight when near top
+            root: null,
+            rootMargin: '-10% 0px -80% 0px',
             threshold: 0
         };
 
         const callback: IntersectionObserverCallback = (entries) => {
             entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    // Extract ID from block-{id}
+                // Only update on scroll if user hasn't manually interacted
+                if (entry.isIntersecting && !userInteractionRef.current) {
                     const id = entry.target.id.replace('block-', '');
                     setActiveId(id);
                 }
@@ -110,7 +122,6 @@ export function PaperScrollNavigation({
 
         observerRef.current = new IntersectionObserver(callback, options);
 
-        // Observe all navigable blocks
         navigableBlocks.forEach(block => {
             if (block.id) {
                 const el = document.getElementById(`block-${block.id}`);
@@ -121,47 +132,62 @@ export function PaperScrollNavigation({
         return () => observerRef.current?.disconnect();
     }, [navigableBlocks.length]);
 
-    // Handle URL hash on mount and navigation - production grade with proper DOM readiness
+    // Handle URL hash on mount and navigation
     useEffect(() => {
         const handleHashChange = () => {
             const hash = window.location.hash;
             const match = hash.match(/content=([^&]*)/);
+            
             if (match?.[1]) {
                 const blockId = match[1];
                 
-                // Try to navigate, with smart DOM readiness detection
-                const element = document.getElementById(`block-${blockId}`);
-                if (element) {
-                    handleNavigationInfo(blockId);
+                // If user hasn't interacted yet, just set activeId (don't open nav)
+                if (!userInteractionRef.current) {
+                    const element = document.getElementById(`block-${blockId}`);
+                    if (element) {
+                        setActiveId(blockId);
+                    }
                 } else {
-                    // If element not found, wait for it to render
-                    let frameCount = 0;
-                    const maxFrames = 30; // ~500ms at 60fps
-                    
-                    const checkForElement = () => {
-                        frameCount++;
-                        const el = document.getElementById(`block-${blockId}`);
-                        if (el) {
-                            handleNavigationInfo(blockId);
-                        } else if (frameCount < maxFrames) {
-                            requestAnimationFrame(checkForElement);
-                        }
-                    };
-                    
-                    requestAnimationFrame(checkForElement);
+                    // On subsequent hash changes (user navigation), do full navigation
+                    const element = document.getElementById(`block-${blockId}`);
+                    if (element) {
+                        handleNavigationInfo(blockId);
+                    } else {
+                        // If element not found, wait for it to render
+                        let frameCount = 0;
+                        const maxFrames = 30; // ~500ms at 60fps
+                        
+                        const checkForElement = () => {
+                            frameCount++;
+                            const el = document.getElementById(`block-${blockId}`);
+                            if (el) {
+                                handleNavigationInfo(blockId);
+                            } else if (frameCount < maxFrames) {
+                                requestAnimationFrame(checkForElement);
+                            }
+                        };
+                        
+                        requestAnimationFrame(checkForElement);
+                    }
                 }
             }
         };
 
-        // On initial mount, read hash without navigating (keep nav closed on reload)
-        const hash = window.location.hash;
-        const match = hash.match(/content=([^&]*)/);
-        if (match?.[1]) {
-            const blockId = match[1];
-            setActiveId(blockId);
-        }
+        // On mount, read hash silently (don't trigger navigation)
+        setTimeout(() => {
+            const hash = window.location.hash;
+            const match = hash.match(/content=([^&]*)/);
+            if (match?.[1]) {
+                const blockId = match[1];
+                const element = document.getElementById(`block-${blockId}`);
+                if (element) {
+                    setActiveId(blockId);
+                }
+            }
+            // Mark initial mount as complete - now future hash changes are user-driven
+            isInitialMountRef.current = false;
+        }, 0);
 
-        // Listen for active hash changes during navigation
         window.addEventListener('hashchange', handleHashChange);
         return () => window.removeEventListener('hashchange', handleHashChange);
     }, []);
@@ -188,8 +214,8 @@ export function PaperScrollNavigation({
         <div
             ref={containerRef}
             className={cn(
-                "fixed right-6 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center transition-all duration-500 ease-in-out group/nav",
-                isHovered ? "w-[260px] px-2" : "w-8"
+                "fixed right-6 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center transition-all duration-300 ease-in-out group/nav",
+                isHovered ? "w-[280px] px-3" : "w-10"
             )}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -197,7 +223,7 @@ export function PaperScrollNavigation({
             {/* Idle State: Centered Dashes (Horizontal Lines) */}
             <div
                 className={cn(
-                    "flex flex-col items-center gap-1.5 transition-all duration-500 ease-in-out",
+                    "flex flex-col items-center gap-2 transition-all duration-300 ease-in-out",
                     isHovered ? "opacity-0 pointer-events-none absolute scale-50" : "opacity-100 scale-100"
                 )}
             >
@@ -218,39 +244,43 @@ export function PaperScrollNavigation({
                 ))}
             </div>
 
-            {/* Hover State: List */}
+            {/* Hover State: Hierarchical List */}
             <div
                 className={cn(
-                    "flex flex-col w-full overflow-hidden transition-all duration-500 ease-in-out origin-left rounded-2xl bg-sidebar/95 backdrop-blur shadow-2xl border border-sidebar-border",
+                    "flex flex-col w-full overflow-hidden transition-all duration-300 ease-in-out origin-left rounded-xl bg-sidebar/95 backdrop-blur shadow-2xl border border-sidebar-border",
                     isHovered
                         ? "opacity-100 scale-100 translate-x-0"
                         : "opacity-0 scale-95 -translate-x-4 pointer-events-none absolute"
                 )}
             >
-                <div className="flex flex-col p-3 gap-1 max-h-[60vh] overflow-y-auto w-full scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40 pr-1">
-                    {navigableBlocks.map((block, idx) => (
-                        <button
-                            key={`item-${block.id}`}
-                            onClick={() => block.id && handleNavigationInfo(block.id)}
-                            className={cn(
-                                "text-left text-[11px] leading-tight px-3 py-2.5 rounded-xl transition-all w-full group/item",
-                                activeId === block.id
-                                    ? "text-primary font-semibold bg-primary/5"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/5"
-                            )}
-                        >
-                            <span className={cn(
-                                "line-clamp-2 break-words transition-colors",
-                                activeId === block.id ? "text-primary" : "group-hover/item:text-foreground"
-                            )}>
-                                <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase">
-                                    {block.type}
+                <div className="flex flex-col p-3 gap-0.5 max-h-[60vh] overflow-y-auto w-full scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40 pr-1">
+                    {navigableBlocks.map((block, idx) => {
+                        // Calculate padding based on heading level
+                        const paddingLeft = block.level === 0 ? 0 : (block.level - 1) * 12;
+                        
+                        return (
+                            <button
+                                key={`item-${block.id}`}
+                                onClick={() => block.id && handleNavigationInfo(block.id)}
+                                style={{ paddingLeft: `${paddingLeft + 12}px` }}
+                                className={cn(
+                                    "text-left text-[12px] leading-snug py-2 rounded-lg transition-all w-full group/item hover:bg-muted/40",
+                                    "font-medium",
+                                    activeId === block.id
+                                        ? "text-primary bg-primary/10"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                                title={block.content}
+                            >
+                                <span className={cn(
+                                    "line-clamp-2 break-words transition-colors",
+                                    activeId === block.id ? "text-primary" : "group-hover/item:text-foreground"
+                                )}>
+                                    {block.content || `Block ${idx + 1}`}
                                 </span>
-                                {' '}
-                                {block.content || `Block ${idx + 1}`}
-                            </span>
-                        </button>
-                    ))}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
         </div>
