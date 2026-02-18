@@ -670,6 +670,8 @@ function PaperEditorView({
                                 </div>
                             )}
 
+                        </div>
+
                         {/* Paper Navigation (Right Side - mirrors chat) */}
                         <PaperScrollNavigation
                             blocks={blocks}
