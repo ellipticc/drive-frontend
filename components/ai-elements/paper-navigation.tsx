@@ -270,7 +270,6 @@ export function PaperScrollNavigation({
                                         ? "text-primary bg-primary/10"
                                         : "text-muted-foreground hover:text-foreground"
                                 )}
-                                title={block.content}
                             >
                                 <span className={cn(
                                     "line-clamp-2 break-words transition-colors",

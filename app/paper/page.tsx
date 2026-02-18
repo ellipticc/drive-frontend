@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { masterKeyManager } from "@/lib/master-key";
-import { IconLoader2, IconCloudCheck, IconHistory, IconEdit, IconFolderSymlink, IconTrash, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase, IconChevronUp, IconChevronDown, IconLayoutSidebar } from "@tabler/icons-react";
+import { IconLoader2, IconCloudCheck, IconHistory, IconEdit, IconFolderSymlink, IconTrash, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase, IconChevronUp, IconChevronDown, IconLayoutSidebar, IconAbc } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import {
     AlertDialog,
@@ -328,32 +328,43 @@ function PaperHeader({
                                 Copy as Markdown
                             </DropdownMenuItem>
 
-                            <DropdownMenuSeparator />
-
-                            {/* Word Count Stats Display */}
-                            <div className="px-2 py-2 space-y-2 text-xs">
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-xs font-medium">Word Count</Label>
-                                    <Switch 
-                                        checked={showWordCount}
-                                        onCheckedChange={setShowWordCount}
-                                    />
-                                </div>
-                                <div className="space-y-1 text-muted-foreground">
-                                    <div className="flex justify-between">
-                                        <span>Words:</span>
-                                        <span className="font-semibold">{stats.words.toLocaleString()}</span>
+                            <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                    <IconAbc className="w-4 h-4 mr-2" />
+                                    Word Count
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                    <div className="px-3 py-2 space-y-2 text-xs min-w-[160px]">
+                                        <div className="space-y-1.5 text-muted-foreground">
+                                            <div className="flex justify-between gap-6">
+                                                <span>Words</span>
+                                                <span className="font-semibold text-foreground">{stats.words.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between gap-6">
+                                                <span>Characters</span>
+                                                <span className="font-semibold text-foreground">{stats.characters.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between gap-6">
+                                                <span>No Spaces</span>
+                                                <span className="font-semibold text-foreground">{stats.charactersNoSpaces.toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                        <DropdownMenuSeparator className="-mx-1" />
+                                        <div
+                                            className="flex items-center justify-between pt-0.5"
+                                            onPointerDown={(e) => e.stopPropagation()}
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <Label className="text-xs font-medium cursor-pointer" htmlFor="word-count-toggle">Display Word Count</Label>
+                                            <Switch
+                                                id="word-count-toggle"
+                                                checked={showWordCount}
+                                                onCheckedChange={setShowWordCount}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="flex justify-between">
-                                        <span>Characters:</span>
-                                        <span className="font-semibold">{stats.characters.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>No Spaces:</span>
-                                        <span className="font-semibold">{stats.charactersNoSpaces.toLocaleString()}</span>
-                                    </div>
-                                </div>
-                            </div>
+                                </DropdownMenuSubContent>
+                            </DropdownMenuSub>
 
                             <DropdownMenuSeparator />
 
@@ -646,7 +657,7 @@ function PaperEditorView({
                     </FixedToolbar>
 
                     <main className="flex-1 overflow-y-auto relative min-h-0" style={{ scrollbarGutter: 'stable' }}>
-                        <div className="w-full md:max-w-[950px] mx-auto px-4 sm:px-6 md:px-12 pt-3 md:pt-4 pb-48">
+                        <div className="relative w-full md:max-w-[950px] mx-auto px-4 sm:px-6 md:px-12 pt-3 md:pt-4 pb-48">
                             <Editor
                                 className="min-h-full w-full border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
                                 autoFocus
@@ -655,44 +666,46 @@ function PaperEditorView({
 
                             {/* Floating Word Count (Bottom Left - Conditionally Visible) */}
                             {showWordCount && (
-                                <div className="fixed bottom-4 left-4 z-40">
-                                    <div className={`bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden ${wordCountExpanded ? 'flex flex-col-reverse' : ''}`}>
-                                        {/* Dropdown Menu - Opens Above */}
-                                        {wordCountExpanded && (
-                                            <div className="border-b px-3 py-2 space-y-1">
-                                                <button
-                                                    onClick={() => setDisplayMode('words')}
-                                                    className={`flex items-center gap-2 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
-                                                        }`}
-                                                >
-                                                    <span className="font-medium">Words</span>
-                                                    <span className="font-medium">{stats.words.toLocaleString()}</span>
-                                                </button>
-                                                <button
-                                                    onClick={() => setDisplayMode('characters')}
-                                                    className={`flex items-center gap-2 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
-                                                        }`}
-                                                >
-                                                    <span className="font-medium">Characters</span>
-                                                    <span className="font-medium">{stats.characters.toLocaleString()}</span>
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        {/* Main Button */}
+                                <div className="absolute bottom-4 left-4 z-40">
+                                    {/* Expanded panel — always renders above the pill */}
+                                    {wordCountExpanded && (
+                                        <div className="mb-1 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-3 py-2 space-y-1">
+                                            <button
+                                                onClick={() => setDisplayMode('words')}
+                                                className={`flex items-center justify-between gap-4 px-2 py-1 text-xs w-full rounded transition-colors ${
+                                                    displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
+                                                }`}
+                                            >
+                                                <span className="font-medium">Words</span>
+                                                <span className="font-medium">{stats.words.toLocaleString()}</span>
+                                            </button>
+                                            <button
+                                                onClick={() => setDisplayMode('characters')}
+                                                className={`flex items-center justify-between gap-4 px-2 py-1 text-xs w-full rounded transition-colors ${
+                                                    displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
+                                                }`}
+                                            >
+                                                <span className="font-medium">Characters</span>
+                                                <span className="font-medium">{stats.characters.toLocaleString()}</span>
+                                            </button>
+                                        </div>
+                                    )}
+                                    {/* Pill — always at the bottom */}
+                                    <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden">
                                         <button
                                             onClick={() => setWordCountExpanded(!wordCountExpanded)}
-                                            className={`flex items-center justify-between px-3 py-2 text-xs transition-colors ${wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
-                                                }`}
+                                            className={`flex items-center justify-between px-3 py-2 text-xs transition-colors ${
+                                                wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                                            }`}
                                         >
                                             <div className="flex items-center gap-4">
                                                 <span className="font-medium">{displayMode === 'words' ? 'Words' : 'Characters'}</span>
                                                 <span className="font-semibold">{displayMode === 'words' ? stats.words.toLocaleString() : stats.characters.toLocaleString()}</span>
                                             </div>
                                             {wordCountExpanded ? (
-                                                <IconChevronUp className="w-3 h-3 shrink-0 ml-2" />
-                                            ) : (
                                                 <IconChevronDown className="w-3 h-3 shrink-0 ml-2" />
+                                            ) : (
+                                                <IconChevronUp className="w-3 h-3 shrink-0 ml-2" />
                                             )}
                                         </button>
                                     </div>
