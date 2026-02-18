@@ -342,8 +342,8 @@ export function NavUser({
                 </DropdownMenuSub>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive group">
-                <IconLogout className="group-hover:text-destructive" />
+              <DropdownMenuItem onClick={handleLogout} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                <IconLogout className="text-destructive" />
                 Sign out
                 {!isMobile && <DropdownMenuShortcut>⇧{metaKey}Q</DropdownMenuShortcut>}
               </DropdownMenuItem>

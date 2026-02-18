@@ -196,8 +196,9 @@ export function PaperScrollNavigation({
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
-            // If click is outside navigation component, clear highlight
+            // If click is outside navigation component, stop user interaction to allow passive scroll-based updates
             if (containerRef.current && !containerRef.current.contains(target)) {
+                userInteractionRef.current = false;
                 if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
                 setHighlightedId(null);
                 if (clearHighlight) clearHighlight();

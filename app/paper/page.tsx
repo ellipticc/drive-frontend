@@ -325,8 +325,8 @@ function PaperHeader({
 
                             <DropdownMenuSeparator />
 
-                            <DropdownMenuItem onClick={onMoveToTrash} className="text-destructive focus:text-destructive group">
-                                <IconTrash className="w-4 h-4 mr-2 group-hover:text-destructive" />
+                            <DropdownMenuItem onClick={onMoveToTrash} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                                <IconTrash className="w-4 h-4 mr-2 text-destructive" />
                                 Move to trash
                             </DropdownMenuItem>
 
@@ -510,11 +510,27 @@ function PaperEditorView({
     });
     const [blocks, setBlocks] = useState<any[]>([]);
     const [highlightedBlockId, setHighlightedBlockId] = useState<string | null>(null);
+    const wordCountRef = useRef<HTMLDivElement>(null);
 
     // Save display mode to localStorage
     useEffect(() => {
         localStorage.setItem('wordCountDisplayMode', displayMode);
     }, [displayMode]);
+
+    // Close word count widget on click outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (wordCountRef.current && !wordCountRef.current.contains(target)) {
+                setWordCountExpanded(false);
+            }
+        };
+
+        if (wordCountExpanded) {
+            document.addEventListener('click', handleClickOutside);
+            return () => document.removeEventListener('click', handleClickOutside);
+        }
+    }, [wordCountExpanded]);
 
     // Calculate stats for word count display
     const stats = useMemo(() => countWords(editorValue), [editorValue]);
@@ -685,12 +701,15 @@ function PaperEditorView({
 
                     {/* Floating Word Count (Bottom Left - Conditionally Visible) */}
                     {showWordCount && (
-                        <div className="absolute bottom-4 left-4 z-40">
+                        <div ref={wordCountRef} className="absolute bottom-4 left-4 z-40">
                             {/* Expanded panel — always renders above the pill */}
                             {wordCountExpanded && (
-                                <div className="mb-1 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-3 py-2 space-y-1">
+                                <div className="mb-1 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-3 py-2 space-y-1 min-w-[140px]">
                                     <button
-                                        onClick={() => setDisplayMode('words')}
+                                        onClick={() => {
+                                            setDisplayMode('words');
+                                            setWordCountExpanded(false);
+                                        }}
                                         className={`flex items-center justify-between gap-4 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
                                             }`}
                                     >
@@ -698,7 +717,10 @@ function PaperEditorView({
                                         <span className="font-medium">{stats.words.toLocaleString()}</span>
                                     </button>
                                     <button
-                                        onClick={() => setDisplayMode('characters')}
+                                        onClick={() => {
+                                            setDisplayMode('characters');
+                                            setWordCountExpanded(false);
+                                        }}
                                         className={`flex items-center justify-between gap-4 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
                                             }`}
                                     >
@@ -708,7 +730,7 @@ function PaperEditorView({
                                 </div>
                             )}
                             {/* Pill — always at the bottom */}
-                            <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden">
+                            <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden min-w-[140px]">
                                 <button
                                     onClick={() => setWordCountExpanded(!wordCountExpanded)}
                                     className={`flex items-center justify-between px-3 py-2 text-xs transition-colors ${wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
