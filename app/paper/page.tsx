@@ -43,6 +43,8 @@ import { CopyModal } from "@/components/modals/copy-modal";
 import { SupportRequestDialog } from "@/components/support-request-dialog";
 import { PaperIdProvider, type WordCountStats } from "@/components/paper-id-context";
 import { useTheme } from "next-themes";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { PaperScrollNavigation } from "@/components/ai-elements/paper-navigation";
 
 // Print-specific styles to show only editor content
@@ -325,6 +327,33 @@ function PaperHeader({
                                 <IconCopy className="w-4 h-4 mr-2" />
                                 Copy as Markdown
                             </DropdownMenuItem>
+
+                            <DropdownMenuSeparator />
+
+                            {/* Word Count Stats Display */}
+                            <div className="px-2 py-2 space-y-2 text-xs">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-xs font-medium">Word Count</Label>
+                                    <Switch 
+                                        checked={showWordCount}
+                                        onCheckedChange={setShowWordCount}
+                                    />
+                                </div>
+                                <div className="space-y-1 text-muted-foreground">
+                                    <div className="flex justify-between">
+                                        <span>Words:</span>
+                                        <span className="font-semibold">{stats.words.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Characters:</span>
+                                        <span className="font-semibold">{stats.characters.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>No Spaces:</span>
+                                        <span className="font-semibold">{stats.charactersNoSpaces.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </div>
 
                             <DropdownMenuSeparator />
 
@@ -856,7 +885,7 @@ function PaperPageContent() {
 
                 setPaperTitle(paper.title);
                 lastSavedTitleRef.current = paper.title || "Untitled Paper";
-                document.title = paper.title;
+                document.title = `${paper.title} | Ellipticc`;
 
                 let loadedContent: Value;
                 const rawContent = paper.content;
@@ -988,7 +1017,7 @@ function PaperPageContent() {
             await paperService.savePaper(fileId, undefined, newTitle);
             setPaperTitle(newTitle);
             lastSavedTitleRef.current = newTitle;
-            document.title = newTitle;
+            document.title = `${newTitle} | Ellipticc`;
         } catch (e) {
             console.error(e);
             toast.error("Failed to save title");

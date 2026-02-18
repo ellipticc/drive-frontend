@@ -99,23 +99,45 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
         return () => observerRef.current?.disconnect();
     }, [userMessages.length]); // Re-run when message count changes
 
-    // Handle URL hash on mount and navigation
+    // Handle URL hash on mount and navigation - production grade with proper DOM readiness
     useEffect(() => {
-        const handleHashChange = () => {
+        const handleHashChange = (immediate: boolean = false) => {
             const hash = window.location.hash;
             const match = hash.match(/content=([^&]*)/);
             if (match?.[1]) {
                 const messageId = match[1];
-                handleNavigationInfo(messageId);
+                
+                // Try to navigate immediately, with fallback for DOM not ready yet
+                const element = document.getElementById(`message-${messageId}`);
+                if (element) {
+                    handleNavigationInfo(messageId);
+                } else if (!immediate) {
+                    // If element not found, wait for next available frame when DOM might be ready
+                    // This handles the case where hash navigation happens before content renders
+                    let frameCount = 0;
+                    const maxFrames = 30; // ~500ms at 60fps, sufficient for content load
+                    
+                    const checkForElement = () => {
+                        frameCount++;
+                        const el = document.getElementById(`message-${messageId}`);
+                        if (el) {
+                            handleNavigationInfo(messageId);
+                        } else if (frameCount < maxFrames) {
+                            requestAnimationFrame(checkForElement);
+                        }
+                    };
+                    
+                    requestAnimationFrame(checkForElement);
+                }
             }
         };
 
-        // Check initial hash
-        handleHashChange();
+        // On initial mount, check for hash after current render cycle completes
+        setTimeout(() => handleHashChange(false), 0);
 
-        // Listen for hash changes
-        window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
+        // Listen for hash changes during navigation
+        window.addEventListener('hashchange', () => handleHashChange(false));
+        return () => window.removeEventListener('hashchange', () => handleHashChange(false));
     }, []);
 
     if (userMessages.length === 0) return null;

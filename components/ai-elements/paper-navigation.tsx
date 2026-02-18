@@ -30,8 +30,8 @@ export function PaperScrollNavigation({
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Filter only blocks that have IDs
-    const navigableBlocks = blocks.filter(b => b.id && b.type);
+    // Filter only blocks that are headers (h1, h2, h3, etc.) and have IDs
+    const navigableBlocks = blocks.filter(b => b.id && b.type && /^h[1-6]$|title/.test(b.type));
 
     // Handle Scroll logic
     const handleNavigationInfo = (id: string) => {
@@ -121,21 +121,47 @@ export function PaperScrollNavigation({
         return () => observerRef.current?.disconnect();
     }, [navigableBlocks.length]);
 
-    // Handle URL hash on mount and navigation
+    // Handle URL hash on mount and navigation - production grade with proper DOM readiness
     useEffect(() => {
         const handleHashChange = () => {
             const hash = window.location.hash;
             const match = hash.match(/content=([^&]*)/);
             if (match?.[1]) {
                 const blockId = match[1];
-                handleNavigationInfo(blockId);
+                
+                // Try to navigate, with smart DOM readiness detection
+                const element = document.getElementById(`block-${blockId}`);
+                if (element) {
+                    handleNavigationInfo(blockId);
+                } else {
+                    // If element not found, wait for it to render
+                    let frameCount = 0;
+                    const maxFrames = 30; // ~500ms at 60fps
+                    
+                    const checkForElement = () => {
+                        frameCount++;
+                        const el = document.getElementById(`block-${blockId}`);
+                        if (el) {
+                            handleNavigationInfo(blockId);
+                        } else if (frameCount < maxFrames) {
+                            requestAnimationFrame(checkForElement);
+                        }
+                    };
+                    
+                    requestAnimationFrame(checkForElement);
+                }
             }
         };
 
-        // Check initial hash on mount - this handles page reload with URL fragment
-        setTimeout(handleHashChange, 100);
+        // On initial mount, read hash without navigating (keep nav closed on reload)
+        const hash = window.location.hash;
+        const match = hash.match(/content=([^&]*)/);
+        if (match?.[1]) {
+            const blockId = match[1];
+            setActiveId(blockId);
+        }
 
-        // Listen for hash changes
+        // Listen for active hash changes during navigation
         window.addEventListener('hashchange', handleHashChange);
         return () => window.removeEventListener('hashchange', handleHashChange);
     }, []);
