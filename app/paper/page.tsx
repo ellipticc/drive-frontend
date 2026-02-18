@@ -24,6 +24,7 @@ import {
     DropdownMenuSub,
     DropdownMenuSubContent,
     DropdownMenuSubTrigger,
+    DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -275,6 +276,39 @@ function PaperHeader({
                                 <IconFolderSymlink className="w-4 h-4 mr-2" />
                                 Move to folder
                             </DropdownMenuItem>
+
+                            <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                    <IconAbc className="w-4 h-4 mr-2" />
+                                    Word Count
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                    <div className="px-4 py-3 space-y-3 text-sm min-w-[180px]">
+                                        <div className="space-y-2 text-muted-foreground">
+                                            <div className="flex justify-between gap-6">
+                                                <span className="font-medium">Words</span>
+                                                <span className="font-semibold text-foreground text-base">{stats.words.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between gap-6">
+                                                <span className="font-medium">Characters</span>
+                                                <span className="font-semibold text-foreground text-base">{stats.characters.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between gap-6">
+                                                <span className="font-medium">No Spaces</span>
+                                                <span className="font-semibold text-foreground text-base">{stats.charactersNoSpaces.toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                        <DropdownMenuSeparator className="-mx-1" />
+                                        <DropdownMenuCheckboxItem
+                                            checked={showWordCount}
+                                            onCheckedChange={(checked) => setShowWordCount(checked)}
+                                            className="text-sm cursor-pointer py-2"
+                                        >
+                                            <span className="font-medium">Display Word Count</span>
+                                        </DropdownMenuCheckboxItem>
+                                    </div>
+                                </DropdownMenuSubContent>
+                            </DropdownMenuSub>
                             <DropdownMenuItem onClick={() => onHistoryOpen(true)}>
                                 <IconHistory className="w-4 h-4 mr-2" />
                                 See version history
@@ -327,44 +361,6 @@ function PaperHeader({
                                 <IconCopy className="w-4 h-4 mr-2" />
                                 Copy as Markdown
                             </DropdownMenuItem>
-
-                            <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>
-                                    <IconAbc className="w-4 h-4 mr-2" />
-                                    Word Count
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuSubContent>
-                                    <div className="px-3 py-2 space-y-2 text-xs min-w-[160px]">
-                                        <div className="space-y-1.5 text-muted-foreground">
-                                            <div className="flex justify-between gap-6">
-                                                <span>Words</span>
-                                                <span className="font-semibold text-foreground">{stats.words.toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex justify-between gap-6">
-                                                <span>Characters</span>
-                                                <span className="font-semibold text-foreground">{stats.characters.toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex justify-between gap-6">
-                                                <span>No Spaces</span>
-                                                <span className="font-semibold text-foreground">{stats.charactersNoSpaces.toLocaleString()}</span>
-                                            </div>
-                                        </div>
-                                        <DropdownMenuSeparator className="-mx-1" />
-                                        <div
-                                            className="flex items-center justify-between pt-0.5"
-                                            onPointerDown={(e) => e.stopPropagation()}
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <Label className="text-xs font-medium cursor-pointer" htmlFor="word-count-toggle">Display Word Count</Label>
-                                            <Switch
-                                                id="word-count-toggle"
-                                                checked={showWordCount}
-                                                onCheckedChange={setShowWordCount}
-                                            />
-                                        </div>
-                                    </div>
-                                </DropdownMenuSubContent>
-                            </DropdownMenuSub>
 
                             <DropdownMenuSeparator />
 
