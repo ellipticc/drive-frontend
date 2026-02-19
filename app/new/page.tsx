@@ -544,7 +544,7 @@ export default function AssistantPage() {
         }
 
         // Optimistic Update
-        // Generate a temporary ID for the user message        // Optimistic UI
+        // Generate a temporary ID for the user message
         const tempId = crypto.randomUUID();
         const optimisticUserMessage: Message = {
             id: tempId,
@@ -553,21 +553,15 @@ export default function AssistantPage() {
             createdAt: Date.now(),
         };
 
-        // Scroll this message to top of viewport
-        setTimeout(() => {
-            const el = document.getElementById(`message-${tempId}`);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }, 10);
-
         setMessages(prev => [...prev, optimisticUserMessage]);
 
-        // Scroll the new user message to the top of the viewport for better focus
+        // Disable auto-scroll-to-bottom so user message stays at top of viewport
         shouldAutoScrollRef.current = false;
-        setTimeout(() => {
+
+        // Scroll user message to top of viewport AFTER React renders the DOM element
+        requestAnimationFrame(() => {
             scrollToMessage(tempId, 'smooth');
-        }, 100);
+        });
 
         // Add Thinking State & Reset auto-scroll
         const assistantMessageId = crypto.randomUUID();
