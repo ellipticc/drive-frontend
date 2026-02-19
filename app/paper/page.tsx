@@ -748,7 +748,7 @@ function PaperEditorView({
                         )}
                     </div>
 
-                    {/* AI Assistant */}
+                    {/* AI Assistant - Docked to the right in sidebar mode */}
                     <PaperAIAssistant
                         isOpen={isAIAssistantOpen}
                         onClose={() => setIsAIAssistantOpen(false)}
