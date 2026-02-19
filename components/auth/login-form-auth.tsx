@@ -62,22 +62,40 @@ export function LoginFormAuth({
         const accountSalt = localAccountSalt || sessionAccountSalt
 
         if (token && masterKey && accountSalt) {
-          console.log('All credentials found! Redirecting to dashboard...')
           // Determine storage type based on where credentials were found
           const storage = (sessionToken && sessionMasterKey && sessionAccountSalt) ? sessionStorage : localStorage;
           apiClient.setStorage(storage);
           masterKeyManager.setStorage(storage);
-          // Token and master key found in cache - user is authenticated
-          // Check for pending redirect
-          const redirectUrl = sessionStorage.getItem('login_redirect_url');
-          if (redirectUrl) {
-            console.log('Redirecting to stored URL:', redirectUrl);
-            sessionStorage.removeItem('login_redirect_url');
-            window.location.href = redirectUrl; // Use window.location for full refresh/external checks
-          } else {
-            router.push('/')
+
+          // VERIFY the token with the backend before redirecting
+          // This prevents infinite loops where we have a token but it's invalid/expired
+          try {
+            const profile = await apiClient.getProfile();
+
+            if (profile.success) {
+              console.log('Credentials verified! Redirecting to dashboard...')
+              // Check for pending redirect
+              const redirectUrl = sessionStorage.getItem('login_redirect_url');
+              if (redirectUrl) {
+                console.log('Redirecting to stored URL:', redirectUrl);
+                sessionStorage.removeItem('login_redirect_url');
+                window.location.href = redirectUrl;
+              } else {
+                router.push('/')
+              }
+              return;
+            } else {
+              console.warn('Cached credentials invalid, clearing session');
+              // Token found but invalid - clear it to prevent loop
+              apiClient.clearAuthToken();
+              if (typeof localStorage !== 'undefined') localStorage.clear();
+              if (typeof sessionStorage !== 'undefined') sessionStorage.clear();
+              setIsCheckingAuth(false);
+            }
+          } catch (verifyError) {
+            console.warn('Error verifying cached credentials:', verifyError);
+            setIsCheckingAuth(false);
           }
-          return
         } else {
           console.log('Missing credentials - staying on login page')
           // No cached credentials - stay on login page

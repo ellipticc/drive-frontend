@@ -68,18 +68,34 @@ export function SignupFormAuth({
         const accountSalt = localStorage.getItem('account_salt')
 
         if (token && masterKey && accountSalt) {
-          console.log('All credentials found! Redirecting to dashboard...')
-          // Token and master key found in cache - user is authenticated
-          // Check for pending redirect
-          const redirectUrl = sessionStorage.getItem('login_redirect_url');
-          if (redirectUrl) {
-            console.log('Redirecting to stored URL:', redirectUrl);
-            sessionStorage.removeItem('login_redirect_url');
-            window.location.href = redirectUrl;
-          } else {
-            router.push('/')
+          // VERIFY the token with the backend before redirecting
+          try {
+            const profile = await apiClient.getProfile();
+
+            if (profile.success) {
+              console.log('Credentials verified! Redirecting to dashboard...')
+              // Check for pending redirect
+              const redirectUrl = sessionStorage.getItem('login_redirect_url');
+              if (redirectUrl) {
+                console.log('Redirecting to stored URL:', redirectUrl);
+                sessionStorage.removeItem('login_redirect_url');
+                window.location.href = redirectUrl;
+              } else {
+                router.push('/')
+              }
+              return;
+            } else {
+              console.warn('Cached credentials invalid, clearing session');
+              // Token found but invalid - clear to prevent loop
+              apiClient.clearAuthToken();
+              if (typeof localStorage !== 'undefined') localStorage.clear();
+              if (typeof sessionStorage !== 'undefined') sessionStorage.clear();
+              setIsCheckingAuth(false);
+            }
+          } catch (verifyError) {
+            console.warn('Error verifying cached credentials:', verifyError);
+            setIsCheckingAuth(false);
           }
-          return
         } else {
           console.log('Missing credentials - staying on signup page')
           // No cached credentials - stay on signup page
