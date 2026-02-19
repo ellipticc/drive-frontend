@@ -331,7 +331,7 @@ function withTooltip<T extends React.ElementType>(Component: T) {
 function TooltipContent({
   children,
   className,
-  // CHANGE
+  side = 'bottom',
   sideOffset = 4,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Content>) {
@@ -343,11 +343,11 @@ function TooltipContent({
           className
         )}
         data-slot="tooltip-content"
+        side={side}
         sideOffset={sideOffset}
         {...props}
       >
         {children}
-        {/* CHANGE */}
         {/* <TooltipPrimitive.Arrow className="z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px] bg-primary fill-primary" /> */}
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>

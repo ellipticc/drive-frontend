@@ -220,81 +220,261 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
   const exportToPdf = async () => {
     triggerSnapshot(); // Fire and forget
 
-    // Serialize the editor to HTML so it closely matches the visual output
-    const editorStatic = createSlateEditor({
-      plugins: BaseEditorKit,
-      value: editor.children,
-    });
-
-    let editorHtml = await serializeHtml(editorStatic, {
-      editorComponent: EditorStatic,
-      props: { style: { padding: '0 calc(50% - 350px)', paddingBottom: '' } },
-    });
-
-    // Process images and media before passing to pdfmake
-    editorHtml = await processMediaForExport(editorHtml);
-
-    // Convert HTML to pdfmake structure
-    // @ts-ignore - html-to-pdfmake has no type definitions
-    const htmlToPdfmake = ((await import('html-to-pdfmake')) as any).default;
-    // @ts-ignore - pdfmake has no types here
-    const pdfMakeModule = await import('pdfmake/build/pdfmake');
-    const pdfMake = pdfMakeModule.default || pdfMakeModule;
-
-    // @ts-ignore - vfs fonts
-    const pdfFontsModule = await import('pdfmake/build/vfs_fonts');
-    const pdfFonts = pdfFontsModule.default || pdfFontsModule;
-
-    // Use the vfs from the module or global if necessary
-    // Some versions of vfs_fonts export an object with pdfMake property, others export vfs directly
-    let vfs = (pdfFonts && pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) ||
-      (pdfFonts && pdfFonts.vfs) ||
-      (pdfFontsModule && pdfFontsModule.pdfMake && pdfFontsModule.pdfMake.vfs) ||
-      (pdfFontsModule && pdfFontsModule.vfs);
-
-    if (!vfs && typeof window !== 'undefined') {
-      vfs = (window as any).pdfMake?.vfs;
-    }
-
-    if (vfs) {
-      pdfMake.vfs = vfs;
-    } else {
-      console.warn('pdfMake vfs fonts not found, check build/vfs_fonts.js');
-    }
-
-    // Explicitly define fonts to avoid "Font not defined" errors
-    // Roboto is the default font bundled with pdfmake's vfs_fonts
-    pdfMake.fonts = {
-      Roboto: {
-        normal: 'Roboto-Regular.ttf',
-        bold: 'Roboto-Medium.ttf',
-        italics: 'Roboto-Italic.ttf',
-        bolditalics: 'Roboto-MediumItalic.ttf'
+    try {
+      // Get markdown from editor
+      const md = editor.getApi(MarkdownPlugin).markdown.serialize();
+      
+      // Simple markdown to HTML converter
+      const markdownToHtml = (markdown: string): string => {
+        let html = markdown;
+        
+        // Escape HTML special characters first, except for already formatted code blocks
+        const codeBlockRegex = /```[\s\S]*?```/g;
+        const codeBlocks: string[] = [];
+        html = html.replace(codeBlockRegex, (match) => {
+          codeBlocks.push(match);
+          return `___CODE_BLOCK_${codeBlocks.length - 1}___`;
+        });
+        
+        // Headers
+        html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+        html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
+        html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
+        
+        // Bold and italic
+        html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
+        html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        html = html.replace(/_(.*?)_/g, '<em>$1</em>');
+        
+        // Inline code
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        
+        // Links
+        html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>');
+        
+        // Code blocks
+        html = html.replace(/___CODE_BLOCK_(\d+)___/g, (match, index) => {
+          const block = codeBlocks[parseInt(index)];
+          const code = block.replace(/```/g, '').trim();
+          return `<pre><code>${code}</code></pre>`;
+        });
+        
+        // Blockquotes
+        html = html.replace(/^> (.*?)$/gm, '<blockquote>$1</blockquote>');
+        
+        // Lists
+        html = html.replace(/^\* (.*?)$/gm, '<li>$1</li>');
+        html = html.replace(/^- (.*?)$/gm, '<li>$1</li>');
+        html = html.replace(/(\<li>.*<\/li>)/s, '<ul>$1</ul>');
+        
+        // Numbered lists
+        html = html.replace(/^\d+\. (.*?)$/gm, '<li>$1</li>');
+        
+        // Horizontal rules
+        html = html.replace(/^---|^\*\*\*|^___$/gm, '<hr>');
+        
+        // Paragraphs
+        html = html.split('\n\n').map(para => {
+          if (!para.match(/^<[^>]+/)) {
+            para = `<p>${para.replace(/\n/g, '<br>')}</p>`;
+          }
+          return para;
+        }).join('');
+        
+        return html;
+      };
+      
+      // Convert markdown to HTML
+      const html = markdownToHtml(md);
+      
+      // Wrap with professional styling
+      const styledHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+              }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+                color: #333;
+                background: #fff;
+                padding: 40px;
+              }
+              h1 {
+                font-size: 28px;
+                font-weight: 700;
+                margin: 24px 0 16px;
+                border-bottom: 2px solid #eee;
+                padding-bottom: 8px;
+              }
+              h2 {
+                font-size: 24px;
+                font-weight: 600;
+                margin: 20px 0 12px;
+              }
+              h3 {
+                font-size: 20px;
+                font-weight: 600;
+                margin: 16px 0 10px;
+              }
+              p {
+                margin-bottom: 12px;
+              }
+              ul, ol {
+                margin: 12px 0 12px 24px;
+              }
+              li {
+                margin-bottom: 6px;
+              }
+              code {
+                background: #f5f5f5;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: "Monaco", "Menlo", "Ubuntu Mono", "monospace";
+                font-size: 12px;
+              }
+              pre {
+                background: #f5f5f5;
+                padding: 12px;
+                border-radius: 4px;
+                overflow-x: auto;
+                margin: 12px 0;
+                border-left: 3px solid #0969da;
+              }
+              pre code {
+                background: none;
+                padding: 0;
+                font-size: 13px;
+              }
+              blockquote {
+                border-left: 4px solid #ddd;
+                padding-left: 16px;
+                margin: 12px 0;
+                color: #666;
+              }
+              a {
+                color: #0969da;
+                text-decoration: none;
+              }
+              a:hover {
+                text-decoration: underline;
+              }
+              hr {
+                border: none;
+                border-top: 1px solid #eee;
+                margin: 24px 0;
+              }
+              table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 12px 0;
+              }
+              th, td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+              }
+              th {
+                background: #f5f5f5;
+                font-weight: 600;
+              }
+            </style>
+          </head>
+          <body>
+            ${html}
+          </body>
+        </html>
+      `;
+      
+      // Create a temporary container for rendering
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.width = '800px';
+      tempContainer.innerHTML = styledHtml;
+      document.body.appendChild(tempContainer);
+      
+      try {
+        // Use html2canvas to capture the rendered HTML
+        const { default: html2canvas } = await import('html2canvas-pro');
+        const canvas = await html2canvas(tempContainer, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          width: 800,
+        });
+        
+        // Import pdf-lib for PDF creation
+        const { PDFDocument } = await import('pdf-lib');
+        
+        // Convert to image data
+        const imageData = canvas.toDataURL('image/png');
+        
+        // Create PDF
+        const pdfDoc = await PDFDocument.create();
+        const image = await pdfDoc.embedPng(imageData);
+        
+        // PDF dimensions
+        const pageWidth = 595;
+        const pageHeight = 842;
+        const margin = 20;
+        const maxWidth = pageWidth - (2 * margin);
+        const maxHeight = pageHeight - (2 * margin);
+        
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        
+        // Scale to fit
+        const scale = Math.min(maxWidth / canvasWidth, 1);
+        const scaledWidth = canvasWidth * scale;
+        const scaledHeight = canvasHeight * scale;
+        
+        // Calculate pages needed
+        const heightPerPage = maxHeight;
+        const numPages = Math.ceil(scaledHeight / heightPerPage);
+        
+        // Add pages
+        for (let i = 0; i < numPages; i++) {
+          const page = pdfDoc.addPage([pageWidth, pageHeight]);
+          const yPos = i * heightPerPage;
+          const drawHeight = Math.min(heightPerPage, scaledHeight - yPos);
+          
+          page.drawImage(image, {
+            x: margin + (maxWidth - scaledWidth) / 2,
+            y: pageHeight - margin - drawHeight,
+            width: scaledWidth,
+            height: drawHeight,
+          });
+        }
+        
+        // Save and download
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes as any], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = getExportFilename('pdf');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        URL.revokeObjectURL(url);
+      } finally {
+        document.body.removeChild(tempContainer);
       }
-    };
-
-    const content = htmlToPdfmake(editorHtml, { window });
-
-    const docDefinition = {
-      content,
-      pageSize: 'A4',
-      pageMargins: [40, 40, 40, 40],
-      defaultStyle: { font: 'Roboto' },
-    };
-
-    // Generate blob and download
-    const blob = await new Promise<Blob>((resolve) => {
-      pdfMake.createPdf(docDefinition).getBlob((b: Blob) => resolve(b));
-    });
-
-    const blobUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = getExportFilename('pdf');
-    document.body.append(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      throw error;
+    }
   };
 
   const exportToImage = async () => {
