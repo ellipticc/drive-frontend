@@ -18,7 +18,8 @@ import {
     IconThumbUp,
     IconThumbDown,
     IconCopy,
-    IconRefresh
+    IconRefresh,
+    IconSquareRounded
 } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -178,6 +179,9 @@ export function PaperAIAssistant({
             const lastMsg = msgs[msgs.length - 1];
             if (!lastMsg || lastMsg.role !== 'user') return;
 
+            // Scroll user message to top
+            scrollMessageToTop(lastMsg);
+
             // Build clean message history for API
             const cleanMessages = msgs.map((m: ChatMessage) => ({
                 role: m.role,
@@ -274,6 +278,20 @@ export function PaperAIAssistant({
             if (scrollContainer) {
                 scrollContainer.scrollTop = scrollContainer.scrollHeight;
             }
+        }
+    }, []);
+
+    const scrollMessageToTop = useCallback((message: ChatMessage) => {
+        if (scrollAreaRef.current) {
+            setTimeout(() => {
+                const scrollContainer = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+                if (scrollContainer) {
+                    const messageElement = scrollContainer.querySelector(`[data-message-id="${message.id}"]`);
+                    if (messageElement) {
+                        messageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            }, 50);
         }
     }, []);
 
@@ -457,7 +475,7 @@ export function PaperAIAssistant({
                         ) : (
                             // Message List
                             messages.map((m: ChatMessage) => (
-                                <div key={m.id} className={cn("flex flex-col gap-2", m.role === 'user' ? "items-end" : "items-start")}>
+                                <div key={m.id} data-message-id={m.id} className={cn("flex flex-col gap-2", m.role === 'user' ? "items-end" : "items-start")}>
                                     <div className={cn(
                                         "max-w-[85%] rounded-2xl px-4 py-3 text-sm",
                                         m.role === 'user'
@@ -493,8 +511,7 @@ export function PaperAIAssistant({
                                     )}
                                 </div>
                             ))
-                        )}
-                        {isLoading && (
+                        )}                        {isLoading && (
                             <div className="flex items-start gap-2">
                                 <div className="bg-muted px-4 py-3 rounded-2xl rounded-bl-none text-sm">
                                     <span className="animate-pulse">Thinking...</span>
@@ -563,14 +580,30 @@ export function PaperAIAssistant({
                                 </PopoverContent>
                             </Popover>
 
-                            <Button
-                                size="icon"
-                                className="h-7 w-7 rounded-lg shrink-0"
-                                disabled={!input.trim() || isLoading}
-                                onClick={(e) => handleSubmit(e as any)}
-                            >
-                                <IconArrowUp className="h-4 w-4" />
-                            </Button>
+                            {isLoading ? (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            size="icon"
+                                            variant="destructive"
+                                            className="h-7 w-7 rounded-lg shrink-0"
+                                            onClick={() => stop()}
+                                        >
+                                            <IconSquareRounded className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">Cancel</TooltipContent>
+                                </Tooltip>
+                            ) : (
+                                <Button
+                                    size="icon"
+                                    className="h-7 w-7 rounded-lg shrink-0"
+                                    disabled={!input.trim()}
+                                    onClick={(e) => handleSubmit(e as any)}
+                                >
+                                    <IconArrowUp className="h-4 w-4" />
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
