@@ -22,17 +22,13 @@ export const Icons = {
 };
 
 import {
-    ModelSelector,
-    ModelSelectorContent,
-    ModelSelectorEmpty,
-    ModelSelectorGroup,
-    ModelSelectorInput,
-    ModelSelectorItem,
-    ModelSelectorList,
-    ModelSelectorLogo,
-    ModelSelectorName,
-    ModelSelectorTrigger,
-} from "@/components/ai-elements/model-selector"
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import {
     Context,
     ContextTrigger,
@@ -144,7 +140,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const [localModel, setLocalModel] = useState('auto');
     const [thinkingMode, setThinkingMode] = useState(false);
     const [searchMode, setSearchMode] = useState(false);
-    const [modelOpen, setModelOpen] = useState(false);
+
     const [tokenError, setTokenError] = useState(false);
 
     // Audio recording state
@@ -489,36 +485,29 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <div className="flex items-center">
-                                        <ModelSelector open={modelOpen} onOpenChange={(open) => setModelOpen(open)}>
-                                            <ModelSelectorTrigger className="inline-flex items-center justify-center h-8 px-2.5 gap-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 px-2.5 gap-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all outline-none focus:outline-none focus-visible:outline-none">
                                                 <span className="inline text-[12px] max-w-[80px] truncate">{currentModel.name}</span>
                                                 <Icons.SelectArrow className="shrink-0 opacity-75 w-3 h-3" />
-                                            </ModelSelectorTrigger>
-                                            <ModelSelectorContent>
-                                                <ModelSelectorInput placeholder="Search models..." />
-                                                <ModelSelectorList>
-                                                    <ModelSelectorEmpty>No model found.</ModelSelectorEmpty>
-                                                    <ModelSelectorGroup heading="Platform Models">
-                                                        {models.map((model) => (
-                                                            <ModelSelectorItem
-                                                                key={model.id}
-                                                                onSelect={() => {
-                                                                    handleModelChange(model.id);
-                                                                    setModelOpen(false);
-                                                                }}
-                                                            >
-                                                                <ModelSelectorLogo provider={model.provider as any} />
-                                                                <div className="flex flex-col ml-2">
-                                                                    <ModelSelectorName>{model.name}</ModelSelectorName>
-                                                                    <span className="text-[10px] text-muted-foreground">{model.description}</span>
-                                                                </div>
-                                                                {effectiveModel === model.id && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
-                                                            </ModelSelectorItem>
-                                                        ))}
-                                                    </ModelSelectorGroup>
-                                                </ModelSelectorList>
-                                            </ModelSelectorContent>
-                                        </ModelSelector>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent side="top" align="end" className="min-w-[220px]">
+                                                <DropdownMenuLabel className="text-xs text-muted-foreground">Platform Models</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                {models.map((model) => (
+                                                    <DropdownMenuItem
+                                                        key={model.id}
+                                                        onClick={() => handleModelChange(model.id)}
+                                                        className="flex items-center gap-2 cursor-pointer"
+                                                    >
+                                                        <div className="flex flex-col flex-1">
+                                                            <span className="text-sm font-medium">{model.name}</span>
+                                                            <span className="text-[10px] text-muted-foreground">{model.description}</span>
+                                                        </div>
+                                                        {effectiveModel === model.id && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="text-xs">

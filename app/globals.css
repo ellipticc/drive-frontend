@@ -262,24 +262,14 @@ button {
   /* Slightly darker for better visibility */
 }
 
-/* Dark Mode Prompt Input Accent */
-.dark .group:focus-within .ring-ring {
-  --tw-ring-color: var(--accent);
-  --tw-ring-opacity: 0.8;
-}
 
-/* Ensure prompt input in dark mode pops more */
-.dark textarea:focus {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 1px var(--accent) !important;
-}
 
 /* Remove focus-outline when the user is actively typing in the prompt input */
 textarea[data-has-content="true"]:focus {
   box-shadow: none !important;
   border-color: inherit !important;
   outline: none !important;
-} 
+}
 
 .heading-sm {
   font-family: var(--font-sans);
