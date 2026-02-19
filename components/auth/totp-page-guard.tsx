@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
 interface TOTPPageGuardProps {
@@ -10,8 +10,12 @@ interface TOTPPageGuardProps {
 export function TOTPPageGuard({ children }: TOTPPageGuardProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const hasRedirectedRef = useRef(false)
 
   useEffect(() => {
+    // Prevent infinite redirect loops
+    if (hasRedirectedRef.current) return
+
     // Check if user is in login process (has login credentials stored)
     const hasLoginCredentials =
       localStorage.getItem('login_email') ||
@@ -21,10 +25,11 @@ export function TOTPPageGuard({ children }: TOTPPageGuardProps) {
 
     // If not in login process, redirect to login
     if (!hasLoginCredentials) {
+      hasRedirectedRef.current = true
       router.push('/login')
       return
     }
-  }, [router, searchParams])
+  }, []) // Empty dependency array - only run once on mount
 
   return <>{children}</>
 }

@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { apiClient } from "@/lib/api"
 import { IconLoader2 as Loader2 } from "@tabler/icons-react"
 
@@ -40,6 +40,8 @@ export function SignupFormAuth({
   // Shared visibility for password & confirm password on signup
   const [showPasswords, setShowPasswords] = useState(false)
 
+  const hasCheckedRef = useRef(false)
+
   const validatePasswordRealtime = (pwd: string) => {
     return {
       length: pwd.length >= 8,
@@ -55,7 +57,10 @@ export function SignupFormAuth({
 
   // Check if user is already authenticated with cached credentials
   useEffect(() => {
+    if (hasCheckedRef.current) return;
+
     const checkAndRedirect = async () => {
+      hasCheckedRef.current = true;
       try {
         // Check if JWT token exists and is valid
         const token = localStorage.getItem('auth_token')
@@ -87,7 +92,7 @@ export function SignupFormAuth({
     }
 
     checkAndRedirect()
-  }, [router])
+  }, [])
 
 
 
