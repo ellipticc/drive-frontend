@@ -34,8 +34,8 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   }
 
   if (typeof document !== 'undefined') {
-    document.documentElement.style.overflow = '';
-    document.body.style.overflow = '';
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
   }
 
   // Listen for frontend version check events and prompt/reload as needed

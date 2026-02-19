@@ -98,6 +98,9 @@ export function NavSecondary({
                               return <IconComponent className="size-4" />
                             })()}
                             <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
+                            <div className="ms-auto opacity-0 group-hover/nav:opacity-60 transition-opacity group-data-[collapsible=icon]:hidden">
+                              <Kbd>H</Kbd>
+                            </div>
                           </SidebarMenuButton>
                         </DropdownMenuTrigger>
                       </TooltipTrigger>
