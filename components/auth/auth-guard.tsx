@@ -40,9 +40,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
     if (isPublic) {
       setIsAuthenticated(true);
       hasCheckedAuthRef.current = true;
-      
-      // Hide loading overlay for public routes
-      window.dispatchEvent(new CustomEvent('ecc:overlay:hide'));
       return;
     }
 

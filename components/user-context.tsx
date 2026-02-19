@@ -124,7 +124,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
         // Subscription/billing removed — do not fetch or attach subscription data
         // (kept intentionally blank to avoid exposing billing-related UI or API calls)
-        
+
 
         // Initialize KeyManager with user's crypto data (critical for uploads and file access)
         try {
@@ -189,6 +189,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const fetchUser = useCallback(async (forceRefresh = false) => {
     if (shouldSkipFetch) {
       setLoading(false);
+      // CRITICAL: Dispatch overlay hide so InitialLoadingOverlay is dismissed on auth pages
+      window.dispatchEvent(new CustomEvent('ecc:overlay:hide'));
       return;
     }
 

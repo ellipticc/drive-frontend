@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { UserData } from '@/lib/api'
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
 import { masterKeyManager } from "@/lib/master-key"
 import { keyManager } from "@/lib/key-manager"
@@ -39,14 +39,11 @@ export function LoginFormAuth({
   const [keepSignedIn, setKeepSignedIn] = useState(false)
 
 
-  const hasCheckedRef = useRef(false)
-
   // Check if user is already authenticated with cached credentials
   useEffect(() => {
-    if (hasCheckedRef.current) return;
+    let cancelled = false;
 
     const checkAndRedirect = async () => {
-      hasCheckedRef.current = true;
       try {
         // Check if JWT token exists and is valid in either localStorage or sessionStorage
         const localToken = localStorage.getItem('auth_token')
@@ -71,6 +68,7 @@ export function LoginFormAuth({
           // This prevents infinite loops where we have a token but it's invalid/expired
           try {
             const profile = await apiClient.getProfile();
+            if (cancelled) return;
 
             if (profile.success) {
               console.log('Credentials verified! Redirecting to dashboard...')
@@ -86,29 +84,28 @@ export function LoginFormAuth({
               return;
             } else {
               console.warn('Cached credentials invalid, clearing session');
-              // Token found but invalid - clear it to prevent loop
               apiClient.clearAuthToken();
               if (typeof localStorage !== 'undefined') localStorage.clear();
               if (typeof sessionStorage !== 'undefined') sessionStorage.clear();
-              setIsCheckingAuth(false);
+              if (!cancelled) setIsCheckingAuth(false);
             }
           } catch (verifyError) {
             console.warn('Error verifying cached credentials:', verifyError);
-            setIsCheckingAuth(false);
+            if (!cancelled) setIsCheckingAuth(false);
           }
         } else {
           console.log('Missing credentials - staying on login page')
-          // No cached credentials - stay on login page
-          setIsCheckingAuth(false)
+          if (!cancelled) setIsCheckingAuth(false)
         }
       } catch (err) {
         console.error('Auth check error:', err)
-        setIsCheckingAuth(false)
+        if (!cancelled) setIsCheckingAuth(false)
       }
     }
 
     checkAndRedirect()
-  }, []) // Removed router dependency to prevent re-runs
+    return () => { cancelled = true; }
+  }, [])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target

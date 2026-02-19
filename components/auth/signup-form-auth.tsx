@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/ui/password-input"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { apiClient } from "@/lib/api"
 import { IconLoader2 as Loader2 } from "@tabler/icons-react"
 
@@ -40,8 +40,6 @@ export function SignupFormAuth({
   // Shared visibility for password & confirm password on signup
   const [showPasswords, setShowPasswords] = useState(false)
 
-  const hasCheckedRef = useRef(false)
-
   const validatePasswordRealtime = (pwd: string) => {
     return {
       length: pwd.length >= 8,
@@ -54,13 +52,11 @@ export function SignupFormAuth({
 
   const passwordChecks = validatePasswordRealtime(formData.password)
 
-
   // Check if user is already authenticated with cached credentials
   useEffect(() => {
-    if (hasCheckedRef.current) return;
+    let cancelled = false;
 
     const checkAndRedirect = async () => {
-      hasCheckedRef.current = true;
       try {
         // Check if JWT token exists and is valid
         const token = localStorage.getItem('auth_token')
@@ -71,10 +67,10 @@ export function SignupFormAuth({
           // VERIFY the token with the backend before redirecting
           try {
             const profile = await apiClient.getProfile();
+            if (cancelled) return;
 
             if (profile.success) {
               console.log('Credentials verified! Redirecting to dashboard...')
-              // Check for pending redirect
               const redirectUrl = sessionStorage.getItem('login_redirect_url');
               if (redirectUrl) {
                 console.log('Redirecting to stored URL:', redirectUrl);
@@ -86,28 +82,27 @@ export function SignupFormAuth({
               return;
             } else {
               console.warn('Cached credentials invalid, clearing session');
-              // Token found but invalid - clear to prevent loop
               apiClient.clearAuthToken();
               if (typeof localStorage !== 'undefined') localStorage.clear();
               if (typeof sessionStorage !== 'undefined') sessionStorage.clear();
-              setIsCheckingAuth(false);
+              if (!cancelled) setIsCheckingAuth(false);
             }
           } catch (verifyError) {
             console.warn('Error verifying cached credentials:', verifyError);
-            setIsCheckingAuth(false);
+            if (!cancelled) setIsCheckingAuth(false);
           }
         } else {
           console.log('Missing credentials - staying on signup page')
-          // No cached credentials - stay on signup page
-          setIsCheckingAuth(false)
+          if (!cancelled) setIsCheckingAuth(false)
         }
       } catch (err) {
         console.error('Auth check error:', err)
-        setIsCheckingAuth(false)
+        if (!cancelled) setIsCheckingAuth(false)
       }
     }
 
     checkAndRedirect()
+    return () => { cancelled = true; }
   }, [])
 
 
