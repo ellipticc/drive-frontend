@@ -1,29 +1,21 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
     IconMinus,
     IconEdit,
     IconLayoutSidebar,
     IconWindowMaximize,
     IconDots,
-    IconArrowUp,
-    IconCloud,
-    IconChevronDown,
-    IconCheck,
+    IconArrowDown,
     IconTrash,
     IconExternalLink,
-    IconPencil,
-    IconSparkles,
-    IconThumbUp,
-    IconThumbDown,
-    IconCopy,
-    IconRefresh,
-    IconSquareRounded
+    IconX,
+    IconMessage,
+    IconLoader2,
 } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Textarea } from "@/components/ui/textarea";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -32,47 +24,16 @@ import {
     DropdownMenuSeparator,
     DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-
-import { MarkdownRenderer } from "@/components/ai-elements/markdown-renderer";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { EnhancedPromptInput } from "@/components/enhanced-prompt-input";
+import { ChatMessage, type Message } from "@/components/ai-elements/chat-message";
+import { useAICrypto } from "@/hooks/use-ai-crypto";
+import { apiClient } from "@/lib/api";
+import { trimHistoryByTokens } from "@/lib/context-calculator";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
-import { apiClient } from "@/lib/api";
-import { nanoid } from "nanoid";
 
-// --- Types ---
-interface ChatMessage {
-    id: string;
-    role: 'user' | 'assistant';
-    content: string;
-    createdAt: number;
-}
-
-interface Model {
-    id: string;
-    name: string;
-    icon: any;
-    description: string;
-}
-
-const MODELS: Model[] = [
-    { id: "auto", name: "Auto", icon: IconSparkles, description: "Automatically selects the best model" },
-    { id: "llama-3-70b", name: "Llama 3 (70B)", icon: IconCloud, description: "Open source model" },
-    { id: "gpt-4-turbo", name: "GPT-4 Turbo", icon: IconCloud, description: "Fast and capable model" },
-    { id: "claude-3-opus", name: "Claude 3 Opus", icon: IconCloud, description: "Most capable model for complex tasks" },
-];
-
+// ─── Props ──────────────────────────────────────────────────────
 interface PaperAIAssistantProps {
     isOpen: boolean;
     onClose: () => void;
@@ -81,69 +42,7 @@ interface PaperAIAssistantProps {
     paperTitle?: string;
 }
 
-/**
- * Built-in chat hook — replaces dependency on `ai/react` package
- */
-function useSimpleChat() {
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [input, setInput] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
-        setInput(e.target.value);
-    };
-
-    const handleSubmit = async (
-        e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>,
-        onSend: (msgs: ChatMessage[]) => Promise<void>
-    ): Promise<void> => {
-        e.preventDefault();
-        if (!input.trim() || isLoading) return;
-
-        const userMessage: ChatMessage = {
-            id: nanoid(),
-            role: 'user',
-            content: input.trim(),
-            createdAt: Date.now(),
-        };
-
-        setInput("");
-        setMessages((prev) => [...prev, userMessage]);
-        setIsLoading(true);
-
-        try {
-            await onSend([...messages, userMessage]);
-        } catch (error) {
-            console.error("Chat error:", error);
-            toast.error("Failed to send message");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const stop = (): void => {
-        setIsLoading(false);
-    };
-
-    const reload = (index?: number): void => {
-        if (index !== undefined && index >= 0 && index < messages.length) {
-            setMessages((prev) => prev.slice(0, index + 1));
-        }
-    };
-
-    return {
-        messages,
-        input,
-        setInput,
-        setMessages,
-        handleInputChange,
-        handleSubmit,
-        isLoading,
-        stop,
-        reload,
-    };
-}
-
+// ─── Component ──────────────────────────────────────────────────
 export function PaperAIAssistant({
     isOpen,
     onClose,
@@ -151,81 +50,154 @@ export function PaperAIAssistant({
     onModeChange,
     paperTitle = "Untitled Paper"
 }: PaperAIAssistantProps) {
-    // --- State ---
-    const [selectedModel, setSelectedModel] = useState<Model>(MODELS[0]);
-    const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
-    const [conversationId, setConversationId] = useState<string>("");
+    // ── Crypto & Chat History ───────────────────────────────────
+    const {
+        isReady,
+        kyberPublicKey,
+        decryptStreamChunk,
+        encryptMessage,
+        loadChats,
+        chats,
+        deleteChat,
+    } = useAICrypto();
 
-    // Initialize conversation ID
-    useEffect(() => {
-        setConversationId(nanoid());
+    // ── Chat State ──────────────────────────────────────────────
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [model, setModel] = useState("auto");
+    const [conversationId, setConversationId] = useState<string | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    // ── Scroll ──────────────────────────────────────────────────
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const scrollEndRef = useRef<HTMLDivElement>(null);
+    const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+    const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+        scrollEndRef.current?.scrollIntoView({ behavior });
     }, []);
 
-    const scrollAreaRef = useRef<HTMLDivElement>(null);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const handleScroll = useCallback(() => {
+        const el = scrollContainerRef.current;
+        if (!el) return;
+        const threshold = 120;
+        const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+        setShowScrollToBottom(!atBottom);
+    }, []);
 
-    // --- Simple Chat Hook ---
-    const { messages, input, handleInputChange, handleSubmit: baseHandleSubmit, isLoading, stop, reload, setMessages } = useSimpleChat();
+    // Auto-scroll on new streaming content
+    useEffect(() => {
+        if (isLoading) scrollToBottom('smooth');
+    }, [messages, isLoading, scrollToBottom]);
 
-    // --- Enhanced Submit Handler (with API call) ---
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>): Promise<void> => {
-        await baseHandleSubmit(e, async (msgs: ChatMessage[]) => {
-            if (!conversationId) {
-                const newId = nanoid();
-                setConversationId(newId);
+    // ── Handle Submit (mirrors main page streaming logic) ────
+    const handleSubmit = useCallback(async (
+        value: string,
+        _attachments: File[] = [],
+        _thinkingMode: boolean = false,
+        _searchMode: boolean = false
+    ) => {
+        if (!value.trim()) return;
+        if (!isReady || !kyberPublicKey) {
+            toast.error("Initializing secure session, please wait...");
+            return;
+        }
+        if (isLoading) return;
+
+        // Optimistic user message
+        const tempId = crypto.randomUUID();
+        const optimisticUserMessage: Message = {
+            id: tempId,
+            role: 'user',
+            content: value,
+            createdAt: Date.now(),
+        };
+        setMessages(prev => [...prev, optimisticUserMessage]);
+
+        // Assistant thinking placeholder
+        const assistantMessageId = crypto.randomUUID();
+        setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '', isThinking: true }]);
+        setIsLoading(true);
+
+        try {
+            // Encrypt user message
+            let encryptedUserMessage;
+            try {
+                const { encryptedContent, iv, encapsulatedKey } = await encryptMessage(value);
+                encryptedUserMessage = { encryptedContent, iv, encapsulatedKey };
+            } catch (e) {
+                console.error("Failed to encrypt user message:", e);
             }
 
-            // Extract last message (user message)
-            const lastMsg = msgs[msgs.length - 1];
-            if (!lastMsg || lastMsg.role !== 'user') return;
+            // Build history payload with smart trimming
+            const cleanedMessages = messages.filter(m => !m.isThinking && m.content);
+            const trimmedMessages = trimHistoryByTokens(
+                cleanedMessages,
+                model,
+                value,
+                undefined,
+                25000
+            );
+            const historyPayload = trimmedMessages.map(m => ({ role: m.role, content: m.content }));
+            const fullPayload = [...historyPayload, { role: 'user' as const, content: value }];
 
-            // Scroll user message to top
-            scrollMessageToTop(lastMsg);
+            // SSE request
+            const controller = new AbortController();
+            abortControllerRef.current = controller;
 
-            // Build clean message history for API
-            const cleanMessages = msgs.map((m: ChatMessage) => ({
-                role: m.role,
-                content: m.content
-            }));
+            const response = await apiClient.chatAI(
+                fullPayload,
+                conversationId || "",
+                model,
+                kyberPublicKey,
+                encryptedUserMessage,
+                false, // no web search
+                false, // no thinking mode
+                controller.signal
+            );
+
+            if (!response.ok) {
+                let body = null;
+                try { body = await response.clone().json(); } catch (e) { /* ignore */ }
+                const requestId = response.headers.get('X-Request-Id') || body?.requestId || null;
+                const errMsg = body?.error || 'Failed to fetch response';
+                setMessages(prev => {
+                    const newMessages = [...prev];
+                    const lastMessage = newMessages[newMessages.length - 1];
+                    const display = `${errMsg}${requestId ? ` Request ID: \`${requestId}\`` : ''}`;
+                    if (lastMessage?.role === 'assistant') {
+                        lastMessage.content = display;
+                        lastMessage.isThinking = false;
+                    }
+                    return newMessages;
+                });
+                throw new Error(errMsg);
+            }
+
+            // Track conversation ID from response
+            const newConversationId = response.headers.get('X-Conversation-Id');
+            if (newConversationId && newConversationId !== conversationId) {
+                setConversationId(newConversationId);
+                loadChats();
+            }
+
+            if (!response.body) throw new Error('No response body');
+
+            // ── SSE Stream Parsing ──────────────────────────────
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let answerBuffer = "";
+            let currentSessionKey: Uint8Array | undefined;
+            let buffer = "";
+            let pendingRafId: number | null = null;
 
             try {
-                const response = await apiClient.chatAI(
-                    cleanMessages,
-                    conversationId,
-                    selectedModel.id,
-                );
-
-                if (!response.ok) {
-                    throw new Error(`API Error: ${response.statusText}`);
-                }
-
-                // Parse streaming response
-                if (!response.body) {
-                    throw new Error('No response body');
-                }
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let assistantContent = "";
-                let buffer = "";
-
-                const assistantMessage: ChatMessage = {
-                    id: nanoid(),
-                    role: 'assistant',
-                    content: "",
-                    createdAt: Date.now(),
-                };
-
-                setMessages((prev: ChatMessage[]) => [...prev, assistantMessage]);
-
                 while (true) {
-                    const { done, value } = await reader.read();
+                    const { done, value: chunk } = await reader.read();
                     if (done) break;
+                    if (controller.signal.aborted) break;
 
-                    const chunk = decoder.decode(value, { stream: true });
-                    buffer += chunk;
-
-                    // Process complete SSE events
+                    buffer += decoder.decode(chunk, { stream: true });
                     const events = buffer.split('\n\n');
                     buffer = events.pop() || "";
 
@@ -233,381 +205,430 @@ export function PaperAIAssistant({
                         if (!event.trim()) continue;
 
                         const lines = event.split('\n');
-                        let dataStr = "";
+                        let eventType = 'data';
+                        let dataStr = '';
 
                         for (const line of lines) {
-                            if (line.startsWith('data: ')) {
+                            if (line.startsWith('event: ')) {
+                                eventType = line.replace('event: ', '').trim();
+                            } else if (line.startsWith('data: ')) {
                                 dataStr = line.replace('data: ', '').trim();
                             }
                         }
+
+                        // Skip reasoning/sources/stream-complete for this simplified assistant
+                        if (eventType === 'reasoning' || eventType === 'sources' || eventType === 'stream-complete') continue;
 
                         if (dataStr === '[DONE]') break;
 
                         if (dataStr) {
                             try {
                                 const data = JSON.parse(dataStr);
-                                const content = data.content || data.delta?.content || "";
-                                if (content) {
-                                    assistantContent += content;
-                                    setMessages((prev: ChatMessage[]) => {
-                                        const updated = [...prev];
-                                        if (updated[updated.length - 1]?.role === 'assistant') {
-                                            updated[updated.length - 1].content = assistantContent;
+
+                                // Server-side error
+                                if (data.message) {
+                                    setMessages(prev => {
+                                        const newMessages = [...prev];
+                                        const lastMessage = newMessages[newMessages.length - 1];
+                                        if (lastMessage?.role === 'assistant') {
+                                            lastMessage.content = data.message;
+                                            lastMessage.isThinking = false;
                                         }
-                                        return updated;
+                                        return newMessages;
                                     });
+                                    continue;
                                 }
-                            } catch {
-                                // Skip malformed JSON
+
+                                // Decrypt or use plain content
+                                let contentToAppend = "";
+                                if (data.encrypted_content && data.iv) {
+                                    const { decrypted, sessionKey } = await decryptStreamChunk(
+                                        data.encrypted_content,
+                                        data.iv,
+                                        data.encapsulated_key,
+                                        currentSessionKey
+                                    );
+                                    contentToAppend = decrypted;
+                                    currentSessionKey = sessionKey;
+                                } else if (data.content) {
+                                    contentToAppend = data.content;
+                                }
+
+                                if (contentToAppend) {
+                                    // Strip thinking tags for simplicity
+                                    contentToAppend = contentToAppend
+                                        .replace(/<thinking>[\s\S]*?<\/thinking>/g, '')
+                                        .replace(/<think>[\s\S]*?<\/think>/g, '');
+                                    answerBuffer += contentToAppend;
+
+                                    // Schedule batched UI update
+                                    if (pendingRafId === null) {
+                                        pendingRafId = requestAnimationFrame(() => {
+                                            pendingRafId = null;
+                                            setMessages(prev => {
+                                                const newMessages = [...prev];
+                                                const lastIdx = newMessages.length - 1;
+                                                const lastMessage = newMessages[lastIdx];
+                                                if (lastMessage?.role === 'assistant') {
+                                                    newMessages[lastIdx] = {
+                                                        ...lastMessage,
+                                                        content: answerBuffer.trim(),
+                                                        isThinking: false
+                                                    };
+                                                }
+                                                return newMessages;
+                                            });
+                                        });
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('Failed to parse SSE data', dataStr, e);
                             }
                         }
                     }
                 }
-            } catch (error: unknown) {
-                toast.error("Failed to get response: " + (error instanceof Error ? error.message : "Unknown error"));
-                throw error;
-            }
-        });
 
-        scrollToBottom();
-    };
-
-    const scrollToBottom = useCallback(() => {
-        if (scrollAreaRef.current) {
-            const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-            if (scrollContainer) {
-                scrollContainer.scrollTop = scrollContainer.scrollHeight;
-            }
-        }
-    }, []);
-
-    const scrollMessageToTop = useCallback((message: ChatMessage) => {
-        if (scrollAreaRef.current) {
-            setTimeout(() => {
-                const scrollContainer = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-                if (scrollContainer) {
-                    const messageElement = scrollContainer.querySelector(`[data-message-id="${message.id}"]`);
-                    if (messageElement) {
-                        messageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Flush remaining buffer
+                if (buffer.trim()) {
+                    const lines = buffer.split('\n');
+                    let dataStr = '';
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            dataStr = line.replace('data: ', '').trim();
+                        }
+                    }
+                    if (dataStr && dataStr !== '[DONE]') {
+                        try {
+                            const data = JSON.parse(dataStr);
+                            let contentToAppend = "";
+                            if (data.encrypted_content && data.iv) {
+                                const { decrypted, sessionKey } = await decryptStreamChunk(
+                                    data.encrypted_content, data.iv, data.encapsulated_key, currentSessionKey
+                                );
+                                contentToAppend = decrypted;
+                                currentSessionKey = sessionKey;
+                            } else if (data.content) {
+                                contentToAppend = data.content;
+                            }
+                            if (contentToAppend) answerBuffer += contentToAppend;
+                        } catch (e) {
+                            console.warn('[Stream] Failed to parse final buffer', buffer, e);
+                        }
                     }
                 }
-            }, 50);
+
+                // Cancel pending rAF and do final sync flush
+                if (pendingRafId !== null) {
+                    cancelAnimationFrame(pendingRafId);
+                    pendingRafId = null;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 50));
+
+                // Final update
+                setMessages(prev => {
+                    const newMessages = [...prev];
+                    const lastIdx = newMessages.length - 1;
+                    const lastMessage = newMessages[lastIdx];
+                    if (lastMessage?.role === 'assistant') {
+                        newMessages[lastIdx] = {
+                            id: lastMessage.id,
+                            role: 'assistant',
+                            content: answerBuffer.trim(),
+                            isThinking: false,
+                            createdAt: lastMessage.createdAt,
+                        };
+                    }
+                    return newMessages;
+                });
+
+            } catch (streamError) {
+                const errName = (streamError as any)?.name;
+                if (errName !== 'AbortError') throw streamError;
+            }
+
+        } catch (error) {
+            const errName = (error as any)?.name;
+            if (errName !== 'AbortError') {
+                setMessages(prev => {
+                    const newMessages = [...prev];
+                    const lastMessage = newMessages[newMessages.length - 1];
+                    if (lastMessage?.role === 'assistant') {
+                        lastMessage.content = 'Sorry, I encountered an error. Please try again.';
+                        lastMessage.isThinking = false;
+                    }
+                    return newMessages;
+                });
+            }
+        } finally {
+            setIsLoading(false);
+            abortControllerRef.current = null;
+        }
+    }, [isReady, kyberPublicKey, isLoading, messages, model, conversationId, encryptMessage, decryptStreamChunk, loadChats]);
+
+    // ── Cancel ────────────────────────────────────────────────
+    const handleCancel = useCallback(() => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+        setIsLoading(false);
+    }, []);
+
+    // ── New Chat ──────────────────────────────────────────────
+    const handleNewChat = useCallback(() => {
+        setMessages([]);
+        setConversationId(null);
+        setIsLoading(false);
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
         }
     }, []);
 
-    // Scroll to bottom when messages change
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages, scrollToBottom]);
-
-
-    // --- Handlers ---
-    const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            if (input.trim() && !isLoading) {
-                handleSubmit(e as any);
-            }
-        }
-    };
-
-    const handleCopy = (content: string): void => {
+    // ── Copy Handler ──────────────────────────────────────────
+    const handleCopy = useCallback((content: string) => {
         navigator.clipboard.writeText(content);
         toast.success("Copied to clipboard");
-    };
+    }, []);
 
-    const handleNewChat = (): void => {
-        stop();
-        const newId = nanoid();
-        setConversationId(newId);
-        setMessages([]);
-        toast.info("Started new chat");
-    };
+    // ── Open Chat in Full Page ────────────────────────────────
+    const handleOpenInFullPage = useCallback(() => {
+        if (conversationId) {
+            window.open(`/assistant?conversationId=${conversationId}`, '_blank');
+        } else {
+            window.open('/new', '_blank');
+        }
+    }, [conversationId]);
 
+    // ── Delete Current Chat ───────────────────────────────────
+    const handleDeleteChat = useCallback(async () => {
+        if (!conversationId) return;
+        try {
+            await deleteChat(conversationId);
+            handleNewChat();
+            toast.success("Chat deleted");
+        } catch (e) {
+            toast.error("Failed to delete chat");
+        }
+    }, [conversationId, deleteChat, handleNewChat]);
+
+    // ── Chat History (sorted recent first, limit 20) ─────────
+    const recentChats = useMemo(() => {
+        return [...chats]
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 20);
+    }, [chats]);
+
+    // ── Load a Past Conversation ─────────────────────────────
+    const handleLoadChat = useCallback(async (chatId: string) => {
+        // This would require decryptHistory – for now, just set the conversation ID
+        // and open it in the main page
+        window.open(`/assistant?conversationId=${chatId}`, '_blank');
+    }, []);
+
+    // ── Don't render when closed ─────────────────────────────
     if (!isOpen) return null;
 
-    // --- Render Helpers ---
-    const CurrentModelIcon = selectedModel.icon;
+    const hasConversation = messages.length > 0;
 
-    // --- Component for Model Selector Trigger ---
-    const ModelSelectorTrigger = React.forwardRef<
-        HTMLButtonElement,
-        React.ComponentPropsWithoutRef<typeof Button>
-    >(({ className, ...props }, ref) => (
-        <Button
-            ref={ref}
-            variant="ghost"
-            size="sm"
-            role="combobox"
-            aria-expanded={isModelSelectorOpen}
-            className={cn("h-7 gap-1.5 px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg", className)}
-            {...props}
-        >
-            <CurrentModelIcon className="h-3.5 w-3.5" />
-            <span className="inline max-w-[80px] truncate">{selectedModel.name}</span>
-            <IconChevronDown className="shrink-0 opacity-75 w-3 h-3" />
-        </Button>
-    ));
-    ModelSelectorTrigger.displayName = "ModelSelectorTrigger";
-
-    // --- Component for Model Selector Content ---
-    const ModelSelectorContent = ({ children, className, ...props }: React.ComponentPropsWithoutRef<typeof Command>) => (
-        <Command className={cn("rounded-lg border shadow-md", className)} {...props}>
-            {children}
-        </Command>
-    );
+    // ── Container classes per mode ───────────────────────────
+    const containerClasses = mode === 'sidebar'
+        ? "flex flex-col h-full w-[420px] shrink-0 border-l bg-background"
+        : cn(
+            "fixed z-50 flex flex-col bg-background border rounded-2xl shadow-2xl",
+            "right-6 bottom-20 w-[440px]",
+            "h-[min(560px,calc(100vh-140px))]"
+        );
 
     return (
-        <TooltipProvider>
-            <div
-                className={cn(
-                    "flex flex-col bg-background border transition-all duration-300 ease-in-out shadow-2xl z-40 overflow-hidden",
-                    // Mode Styles
-                    mode === 'floating'
-                        ? "fixed bottom-6 right-6 w-[400px] h-[600px] rounded-3xl"
-                        : "w-[400px] border-l h-full rounded-none static shrink-0" // Sidebar: static position in flex container
-                )}
-            >
-                {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                    <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                            <IconSparkles className="h-5 w-5" />
+        <div className={containerClasses}>
+            {/* ── Header ──────────────────────────────────── */}
+            <div className="flex items-center justify-between px-3 py-2 shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                    {!hasConversation ? (
+                        // Empty state: "New AI chat" + chat history dropdown
+                        <div className="flex items-center gap-1">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-sm font-semibold px-2 hover:bg-muted/60">
+                                        <IconMessage className="size-4" />
+                                        <span>New AI chat</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-72 max-h-80 overflow-y-auto">
+                                    <DropdownMenuLabel className="text-xs text-muted-foreground">Recent chats</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {recentChats.length === 0 ? (
+                                        <div className="px-3 py-4 text-xs text-muted-foreground text-center">
+                                            No previous chats
+                                        </div>
+                                    ) : (
+                                        recentChats.map(chat => (
+                                            <DropdownMenuItem
+                                                key={chat.id}
+                                                onClick={() => handleLoadChat(chat.id)}
+                                                className="flex flex-col items-start gap-0.5 cursor-pointer"
+                                            >
+                                                <span className="text-sm font-medium truncate w-full">{chat.title}</span>
+                                                <span className="text-[10px] text-muted-foreground">
+                                                    {format(new Date(chat.createdAt), 'MMM d, yyyy')}
+                                                </span>
+                                            </DropdownMenuItem>
+                                        ))
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
-                        <div className="flex flex-col">
-                            <span className="text-sm font-semibold">AI Assistant</span>
-                            <span className="text-[10px] text-muted-foreground">Always here to help</span>
-                        </div>
-                    </div>
+                    ) : (
+                        // Active conversation: show title
+                        <span className="text-sm font-semibold truncate">AI Assistant</span>
+                    )}
+                </div>
 
-                    <div className="flex items-center gap-1">
-                        {/* New Chat / Reset */}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleNewChat}>
-                                    <IconEdit className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">New Chat</TooltipContent>
-                        </Tooltip>
-
-                        {/* Mode Switcher */}
+                <div className="flex items-center gap-0.5 shrink-0">
+                    {/* Three dots menu — only when conversation exists */}
+                    {hasConversation && (
                         <DropdownMenu>
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                                            {mode === 'floating' ? <IconWindowMaximize className="h-4 w-4 text-muted-foreground" /> : <IconLayoutSidebar className="h-4 w-4 text-muted-foreground" />}
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                                            <IconDots className="size-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
                                 </TooltipTrigger>
-                                <TooltipContent side="bottom">Switch View</TooltipContent>
+                                <TooltipContent side="bottom" className="text-xs">More options</TooltipContent>
                             </Tooltip>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => onModeChange('floating')} className="justify-between">
-                                    Floating
-                                    {mode === 'floating' && <IconCheck className="h-4 w-4 ml-2" />}
+                            <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem onClick={handleOpenInFullPage}>
+                                    <IconExternalLink className="size-4 mr-2" />
+                                    Open in full page
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => onModeChange('sidebar')} className="justify-between">
-                                    Sidebar
-                                    {mode === 'sidebar' && <IconCheck className="h-4 w-4 ml-2" />}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={handleDeleteChat} className="text-destructive focus:text-destructive">
+                                    <IconTrash className="size-4 mr-2" />
+                                    Delete chat
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
+                    )}
 
-                        {/* Options Menu (Dots) */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7">
-                                    <IconDots className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                                    Last updated {format(new Date(), 'MMM d, yyyy')}
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem>
-                                    <IconPencil className="mr-2 h-4 w-4" />
-                                    Rename
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive focus:text-destructive">
-                                    <IconTrash className="mr-2 h-4 w-4" />
-                                    Delete Chat
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem>
-                                    <IconExternalLink className="mr-2 h-4 w-4" />
-                                    Open in new tab
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-
-                        {/* Minimize / Close */}
+                    {/* New chat */}
+                    {hasConversation && (
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-                                    <IconMinus className="h-4 w-4 text-muted-foreground" />
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={handleNewChat}>
+                                    <IconEdit className="size-4" />
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom">Minimize</TooltipContent>
+                            <TooltipContent side="bottom" className="text-xs">New chat</TooltipContent>
                         </Tooltip>
-                    </div>
-                </div>
+                    )}
 
-                {/* Chat Area */}
-                <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
-                    <div className="space-y-6">
-                        {messages.length === 0 ? (
-                            // Empty State / Greeting
-                            <div className="flex flex-col items-center justify-center h-[300px] text-center space-y-4 opacity-50">
-                                <div className="bg-muted p-4 rounded-full">
-                                    <IconSparkles className="h-8 w-8 text-primary" />
-                                </div>
-                                <div className="space-y-1">
-                                    <h3 className="font-semibold text-lg">How can I help you?</h3>
-                                    <p className="text-sm text-muted-foreground max-w-[250px]">
-                                        Ask me anything about your paper, or let me generate content for you.
-                                    </p>
-                                </div>
-                            </div>
-                        ) : (
-                            // Message List
-                            messages.map((m: ChatMessage) => (
-                                <div key={m.id} data-message-id={m.id} className={cn("flex flex-col gap-2", m.role === 'user' ? "items-end" : "items-start")}>
-                                    <div className={cn(
-                                        "max-w-[85%] rounded-2xl px-4 py-3 text-sm",
-                                        m.role === 'user'
-                                            ? "bg-primary text-primary-foreground rounded-br-none"
-                                            : "bg-muted text-foreground rounded-bl-none"
-                                    )}>
-                                        {/* Use Markdown Renderer for AI messages, simplistic text for User */}
-                                        {m.role === 'assistant' ? (
-                                            <div className="prose dark:prose-invert prose-sm max-w-none">
-                                                <MarkdownRenderer content={m.content} />
-                                            </div>
-                                        ) : (
-                                            <div className="whitespace-pre-wrap">{m.content}</div>
-                                        )}
-                                    </div>
+                    {/* Mode toggle */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost" size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                onClick={() => onModeChange(mode === 'floating' ? 'sidebar' : 'floating')}
+                            >
+                                {mode === 'floating' ? <IconLayoutSidebar className="size-4" /> : <IconWindowMaximize className="size-4" />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="text-xs">
+                            {mode === 'floating' ? 'Dock to sidebar' : 'Float window'}
+                        </TooltipContent>
+                    </Tooltip>
 
-                                    {/* Action Buttons for Assistant Messages */}
-                                    {m.role === 'assistant' && (
-                                        <div className="flex items-center gap-1 ml-1">
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => handleCopy(m.content)}>
-                                                <IconCopy className="h-3 w-3 text-muted-foreground" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full">
-                                                <IconThumbUp className="h-3 w-3 text-muted-foreground" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full">
-                                                <IconThumbDown className="h-3 w-3 text-muted-foreground" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => reload()}>
-                                                <IconRefresh className="h-3 w-3 text-muted-foreground" />
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                            ))
-                        )}                        {isLoading && (
-                            <div className="flex items-start gap-2">
-                                <div className="bg-muted px-4 py-3 rounded-2xl rounded-bl-none text-sm">
-                                    <span className="animate-pulse">Thinking...</span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </ScrollArea>
-
-                {/* Input Area */}
-                <div className="p-4 bg-background border-t">
-                    <div className="relative flex flex-col gap-2 bg-muted/50 p-2 rounded-xl border border-transparent focus-within:bg-background focus-within:border-primary/20 transition-all">
-                        {/* Context Pill (Optional) */}
-                        <div className="flex items-center px-2 pt-1">
-                            <Badge variant="outline" className="text-[10px] h-5 px-1.5 gap-1 font-normal text-muted-foreground bg-background/50 border-border/50">
-                                Context: {paperTitle}
-                            </Badge>
-                        </div>
-
-                        <Textarea
-                            ref={textareaRef}
-                            value={input}
-                            onChange={handleInputChange}
-                            onKeyDown={onKeyDown}
-                            placeholder="Ask me anything..."
-                            className="min-h-[40px] max-h-[120px] resize-none border-none shadow-none focus-visible:ring-0 bg-transparent px-2 py-1 text-sm scrollbar-hide w-full"
-                            rows={1}
-                        />
-
-                        <div className="flex items-center justify-between px-1 pb-1">
-                            {/* Model Selector Button */}
-                            <Popover open={isModelSelectorOpen} onOpenChange={setIsModelSelectorOpen}>
-                                <PopoverTrigger asChild>
-                                    <ModelSelectorTrigger />
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[220px] p-0" align="start" side="top">
-                                    <ModelSelectorContent>
-                                        <CommandInput placeholder="Search models..." />
-                                        <CommandList>
-                                            <CommandEmpty>No model found.</CommandEmpty>
-                                            <CommandGroup>
-                                                {MODELS.map((model: Model) => (
-                                                    <CommandItem
-                                                        key={model.id}
-                                                        value={model.id}
-                                                        onSelect={(currentValue: string): void => {
-                                                            const m = MODELS.find((m: Model) => m.id === currentValue);
-                                                            if (m) setSelectedModel(m);
-                                                            setIsModelSelectorOpen(false);
-                                                        }}
-                                                        className="flex flex-col items-start py-2 gap-1"
-                                                    >
-                                                        <div className="flex items-center gap-2 w-full">
-                                                            <model.icon className="h-4 w-4 text-muted-foreground" />
-                                                            <span className="font-medium">{model.name}</span>
-                                                            {selectedModel.id === model.id && (
-                                                                <IconCheck className="ml-auto h-3 w-3 opacity-100" />
-                                                            )}
-                                                        </div>
-                                                        <span className="text-[10px] text-muted-foreground pl-6 line-clamp-1">{model.description}</span>
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </ModelSelectorContent>
-                                </PopoverContent>
-                            </Popover>
-
-                            {isLoading ? (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button
-                                            size="icon"
-                                            variant="destructive"
-                                            className="h-7 w-7 rounded-lg shrink-0"
-                                            onClick={() => stop()}
-                                        >
-                                            <IconSquareRounded className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top">Cancel</TooltipContent>
-                                </Tooltip>
-                            ) : (
-                                <Button
-                                    size="icon"
-                                    className="h-7 w-7 rounded-lg shrink-0"
-                                    disabled={!input.trim()}
-                                    onClick={(e) => handleSubmit(e as any)}
-                                >
-                                    <IconArrowUp className="h-4 w-4" />
-                                </Button>
-                            )}
-                        </div>
-                    </div>
+                    {/* Close / minimize */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={onClose}>
+                                {mode === 'floating' ? <IconX className="size-4" /> : <IconMinus className="size-4" />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="text-xs">{mode === 'floating' ? 'Close' : 'Minimize'}</TooltipContent>
+                    </Tooltip>
                 </div>
             </div>
-        </TooltipProvider>
+
+            {/* ── Messages Area ───────────────────────────── */}
+            {!hasConversation ? (
+                // Empty state — centered greeting
+                <div className="flex-1 flex flex-col items-center justify-center p-6">
+                    <div className="text-center space-y-2 animate-in fade-in duration-500">
+                        <h2 className="text-lg font-semibold tracking-tight">
+                            How can I help?
+                        </h2>
+                        <p className="text-xs text-muted-foreground max-w-[260px] mx-auto">
+                            Ask me anything about your paper, or get help writing, editing, and more.
+                        </p>
+                    </div>
+                </div>
+            ) : (
+                // Chat messages
+                <div className="flex flex-col flex-1 min-h-0 relative">
+                    <div
+                        ref={scrollContainerRef}
+                        onScroll={handleScroll}
+                        className="flex-1 overflow-y-auto px-3 py-3 scroll-smooth min-h-0 overflow-x-hidden"
+                    >
+                        <div className="flex flex-col items-center w-full">
+                            {messages.map((message, index) => {
+                                const isUserMsg = message.role === 'user';
+                                const nextMsg = messages[index + 1];
+                                const isFollowedByAssistant = nextMsg?.role === 'assistant';
+                                const spacing = isUserMsg && isFollowedByAssistant ? 'mb-1' : 'mb-3';
+
+                                return (
+                                    <div
+                                        key={message.id || index}
+                                        className={cn("w-full flex justify-center animate-in fade-in duration-200", spacing)}
+                                    >
+                                        <div className="w-full max-w-full">
+                                            <ChatMessage
+                                                message={message}
+                                                isLast={index === messages.length - 1}
+                                                onCopy={handleCopy}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            <div ref={scrollEndRef} className="h-1 w-full" />
+                        </div>
+                    </div>
+
+                    {/* Scroll to bottom */}
+                    {showScrollToBottom && (
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="rounded-full shadow-md bg-background hover:bg-muted size-7"
+                                onClick={() => scrollToBottom()}
+                            >
+                                <IconArrowDown className="size-3.5" />
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── Input Area ──────────────────────────────── */}
+            <div className="shrink-0 px-3 pb-3 pt-1">
+                <EnhancedPromptInput
+                    onSubmit={async (text, files, thinkingMode, searchMode) => {
+                        await handleSubmit(text, files, thinkingMode, searchMode);
+                    }}
+                    isLoading={isLoading || !isReady}
+                    onStop={handleCancel}
+                    model={model}
+                    onModelChange={setModel}
+                />
+            </div>
+        </div>
     );
 }

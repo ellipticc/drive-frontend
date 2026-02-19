@@ -141,8 +141,6 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const [localModel, setLocalModel] = useState('auto');
     const [thinkingMode, setThinkingMode] = useState(false);
     const [searchMode, setSearchMode] = useState(false);
-    const [modelOpen, setModelOpen] = useState(false);
-    const [modelTooltipOpen, setModelTooltipOpen] = useState(false);
 
     const [tokenError, setTokenError] = useState(false);
 
@@ -485,44 +483,30 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
 
                         <div className="flex items-center gap-1">
                             {/* Model Selector */}
-                            <Tooltip open={modelTooltipOpen} onOpenChange={(open) => {
-                                if (!modelOpen) setModelTooltipOpen(open);
-                            }}>
-                                <TooltipTrigger asChild>
-                                    <div className="flex items-center">
-                                        <DropdownMenu open={modelOpen} onOpenChange={(open) => {
-                                            setModelOpen(open);
-                                            setModelTooltipOpen(false);
-                                        }}>
-                                            <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 px-2.5 gap-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all outline-none focus:outline-none focus-visible:outline-none">
-                                                <span className="inline text-[12px] max-w-[80px] truncate">{currentModel.name}</span>
-                                                <Icons.SelectArrow className="shrink-0 opacity-75 w-3 h-3" />
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent side="top" align="end" className="min-w-[220px]">
-                                                <DropdownMenuLabel className="text-xs text-muted-foreground">Platform Models</DropdownMenuLabel>
-                                                <DropdownMenuSeparator />
-                                                {models.map((model) => (
-                                                    <DropdownMenuItem
-                                                        key={model.id}
-                                                        onClick={() => handleModelChange(model.id)}
-                                                        className="flex items-center gap-2 cursor-pointer"
-                                                    >
-                                                        <ModelSelectorLogo provider={model.provider as any} className="w-4 h-4 mr-1" />
-                                                        <div className="flex flex-col flex-1">
-                                                            <span className="text-sm font-medium">{model.name}</span>
-                                                            <span className="text-[10px] text-muted-foreground">{model.description}</span>
-                                                        </div>
-                                                        {effectiveModel === model.id && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
-                                                    </DropdownMenuItem>
-                                                ))}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="text-xs">
-                                    Select AI model
-                                </TooltipContent>
-                            </Tooltip>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 px-2.5 gap-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all outline-none focus:outline-none focus-visible:outline-none">
+                                    <span className="inline text-[12px] max-w-[80px] truncate">{currentModel.name}</span>
+                                    <Icons.SelectArrow className="shrink-0 opacity-75 w-3 h-3" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent side="top" align="end" className="min-w-[220px]">
+                                    <DropdownMenuLabel className="text-xs text-muted-foreground">Platform Models</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {models.map((model) => (
+                                        <DropdownMenuItem
+                                            key={model.id}
+                                            onClick={() => handleModelChange(model.id)}
+                                            className="flex items-center gap-2 cursor-pointer"
+                                        >
+                                            <ModelSelectorLogo provider={model.provider as any} className="w-4 h-4 mr-1" />
+                                            <div className="flex flex-col flex-1">
+                                                <span className="text-sm font-medium">{model.name}</span>
+                                                <span className="text-[10px] text-muted-foreground">{model.description}</span>
+                                            </div>
+                                            {effectiveModel === model.id && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
 
                             {/* Send/Stop/Audio Button */}
                             {isLoading ? (
