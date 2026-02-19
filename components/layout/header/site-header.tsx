@@ -59,7 +59,7 @@ export function SiteHeader({ className, sticky = false, customTitle, rightConten
           <div className="flex items-center gap-2">
             {customTitle}
           </div>
-        ) : pathname?.startsWith('/assistant') ? (
+        ) : pathname?.startsWith('/new') ? (
           <h2 className="text-lg font-semibold tracking-tight">Assistant</h2>
         ) : (
           <div className="relative flex-1 max-w-md">

@@ -428,7 +428,7 @@ textarea[data-has-content="true"]:focus {
   }
 
   :root *::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--background);
   }
 
   :root *::-webkit-scrollbar-thumb {

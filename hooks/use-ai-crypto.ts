@@ -185,11 +185,7 @@ export function useAICrypto(): UseAICryptoReturn {
             const currentUrlId = new URLSearchParams(window.location.search).get('conversationId');
             if (currentUrlId === conversationId) {
                 // Redirect to new chat
-                window.history.replaceState(null, '', '/assistant');
-            }
-        }
-
-        try {
+                    window.history.replaceState(null, '', '/new');
             await apiClient.deleteChat(conversationId);
         } catch (err) {
             console.error("Failed to delete chat:", err);

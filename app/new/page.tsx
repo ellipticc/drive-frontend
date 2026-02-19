@@ -682,7 +682,7 @@ export default function AssistantPage() {
                 lastCreatedConversationId.current = newConversationId;
 
                 // It's a new chat! Update URL without reloading
-                window.history.replaceState(null, '', `/assistant?conversationId=${newConversationId}`);
+                window.history.replaceState(null, '', `/new?conversationId=${newConversationId}`);
                 // Refresh sidebar list
                 loadChats();
             }

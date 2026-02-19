@@ -395,7 +395,7 @@ export function PaperAIAssistant({
     // ── Open Chat in Full Page ────────────────────────────────
     const handleOpenInFullPage = useCallback(() => {
         if (conversationId) {
-            window.open(`/assistant?conversationId=${conversationId}`, '_blank');
+            window.open(`/new?conversationId=${conversationId}`, '_blank');
         } else {
             window.open('/new', '_blank');
         }
@@ -424,7 +424,7 @@ export function PaperAIAssistant({
     const handleLoadChat = useCallback(async (chatId: string) => {
         // This would require decryptHistory – for now, just set the conversation ID
         // and open it in the main page
-        window.open(`/assistant?conversationId=${chatId}`, '_blank');
+        window.open(`/new?conversationId=${chatId}`, '_blank');
     }, []);
 
     // ── Don't render when closed ─────────────────────────────
