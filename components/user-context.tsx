@@ -91,10 +91,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     // Skip for public/auth routes
     if (shouldSkipFetch) {
       setLoading(false);
-      try {
-        const overlay = document.getElementById('initial-loading-overlay');
-        if (overlay) overlay.remove();
-      } catch (e) { }
+      window.dispatchEvent(new CustomEvent('ecc:overlay:hide'));
       return;
     }
 
@@ -104,15 +101,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       console.log('UserProvider: No token available, skipping profile fetch');
       setLoading(false);
       setHasFetched(true);
-      try {
-        const overlay = document.getElementById('initial-loading-overlay');
-        if (overlay) {
-          overlay.style.opacity = '0';
-          setTimeout(() => {
-            try { overlay.remove(); } catch (e) { }
-          }, 500);
-        }
-      } catch (e) { }
+      window.dispatchEvent(new CustomEvent('ecc:overlay:hide'));
       return;
     }
 
@@ -193,15 +182,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setHasFetched(true);
     } finally {
       setLoading(false);
-      try {
-        const overlay = document.getElementById('initial-loading-overlay');
-        if (overlay) {
-          overlay.style.opacity = '0';
-          setTimeout(() => {
-            try { overlay.remove(); } catch (e) { }
-          }, 500);
-        }
-      } catch (e) { }
+      window.dispatchEvent(new CustomEvent('ecc:overlay:hide'));
     }
   }, [shouldSkipFetch]);
 

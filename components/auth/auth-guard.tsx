@@ -41,18 +41,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
       setIsAuthenticated(true);
       hasCheckedAuthRef.current = true;
       
-      // Remove loading overlay immediately for public routes (client-side only)
-      if (typeof window !== 'undefined') {
-        try {
-          const overlay = document.getElementById('initial-loading-overlay');
-          if (overlay) {
-            overlay.style.opacity = '0';
-            setTimeout(() => {
-              try { overlay.remove(); } catch (e) { }
-            }, 500);
-          }
-        } catch (e) { }
-      }
+      // Hide loading overlay for public routes
+      window.dispatchEvent(new CustomEvent('ecc:overlay:hide'));
       return;
     }
 

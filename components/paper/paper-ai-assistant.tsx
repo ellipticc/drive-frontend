@@ -16,7 +16,8 @@ import {
     IconPlus,
     IconAdjustmentsHorizontal,
     IconFiles,
-    IconChevronDown
+    IconChevronDown,
+    IconCheck
 } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -35,6 +36,19 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+
+import {
+    ModelSelector,
+    ModelSelectorContent,
+    ModelSelectorEmpty,
+    ModelSelectorGroup,
+    ModelSelectorInput,
+    ModelSelectorItem,
+    ModelSelectorList,
+    ModelSelectorLogo,
+    ModelSelectorName,
+    ModelSelectorTrigger,
+} from "@/components/ai-elements/model-selector"
 
 export type AIAssistantMode = 'floating' | 'sidebar'
 
@@ -56,6 +70,20 @@ export function PaperAIAssistant({
     const [input, setInput] = useState("")
     const inputRef = useRef<HTMLTextAreaElement>(null)
 
+    // Model Selector State
+    const [modelOpen, setModelOpen] = useState(false)
+    const [model, setModel] = useState<string>("auto")
+
+    const models = [
+        { id: "auto", name: "Auto", description: "Balances speed & quality", provider: "auto" },
+        { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", description: "Versatile, 131k context", provider: "llama" },
+        { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", description: "Vision, General", provider: "openai" },
+        { id: "qwen/qwen3-32b", name: "Qwen 3 32B", description: "Code, Reasoning", provider: "alibaba" },
+        { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2", description: "Long Context, 262k", provider: "moonshot" },
+    ];
+
+    const currentModel = models.find(m => m.id === model) || models[0];
+
     useEffect(() => {
         if (isOpen && inputRef.current) {
             inputRef.current.focus()
@@ -72,7 +100,7 @@ export function PaperAIAssistant({
             className={cn(
                 "flex flex-col bg-muted/40 text-foreground shadow-2xl z-50 transition-all duration-300 ease-in-out font-sans",
                 isFloating
-                    ? "fixed bottom-20 right-6 w-[380px] h-[600px] rounded-xl border border-border"
+                    ? "fixed bottom-6 right-6 w-[380px] h-[600px] rounded-3xl border border-border"
                     : "relative w-[380px] h-full border-l border-border rounded-none shadow-none"
             )}
         >
@@ -131,21 +159,27 @@ export function PaperAIAssistant({
                                 </TooltipTrigger>
                                 <TooltipContent side={tooltipSide}>Switch View</TooltipContent>
                             </Tooltip>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuCheckboxItem
-                                    checked={mode === 'sidebar'}
-                                    onCheckedChange={(checked) => onModeChange(checked ? 'sidebar' : 'floating')}
+                            <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem
+                                    onClick={() => onModeChange('sidebar')}
+                                    className="flex items-center justify-between"
                                 >
-                                    <IconLayoutSidebarRightFilled className="w-4 h-4 mr-2" />
-                                    Sidebar
-                                </DropdownMenuCheckboxItem>
-                                <DropdownMenuCheckboxItem
-                                    checked={mode === 'floating'}
-                                    onCheckedChange={(checked) => onModeChange(checked ? 'floating' : 'sidebar')}
+                                    <div className="flex items-center">
+                                        <IconLayoutSidebarRightFilled className="w-4 h-4 mr-2 text-muted-foreground" />
+                                        <span>Sidebar</span>
+                                    </div>
+                                    {mode === 'sidebar' && <IconCheck className="w-3.5 h-3.5" />}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onClick={() => onModeChange('floating')}
+                                    className="flex items-center justify-between"
                                 >
-                                    <IconFreezeRowColumn className="w-4 h-4 mr-2" />
-                                    Floating
-                                </DropdownMenuCheckboxItem>
+                                    <div className="flex items-center">
+                                        <IconFreezeRowColumn className="w-4 h-4 mr-2 text-muted-foreground" />
+                                        <span>Floating</span>
+                                    </div>
+                                    {mode === 'floating' && <IconCheck className="w-3.5 h-3.5" />}
+                                </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
 
@@ -231,7 +265,38 @@ export function PaperAIAssistant({
                             </TooltipProvider>
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-muted-foreground font-medium">Auto</span>
+                            {/* Model Selector */}
+                            <ModelSelector open={modelOpen} onOpenChange={setModelOpen}>
+                                <ModelSelectorTrigger className="inline-flex items-center justify-center h-6 px-1.5 gap-1 rounded-full text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all">
+                                    <span className="inline max-w-[80px] truncate">{currentModel.name}</span>
+                                    <IconChevronDown className="shrink-0 opacity-75 w-3 h-3" />
+                                </ModelSelectorTrigger>
+                                <ModelSelectorContent>
+                                    <ModelSelectorInput placeholder="Search models..." />
+                                    <ModelSelectorList>
+                                        <ModelSelectorEmpty>No model found.</ModelSelectorEmpty>
+                                        <ModelSelectorGroup heading="Platform Models">
+                                            {models.map((m) => (
+                                                <ModelSelectorItem
+                                                    key={m.id}
+                                                    onSelect={() => {
+                                                        setModel(m.id);
+                                                        setModelOpen(false);
+                                                    }}
+                                                >
+                                                    <ModelSelectorLogo provider={m.provider as any} />
+                                                    <div className="flex flex-col ml-2">
+                                                        <ModelSelectorName>{m.name}</ModelSelectorName>
+                                                        <span className="text-[10px] text-muted-foreground">{m.description}</span>
+                                                    </div>
+                                                    {model === m.id && <IconCheck className="w-4 h-4 ml-auto text-primary" />}
+                                                </ModelSelectorItem>
+                                            ))}
+                                        </ModelSelectorGroup>
+                                    </ModelSelectorList>
+                                </ModelSelectorContent>
+                            </ModelSelector>
+
                             <Button
                                 size="icon"
                                 className={cn(
