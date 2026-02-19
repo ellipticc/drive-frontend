@@ -790,6 +790,17 @@ class ApiClient {
             }
 
             const message = `${method.toUpperCase()}:${fullPath}:${timestamp}`;
+            
+            // Log signature details for debugging
+            if (process.env.NODE_ENV === 'development') {
+              console.debug(`[DeviceAuth] Signing message:
+  Endpoint: ${endpoint}
+  Full Path: ${fullPath}
+  Method: ${method.toUpperCase()}
+  Timestamp: ${timestamp}
+  Message: ${message}`);
+            }
+            
             const signature = await signWithDeviceKey(message);
 
             headers['X-Device-Id'] = deviceId;
