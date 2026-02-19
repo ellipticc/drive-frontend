@@ -194,6 +194,8 @@ export function LoginFormAuth({
 
       // CRITICAL: Initialize device identity IMMEDIATELY after login
       // This ensures all following requests (getProfile, getTOTPStatus) have device headers
+      // Sync client clock with server to avoid device signature timestamp issues
+      await apiClient.getServerTime().catch(() => null);
       const publicKey = await initializeDeviceKeys();
       if (publicKey) {
         const deviceAuth = await apiClient.authorizeDevice(publicKey);

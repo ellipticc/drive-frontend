@@ -545,6 +545,31 @@ class ApiClient {
 
       const data = await response.json();
 
+      // If the server rejected the request because the device signature expired,
+      // try to sync clock skew from the response and retry once using the adjusted timestamp.
+      if (response.status === 401 && data?.error === 'Device signature expired') {
+        try {
+          // Sync using the server date header (if present) and attempt one retry
+          this.syncClockSkew(response);
+
+          // Prevent retry loops by marking header on retry attempt
+          const retryHeaders = { ...(config.headers as Record<string,string>), 'X-Device-Retry-Attempt': '1' };
+          const authRetryHeaders = await this.getAuthHeaders(endpoint, config.method || 'GET');
+          const retryConfig: RequestInit = { ...config, headers: { ...retryHeaders, ...authRetryHeaders } };
+
+          const retryResponse = await getRequestQueue().enqueue(() => fetch(requestUrl, retryConfig), priority);
+          this.syncClockSkew(retryResponse);
+          const retryJson = await retryResponse.json().catch(() => null);
+
+          if (retryResponse.ok) {
+            return { success: true, status: retryResponse.status, data: retryJson as T } as ApiResponse<T>;
+          }
+          // otherwise fall through to existing 401 handling so component logic remains unchanged
+        } catch (err) {
+          console.warn('Device timestamp retry attempt failed:', err);
+        }
+      }
+
       // Check for 401 Unauthorized (token expired or invalid from server)
       if (response.status === 401) {
         console.warn('Received 401 from server', { endpoint, error: data.error });
@@ -807,6 +832,24 @@ class ApiClient {
     storage.removeItem('auth_token');
     storage.removeItem('auth_token');
     document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  }
+
+  // Public: fetch server time for clock synchronization
+  async getServerTime(): Promise<number | null> {
+    try {
+      const resp = await this.request<{ serverTime: number }>('/auth/time');
+      if (resp.success && resp.data && resp.data.serverTime) {
+        const serverTs = Number(resp.data.serverTime);
+        const ms = serverTs < 1e12 ? serverTs * 1000 : serverTs;
+        this.clockSkew = ms - Date.now();
+        this.clockSkewInitialized = true;
+        return ms;
+      }
+      return null;
+    } catch (err) {
+      console.warn('Failed to fetch server time via API client:', err);
+      return null;
+    }
   }
 
   // Auth endpoints
