@@ -1941,7 +1941,7 @@ export default function AssistantPage() {
                                             <Button
                                                 variant="outline"
                                                 size="icon"
-                                                className="rounded-full shadow-md bg-background hover:bg-muted border-border/50 size-8 dark:bg-muted dark:border-border/60 text-foreground ring-1 ring-border/10"
+                                                className="rounded-full shadow-md bg-background border-border/50 size-8 dark:bg-muted dark:border-border/60 text-foreground ring-1 ring-border/10 hover:bg-background hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground transition-none"
                                                 onClick={() => scrollToBottom()}
                                             >
                                                 <IconArrowDown className="size-4 text-foreground" />

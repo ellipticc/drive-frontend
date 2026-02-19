@@ -561,9 +561,17 @@ function PaperEditorView({
         onChange(value);
     }, [onChange, extractBlocks]);
 
-    // Highlight block function
+    // Highlight block function — always clear previous highlight first
     const highlightBlock = useCallback((blockId: string) => {
-        setHighlightedBlockId(blockId);
+        // Clear previous highlighted block (if any)
+        setHighlightedBlockId((prev) => {
+            if (prev && prev !== blockId) {
+                const prevEl = document.getElementById(`block-${prev}`);
+                if (prevEl) prevEl.setAttribute('data-highlighted-block', 'false');
+            }
+            return blockId;
+        });
+
         const element = document.getElementById(`block-${blockId}`);
         if (element) {
             element.setAttribute('data-highlighted-block', 'true');
