@@ -767,10 +767,6 @@ function PaperEditorView({
                     >
                         <div className="relative">
                             <IconSparkles className="w-6 h-6 stroke-1.5" />
-                            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
-                            </span>
                         </div>
                     </button>
                 )}
@@ -783,6 +779,7 @@ function PaperPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const fileId = searchParams.get('fileId');
+    const [isMounted, setIsMounted] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isUnsaved, setIsUnsaved] = useState(false);
@@ -852,6 +849,11 @@ function PaperPageContent() {
             }
         };
     }, [fileId]);
+
+    // Mark component as mounted on client to prevent hydration mismatch
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     // Prevent page-level scrolling while editor is mounted so only the main container scrolls
     useEffect(() => {
@@ -1619,7 +1621,7 @@ function PaperPageContent() {
     }, []);
 
 
-    if (loading) {
+    if (loading || !isMounted) {
         return (
             <div className="h-screen w-full flex flex-col bg-background">
                 {/* Header Skeleton */}

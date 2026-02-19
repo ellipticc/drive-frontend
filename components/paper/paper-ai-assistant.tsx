@@ -70,14 +70,14 @@ export function PaperAIAssistant({
     return (
         <div
             className={cn(
-                "flex flex-col bg-background text-foreground border-l border-border shadow-2xl z-50 transition-all duration-300 ease-in-out font-sans",
+                "flex flex-col bg-muted/40 text-foreground shadow-2xl z-50 transition-all duration-300 ease-in-out font-sans",
                 isFloating
                     ? "fixed bottom-20 right-6 w-[380px] h-[600px] rounded-xl border border-border"
                     : "relative w-[380px] h-full border-l border-border rounded-none shadow-none"
             )}
         >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 shrink-0">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <div className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 px-2 py-1 rounded transition-colors group">
@@ -169,13 +169,6 @@ export function PaperAIAssistant({
 
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center text-center space-y-8">
-                {/* Hero Icon */}
-                <div className="relative">
-                    <div className="bg-background rounded-full p-4 shadow-sm border border-border inline-flex items-center justify-center">
-                        <IconRobot className="w-10 h-10 text-foreground stroke-1.5" />
-                    </div>
-                </div>
-
                 {/* Greeting */}
                 <h2 className="text-xl font-semibold text-foreground">
                     Spice it up — what do you need?
@@ -191,7 +184,7 @@ export function PaperAIAssistant({
             </div>
 
             {/* Input Footer */}
-            <div className="p-4 bg-muted/40 rounded-b-xl border-t border-border mt-auto shrink-0">
+            <div className="p-4 mt-auto shrink-0">
                 <div className="relative bg-background border border-input rounded-lg shadow-sm overflow-hidden focus-within:ring-1 focus-within:ring-ring transition-all">
                     {/* Context Pill */}
                     <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2 py-0.5 bg-muted rounded-full max-w-[180px]">
