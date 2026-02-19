@@ -22,6 +22,7 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
     const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isInitialMountRef = useRef(true);
     const userInteractionRef = useRef(false);
+    const rafRef = useRef<number | null>(null);
 
     // Filter only user messages that have IDs
     const userMessages = messages.filter(m => m.role === 'user' && m.id && m.content);
@@ -129,12 +130,15 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
                             const el = document.getElementById(`message-${messageId}`);
                             if (el) {
                                 handleNavigationInfo(messageId);
+                                rafRef.current = null;
                             } else if (frameCount < maxFrames) {
-                                requestAnimationFrame(checkForElement);
+                                rafRef.current = requestAnimationFrame(checkForElement);
+                            } else {
+                                rafRef.current = null;
                             }
                         };
                         
-                        requestAnimationFrame(checkForElement);
+                        rafRef.current = requestAnimationFrame(checkForElement);
                     }
                 }
             }
@@ -156,7 +160,13 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
         }, 0);
 
         window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
+        return () => {
+            window.removeEventListener('hashchange', handleHashChange);
+            if (rafRef.current) {
+                cancelAnimationFrame(rafRef.current);
+                rafRef.current = null;
+            }
+        };
     }, []);
 
     if (userMessages.length === 0) return null;

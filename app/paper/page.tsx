@@ -506,6 +506,7 @@ function PaperEditorView({
     const [highlightedBlockId, setHighlightedBlockId] = useState<string | null>(null);
     const wordCountRef = useRef<HTMLDivElement>(null);
     const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
+    const [aiMode, setAiMode] = useState<'floating' | 'sidebar'>('floating');
 
     // Save display mode to localStorage
     useEffect(() => {
@@ -673,85 +674,89 @@ function PaperEditorView({
                         <FixedToolbarButtons />
                     </FixedToolbar>
 
-                    <main className="flex-1 overflow-y-auto relative min-h-0" style={{ scrollbarGutter: 'stable' }}>
-                        <div className="relative w-full md:max-w-[950px] mx-auto px-4 sm:px-6 md:px-12 pt-3 md:pt-4 pb-48">
-                            <Editor
-                                className="min-h-full w-full border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
-                                autoFocus
-                                placeholder="New Page"
+                    <div className="flex flex-1 overflow-hidden relative">
+                        <main className="flex-1 overflow-y-auto relative min-h-0" style={{ scrollbarGutter: 'stable' }}>
+                            <div className="relative w-full md:max-w-[950px] mx-auto px-4 sm:px-6 md:px-12 pt-3 md:pt-4 pb-48">
+                                <Editor
+                                    className="min-h-full w-full border-none shadow-none focus-visible:ring-0 transition-all text-base md:text-base"
+                                    autoFocus
+                                    placeholder="New Page"
+                                />
+
+
+
+                            </div>
+
+                            {/* Paper Navigation (Right Side - mirrors chat) */}
+                            <PaperScrollNavigation
+                                blocks={blocks}
+                                scrollToBlock={scrollToBlock}
+                                highlightBlock={highlightBlock}
+                                clearHighlight={clearHighlight}
                             />
+                        </main>
 
-
-
-                        </div>
-
-                        {/* Paper Navigation (Right Side - mirrors chat) */}
-                        <PaperScrollNavigation
-                            blocks={blocks}
-                            scrollToBlock={scrollToBlock}
-                            highlightBlock={highlightBlock}
-                            clearHighlight={clearHighlight}
-                        />
-                    </main>
-
-                    {/* Floating Word Count (Bottom Left - Conditionally Visible) */}
-                    {showWordCount && (
-                        <div ref={wordCountRef} className="absolute bottom-4 left-4 z-40">
-                            {/* Expanded panel — always renders above the pill */}
-                            {wordCountExpanded && (
-                                <div className="mb-1 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-3 py-2 space-y-1 min-w-[140px]">
+                        {/* Floating Word Count (Bottom Left - Conditionally Visible) */}
+                        {showWordCount && (
+                            <div ref={wordCountRef} className="absolute bottom-4 left-4 z-40">
+                                {/* Expanded panel — always renders above the pill */}
+                                {wordCountExpanded && (
+                                    <div className="mb-1 bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg px-3 py-2 space-y-1 min-w-[140px]">
+                                        <button
+                                            onClick={() => {
+                                                setDisplayMode('words');
+                                                setWordCountExpanded(false);
+                                            }}
+                                            className={`flex items-center justify-between gap-4 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
+                                                }`}
+                                        >
+                                            <span className="font-medium">Words</span>
+                                            <span className="font-medium">{stats.words.toLocaleString()}</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setDisplayMode('characters');
+                                                setWordCountExpanded(false);
+                                            }}
+                                            className={`flex items-center justify-between gap-4 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
+                                                }`}
+                                        >
+                                            <span className="font-medium">Characters</span>
+                                            <span className="font-medium">{stats.characters.toLocaleString()}</span>
+                                        </button>
+                                    </div>
+                                )}
+                                {/* Pill — always at the bottom */}
+                                <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden min-w-[140px]">
                                     <button
-                                        onClick={() => {
-                                            setDisplayMode('words');
-                                            setWordCountExpanded(false);
-                                        }}
-                                        className={`flex items-center justify-between gap-4 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'words' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
+                                        onClick={() => setWordCountExpanded(!wordCountExpanded)}
+                                        className={`flex items-center justify-between px-3 py-2 text-xs transition-colors w-full ${wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
                                             }`}
                                     >
-                                        <span className="font-medium">Words</span>
-                                        <span className="font-medium">{stats.words.toLocaleString()}</span>
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setDisplayMode('characters');
-                                            setWordCountExpanded(false);
-                                        }}
-                                        className={`flex items-center justify-between gap-4 px-2 py-1 text-xs w-full rounded transition-colors ${displayMode === 'characters' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
-                                            }`}
-                                    >
-                                        <span className="font-medium">Characters</span>
-                                        <span className="font-medium">{stats.characters.toLocaleString()}</span>
+                                        <span className="font-medium">{displayMode === 'words' ? 'Words' : 'Characters'}</span>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <span className="font-semibold">{displayMode === 'words' ? stats.words.toLocaleString() : stats.characters.toLocaleString()}</span>
+                                            {wordCountExpanded ? (
+                                                <IconChevronDown className="w-3 h-3" />
+                                            ) : (
+                                                <IconChevronUp className="w-3 h-3" />
+                                            )}
+                                        </div>
                                     </button>
                                 </div>
-                            )}
-                            {/* Pill — always at the bottom */}
-                            <div className="bg-background/95 backdrop-blur-sm border rounded-lg shadow-lg overflow-hidden min-w-[140px]">
-                                <button
-                                    onClick={() => setWordCountExpanded(!wordCountExpanded)}
-                                    className={`flex items-center justify-between px-3 py-2 text-xs transition-colors w-full ${wordCountExpanded ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
-                                        }`}
-                                >
-                                    <span className="font-medium">{displayMode === 'words' ? 'Words' : 'Characters'}</span>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        <span className="font-semibold">{displayMode === 'words' ? stats.words.toLocaleString() : stats.characters.toLocaleString()}</span>
-                                        {wordCountExpanded ? (
-                                            <IconChevronDown className="w-3 h-3" />
-                                        ) : (
-                                            <IconChevronUp className="w-3 h-3" />
-                                        )}
-                                    </div>
-                                </button>
                             </div>
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
 
-                {/* AI Assistant */}
-                <PaperAIAssistant
-                    isOpen={isAIAssistantOpen}
-                    onClose={() => setIsAIAssistantOpen(false)}
-                    paperTitle={paperTitle}
-                />
+                    {/* AI Assistant */}
+                    <PaperAIAssistant
+                        isOpen={isAIAssistantOpen}
+                        onClose={() => setIsAIAssistantOpen(false)}
+                        mode={aiMode}
+                        onModeChange={setAiMode}
+                        paperTitle={paperTitle}
+                    />
+                </div>
 
                 {/* AI Floating Trigger Button */}
                 {!isAIAssistantOpen && (

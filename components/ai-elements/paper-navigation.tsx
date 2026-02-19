@@ -38,6 +38,7 @@ export function PaperScrollNavigation({
     const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isInitialMountRef = useRef(true);
     const userInteractionRef = useRef(false);
+    const rafRef = useRef<number | null>(null);
 
     // Filter only blocks that are headers (h1, h2, h3, etc.) with heading levels
     const navigableBlocks = blocks
@@ -162,12 +163,15 @@ export function PaperScrollNavigation({
                             const el = document.getElementById(`block-${blockId}`);
                             if (el) {
                                 handleNavigationInfo(blockId);
+                                rafRef.current = null;
                             } else if (frameCount < maxFrames) {
-                                requestAnimationFrame(checkForElement);
+                                rafRef.current = requestAnimationFrame(checkForElement);
+                            } else {
+                                rafRef.current = null;
                             }
                         };
                         
-                        requestAnimationFrame(checkForElement);
+                        rafRef.current = requestAnimationFrame(checkForElement);
                     }
                 }
             }
@@ -189,7 +193,13 @@ export function PaperScrollNavigation({
         }, 0);
 
         window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
+        return () => {
+            window.removeEventListener('hashchange', handleHashChange);
+            if (rafRef.current) {
+                cancelAnimationFrame(rafRef.current);
+                rafRef.current = null;
+            }
+        };
     }, []);
 
     // Stop highlighting when clicking elsewhere
@@ -206,7 +216,11 @@ export function PaperScrollNavigation({
         };
 
         document.addEventListener('click', handleClickOutside);
-        return () => document.removeEventListener('click', handleClickOutside);
+        return () => {
+            document.removeEventListener('click', handleClickOutside);
+            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+            if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+        };
     }, [clearHighlight]);
 
     if (navigableBlocks.length === 0) return null;
