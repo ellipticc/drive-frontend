@@ -142,6 +142,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const [thinkingMode, setThinkingMode] = useState(false);
     const [searchMode, setSearchMode] = useState(false);
     const [modelOpen, setModelOpen] = useState(false);
+    const [modelTooltipOpen, setModelTooltipOpen] = useState(false);
 
     const [tokenError, setTokenError] = useState(false);
 
@@ -190,7 +191,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
         { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", description: "Versatile, 131k context", provider: "llama" },
         { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", description: "Vision, General", provider: "openai" },
         { id: "qwen/qwen3-32b", name: "Qwen 3 32B", description: "Code, Reasoning", provider: "alibaba" },
-        { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2", description: "Long Context, 262k", provider: "moonshot" },
+        { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2", description: "Long Context, 262k", provider: "moonshotai" },
     ];
 
     const currentModel = models.find(m => m.id === effectiveModel) || models[0];
@@ -484,10 +485,15 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
 
                         <div className="flex items-center gap-1">
                             {/* Model Selector */}
-                            <Tooltip open={modelOpen ? false : undefined}>
+                            <Tooltip open={modelTooltipOpen} onOpenChange={(open) => {
+                                if (!modelOpen) setModelTooltipOpen(open);
+                            }}>
                                 <TooltipTrigger asChild>
                                     <div className="flex items-center">
-                                        <DropdownMenu open={modelOpen} onOpenChange={setModelOpen}>
+                                        <DropdownMenu open={modelOpen} onOpenChange={(open) => {
+                                            setModelOpen(open);
+                                            setModelTooltipOpen(false);
+                                        }}>
                                             <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 px-2.5 gap-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all outline-none focus:outline-none focus-visible:outline-none">
                                                 <span className="inline text-[12px] max-w-[80px] truncate">{currentModel.name}</span>
                                                 <Icons.SelectArrow className="shrink-0 opacity-75 w-3 h-3" />

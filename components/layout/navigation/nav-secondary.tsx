@@ -92,7 +92,7 @@ export function NavSecondary({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <DropdownMenuTrigger asChild>
-                          <SidebarMenuButton isActive={helpOpen} className="group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0">
+                          <SidebarMenuButton isActive={helpOpen} className="pr-8 group/nav group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0">
                             {(() => {
                               const IconComponent = getIcon(item, helpOpen)
                               return <IconComponent className="size-4" />
