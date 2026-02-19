@@ -27,6 +27,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EnhancedPromptInput } from "@/components/enhanced-prompt-input";
 import { ChatMessage, type Message } from "@/components/ai-elements/chat-message";
+import { FeedbackModal } from "@/components/ai-elements/feedback-modal";
 import { useAICrypto } from "@/hooks/use-ai-crypto";
 import { apiClient } from "@/lib/api";
 import { trimHistoryByTokens } from "@/lib/context-calculator";
@@ -67,6 +68,13 @@ export function PaperAIAssistant({
     const [model, setModel] = useState("auto");
     const [conversationId, setConversationId] = useState<string | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
+
+    // ── Feedback Modal State ─────────────────────────────────
+    const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+    const [feedbackMessageId, setFeedbackMessageId] = useState<string>("");
+    const [feedbackRating, setFeedbackRating] = useState<"like" | "dislike" | null>(null);
+    const [feedbackPromptContext, setFeedbackPromptContext] = useState<string>("");
+    const [feedbackResponseContext, setFeedbackResponseContext] = useState<string>("");
 
     // ── Scroll ──────────────────────────────────────────────────
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -422,10 +430,68 @@ export function PaperAIAssistant({
 
     // ── Load a Past Conversation ─────────────────────────────
     const handleLoadChat = useCallback(async (chatId: string) => {
-        // This would require decryptHistory – for now, just set the conversation ID
-        // and open it in the main page
-        window.open(`/new?conversationId=${chatId}`, '_blank');
+        try {
+            // Load the chat into this component instead of opening a new tab
+            setConversationId(chatId);
+            setMessages([]);
+            setIsLoading(true);
+
+            // Fetch the chat messages
+            const { messages: loadedMessages } = await apiClient.getAIChatMessages(chatId, { offset: 0, limit: 50 });
+            
+            if (loadedMessages && Array.isArray(loadedMessages)) {
+                // Map backend messages to Message type
+                const mappedMessages: Message[] = loadedMessages.map((m: any) => ({
+                    id: m.id || crypto.randomUUID(),
+                    role: m.role,
+                    content: m.content,
+                    createdAt: m.createdAt ? new Date(m.createdAt).getTime() : Date.now(),
+                }));
+                setMessages(mappedMessages);
+            }
+        } catch (error) {
+            console.error("Failed to load chat history:", error);
+            toast.error("Failed to load chat");
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
+
+    // ── Feedback Handler ──────────────────────────────────────
+    const handleFeedback = (messageId: string, feedback: 'like' | 'dislike') => {
+        const msgIndex = messages.findIndex(m => m.id === messageId);
+        if (msgIndex !== -1) {
+            const msg = messages[msgIndex];
+            const prevMsg = messages[msgIndex - 1];
+
+            setFeedbackMessageId(messageId);
+            setFeedbackRating(feedback);
+            setFeedbackResponseContext(msg.content);
+            setFeedbackPromptContext(prevMsg?.role === 'user' ? prevMsg.content : "Context unavailable");
+            setIsFeedbackModalOpen(true);
+        }
+    };
+
+    // ── Submit Feedback ──────────────────────────────────────
+    const submitFeedback = async (messageId: string, rating: 'like' | 'dislike', reasons: string[], details: string, context: any) => {
+        try {
+            setMessages(prev => prev.map(msg =>
+                msg.id === messageId ? { ...msg, feedback: rating } : msg
+            ));
+
+            await apiClient.submitDetailedFeedback({
+                messageId,
+                rating,
+                reasons,
+                details,
+                promptContext: context?.prompt,
+                responseContext: context?.response
+            });
+        } catch (error) {
+            console.error("Failed to submit feedback", error);
+            toast.error("Failed to save feedback");
+        }
+    };
 
     // ── Don't render when closed ─────────────────────────────
     if (!isOpen) return null;
@@ -434,11 +500,11 @@ export function PaperAIAssistant({
 
     // ── Container classes per mode ───────────────────────────
     const containerClasses = mode === 'sidebar'
-        ? "flex flex-col h-full w-[420px] shrink-0 border-l bg-background"
+        ? "flex flex-col h-screen w-[420px] shrink-0 border-r bg-sidebar fixed right-0 top-0 bottom-0 z-40 shadow-lg"
         : cn(
-            "fixed z-50 flex flex-col bg-background border rounded-2xl shadow-2xl",
-            "right-6 bottom-20 w-[440px]",
-            "h-[min(560px,calc(100vh-140px))]"
+            "fixed z-50 flex flex-col bg-sidebar border rounded-2xl shadow-2xl",
+            "right-4 bottom-4 w-[440px]",
+            "h-[min(560px,calc(100vh-80px))]"
         );
 
     return (
@@ -592,6 +658,7 @@ export function PaperAIAssistant({
                                                 message={message}
                                                 isLast={index === messages.length - 1}
                                                 onCopy={handleCopy}
+                                                onFeedback={handleFeedback}
                                             />
                                         </div>
                                     </div>
@@ -629,6 +696,17 @@ export function PaperAIAssistant({
                     onModelChange={setModel}
                 />
             </div>
+
+            {/* ── Feedback Modal ──────────────────────────── */}
+            <FeedbackModal
+                isOpen={isFeedbackModalOpen}
+                onOpenChange={setIsFeedbackModalOpen}
+                messageId={feedbackMessageId}
+                initialRating={feedbackRating}
+                promptContext={feedbackPromptContext}
+                responseContext={feedbackResponseContext}
+                onSubmit={submitFeedback}
+            />
         </div>
     );
 }

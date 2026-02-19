@@ -342,9 +342,37 @@ export interface SecurityEvent {
 class ApiClient {
   private baseURL: string;
   private storage: Storage | null = null;
+  private clockSkew: number = 0; // Difference between server and client time in ms
+  private clockSkewInitialized: boolean = false;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
+  }
+
+  // Get current time adjusted for clock skew
+  private getAdjustedNow(): number {
+    return Date.now() + this.clockSkew;
+  }
+
+  // Sync client clock with server time using response headers
+  private syncClockSkew(response: Response): void {
+    if (this.clockSkewInitialized) return; // Only sync once
+
+    try {
+      const serverDateStr = response.headers.get('date');
+      if (serverDateStr) {
+        const serverTime = new Date(serverDateStr).getTime();
+        const clientTime = Date.now();
+        this.clockSkew = serverTime - clientTime;
+        this.clockSkewInitialized = true;
+
+        if (Math.abs(this.clockSkew) > 30000) { // Warn if skew > 30 seconds
+          console.warn(`Clock skew detected: ${this.clockSkew}ms. System clock may be out of sync.`);
+        }
+      }
+    } catch (error) {
+      // Silently fail clock sync, continue without it
+    }
   }
 
   // Set storage type (localStorage or sessionStorage)
@@ -496,6 +524,9 @@ class ApiClient {
     try {
       // Queue the fetch request based on priority to prevent UI blocking
       const response = await getRequestQueue().enqueue(() => fetch(requestUrl, config), priority);
+
+      // Sync clock with server on first response to fix device signature timeouts
+      this.syncClockSkew(response);
 
       // Read server-supplied version headers and broadcast an event for UI to react
       try {
@@ -711,7 +742,8 @@ class ApiClient {
 
         if (deviceId && publicKey) {
           try {
-            const timestamp = Date.now().toString();
+            // Use adjusted timestamp to account for clock skew
+            const timestamp = this.getAdjustedNow().toString();
             let fullPath = endpoint;
 
             if (!endpoint.startsWith('http')) {

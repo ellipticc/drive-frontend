@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { masterKeyManager } from "@/lib/master-key";
 import { IconLoader2, IconCloudCheck, IconHistory, IconEdit, IconFolderSymlink, IconTrash, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase, IconChevronUp, IconChevronDown, IconLayoutSidebar, IconAbc, IconSparkles } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
@@ -655,7 +656,9 @@ function PaperEditorView({
                 editor={editor}
                 onChange={({ value }) => handleChange(value)}
             >
-                <div className="flex flex-col h-screen bg-background w-full overflow-hidden relative">
+                <div className={cn("flex flex-col h-screen bg-background w-full overflow-hidden relative", {
+                    'mr-[420px]': aiMode === 'sidebar' && isAIAssistantOpen
+                })}>
                     <PaperHeader
                         fileId={fileId}
                         paperTitle={paperTitle}
@@ -770,7 +773,7 @@ function PaperEditorView({
                 {!isAIAssistantOpen && (
                     <button
                         onClick={() => setIsAIAssistantOpen(true)}
-                        className="fixed bottom-6 right-6 z-50 p-3 bg-white text-black rounded-full shadow-xl hover:scale-105 transition-transform duration-200 border border-gray-200 group"
+                        className="fixed bottom-4 right-4 z-50 p-3 bg-white text-black rounded-full shadow-xl hover:scale-105 transition-transform duration-200 border border-gray-200 group"
                         aria-label="Open AI Assistant"
                     >
                         <div className="relative">

@@ -41,6 +41,7 @@ import {
   ToolbarSplitButtonPrimary,
   ToolbarSplitButtonSecondary,
 } from './toolbar';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 const MEDIA_CONFIG: Record<
   string,
@@ -97,50 +98,59 @@ export function MediaToolbarButton({
 
   return (
     <>
-      <ToolbarSplitButton
-        onClick={() => {
-          openFilePicker();
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setOpen(true);
-          }
-        }}
-        pressed={open}
-      >
-        <ToolbarSplitButtonPrimary>
-          {currentConfig.icon}
-        </ToolbarSplitButtonPrimary>
-
-        <DropdownMenu
-          open={open}
-          onOpenChange={setOpen}
-          modal={false}
-          {...props}
-        >
-          <DropdownMenuTrigger asChild>
-            <ToolbarSplitButtonSecondary />
-          </DropdownMenuTrigger>
-
-          <DropdownMenuContent
-            onClick={(e) => e.stopPropagation()}
-            align="start"
-            alignOffset={-32}
-          >
-            <DropdownMenuGroup>
-              <DropdownMenuItem onSelect={() => openFilePicker()}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div>
+            <ToolbarSplitButton
+              onClick={() => {
+                openFilePicker();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setOpen(true);
+                }
+              }}
+              pressed={open}
+            >
+              <ToolbarSplitButtonPrimary>
                 {currentConfig.icon}
-                Upload from computer
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setDialogOpen(true)}>
-                <LinkIcon />
-                Insert via URL
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </ToolbarSplitButton>
+              </ToolbarSplitButtonPrimary>
+
+              <DropdownMenu
+                open={open}
+                onOpenChange={setOpen}
+                modal={false}
+                {...props}
+              >
+                <DropdownMenuTrigger asChild>
+                  <ToolbarSplitButtonSecondary />
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent
+                  onClick={(e) => e.stopPropagation()}
+                  align="start"
+                  alignOffset={-32}
+                >
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onSelect={() => openFilePicker()}>
+                      {currentConfig.icon}
+                      Upload from computer
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setDialogOpen(true)}>
+                      <LinkIcon />
+                      Insert via URL
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </ToolbarSplitButton>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="text-xs">
+          {currentConfig.tooltip}
+        </TooltipContent>
+      </Tooltip>
 
       <AlertDialog
         open={dialogOpen}
