@@ -770,32 +770,31 @@ class ApiClient {
             // Use adjusted timestamp to account for clock skew
             const timestamp = this.getAdjustedNow().toString();
             
-            // For device signature verification, use ONLY the endpoint path (relative to API base)
-            let signaturePath = endpoint;
-            
-            // If endpoint doesn't contain query params, check if the full URL would have them
-            if (!endpoint.includes('?') && !endpoint.startsWith('http')) {
+            // Construct full pathname + search exactly as the server sees it (e.g. /api/v1/auth/me)
+            let fullPath = endpoint;
+
+            if (!endpoint.startsWith('http')) {
               try {
                 const requestUrl = `${this.baseURL}${endpoint}`;
                 const urlObj = new URL(requestUrl);
-                if (urlObj.search) {
-                  signaturePath = endpoint + urlObj.search;
-                }
+                fullPath = urlObj.pathname + urlObj.search;
               } catch {
-                // Fall back to endpoint if URL parsing fails
+                fullPath = endpoint;
+              }
+            } else {
+              try {
+                const urlObj = new URL(endpoint);
+                fullPath = urlObj.pathname + urlObj.search;
+              } catch {
+                fullPath = endpoint;
               }
             }
 
-            const message = `${method.toUpperCase()}:${signaturePath}:${timestamp}`;
-            
+            const message = `${method.toUpperCase()}:${fullPath}:${timestamp}`;
+
             // Log signature details for debugging
             if (process.env.NODE_ENV === 'development') {
-              console.debug(`[DeviceAuth] Signing message:
-  Endpoint: ${endpoint}
-  Signature Path: ${signaturePath}
-  Method: ${method.toUpperCase()}
-  Timestamp: ${timestamp}
-  Message: ${message}`);
+              console.debug(`[DeviceAuth] Signing message:\n  Endpoint: ${endpoint}\n  Full Path: ${fullPath}\n  Method: ${method.toUpperCase()}\n  Timestamp: ${timestamp}\n  Message: ${message}`);
             }
             
             const signature = await signWithDeviceKey(message);
