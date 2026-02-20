@@ -553,7 +553,7 @@ class ApiClient {
           this.syncClockSkew(response);
 
           // Prevent retry loops by marking header on retry attempt
-          const retryHeaders = { ...(config.headers as Record<string,string>), 'X-Device-Retry-Attempt': '1' };
+          const retryHeaders = { ...(config.headers as Record<string, string>), 'X-Device-Retry-Attempt': '1' };
           const authRetryHeaders = await this.getAuthHeaders(endpoint, config.method || 'GET');
           const retryConfig: RequestInit = { ...config, headers: { ...retryHeaders, ...authRetryHeaders } };
 
@@ -769,7 +769,7 @@ class ApiClient {
           try {
             // Use adjusted timestamp to account for clock skew
             const timestamp = this.getAdjustedNow().toString();
-            
+
             // Construct full pathname + search exactly as the server sees it (e.g. /api/v1/auth/me)
             let fullPath = endpoint;
 
@@ -796,7 +796,7 @@ class ApiClient {
             if (process.env.NODE_ENV === 'development') {
               console.debug(`[DeviceAuth] Signing message:\n  Endpoint: ${endpoint}\n  Full Path: ${fullPath}\n  Method: ${method.toUpperCase()}\n  Timestamp: ${timestamp}\n  Message: ${message}`);
             }
-            
+
             const signature = await signWithDeviceKey(message);
 
             headers['X-Device-Id'] = deviceId;
@@ -3444,6 +3444,13 @@ class ApiClient {
   async clearIndexedDbPreferences(): Promise<ApiResponse> {
     return this.request('/indexeddb/preferences', {
       method: 'DELETE',
+    });
+  }
+
+  async improveAIPrompt(prompt: string): Promise<ApiResponse<{ improvedPrompt: string }>> {
+    return this.request<{ improvedPrompt: string }>('/ai/improve', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
     });
   }
 

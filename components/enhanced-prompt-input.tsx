@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { IconPlus, IconChevronDown, IconArrowUp, IconX, IconFileText, IconLoader2, IconCheck, IconArchive, IconBrain, IconWorld, IconSquareFilled, IconAlertCircle } from "@tabler/icons-react";
+import { IconPlus, IconChevronDown, IconArrowUp, IconX, IconFileText, IconLoader2, IconCheck, IconArchive, IconBrain, IconWorld, IconSquareFilled, IconAlertCircle, IconWand, IconArrowBackUp } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/utils";
+import { apiClient } from "@/lib/api";
 import { isPromptTooLong } from "@/lib/constants/prompt-limits";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAudioRecording } from "@/hooks/use-audio-recording";
@@ -38,7 +39,7 @@ import {
     ContextContentHeader,
     ContextWindowBreakdown,
 } from "@/components/ai-elements/context"
-import { Square } from "lucide-react";
+import { Shimmer } from "@/components/ai-elements/shimmer";
 
 interface AttachedFile {
     id: string;
@@ -143,6 +144,8 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const [thinkingMode, setThinkingMode] = useState(false);
     const [searchMode, setSearchMode] = useState(false);
     const [tokenError, setTokenError] = useState(false);
+    const [isImproving, setIsImproving] = useState(false);
+    const [originalMessage, setOriginalMessage] = useState<string | null>(null);
 
     // Mobile detection
     const isMobile = useIsMobileDevice();
@@ -243,6 +246,37 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
             e.preventDefault();
             handleFiles(pastedFiles);
             return;
+        }
+    };
+
+    const handleImprove = async () => {
+        if (!message.trim() || isImproving) return;
+
+        setIsImproving(true);
+        try {
+            const res = await apiClient.improveAIPrompt(message);
+
+            if (!res.success) {
+                toast.error(res.error || res.message || 'Failed to improve prompt');
+                return;
+            }
+
+            setOriginalMessage(message);
+            if (res.data?.improvedPrompt) {
+                setMessage(res.data.improvedPrompt);
+            }
+        } catch (error) {
+            console.error("Failed to improve prompt:", error);
+            toast.error("Failed to improve prompt.");
+        } finally {
+            setIsImproving(false);
+        }
+    };
+
+    const handleRevert = () => {
+        if (originalMessage !== null) {
+            setMessage(originalMessage);
+            setOriginalMessage(null);
         }
     };
 
@@ -382,20 +416,29 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
 
 
                     <div className={cn("relative mb-1", isLoading && "pointer-events-none")}>
-                        <div className="max-h-60 w-full overflow-y-auto overflow-x-hidden custom-scrollbar font-sans break-words min-h-[2.5rem] pl-1">
-                            <textarea
-                                ref={textareaRef}
-                                value={message}
-                                onChange={(e) => setMessage(e.target.value)}
-                                onPaste={handlePaste}
-                                onKeyDown={handleKeyDown}
-                                placeholder={conversationId ? "Reply..." : "How can I help you today?"}
-                                data-has-content={hasContent ? "true" : undefined}
-                                className="w-full bg-transparent border-0 outline-none text-foreground text-[16px] placeholder:text-muted-foreground resize-none overflow-hidden py-0 leading-relaxed block font-normal antialiased"
-                                rows={1}
-                                autoFocus
-                                style={{ minHeight: '1.5em' }}
-                            />
+                        <div className="max-h-60 w-full overflow-y-auto overflow-x-hidden custom-scrollbar font-sans break-words min-h-[2.5rem] pl-1 relative">
+                            {isImproving ? (
+                                <Shimmer className="w-full text-[16px] leading-relaxed py-0 block min-h-[1.5em] text-foreground p-[2px]">
+                                    {message || "Improving..."}
+                                </Shimmer>
+                            ) : (
+                                <textarea
+                                    ref={textareaRef}
+                                    value={message}
+                                    onChange={(e) => {
+                                        setMessage(e.target.value);
+                                        if (originalMessage !== null) setOriginalMessage(null);
+                                    }}
+                                    onPaste={handlePaste}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder={conversationId ? "Reply..." : "How can I help you today?"}
+                                    data-has-content={hasContent ? "true" : undefined}
+                                    className="w-full bg-transparent border-0 outline-none text-foreground text-[16px] placeholder:text-muted-foreground resize-none overflow-hidden py-0 leading-relaxed block font-normal antialiased p-[2px]"
+                                    rows={1}
+                                    autoFocus
+                                    style={{ minHeight: '1.5em' }}
+                                />
+                            )}
                         </div>
                     </div>
 
@@ -492,6 +535,56 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                             Use web search for current information
                                         </TooltipContent>
                                     </Tooltip>
+
+                                    {/* Improve Button */}
+                                    {isImproving ? (
+                                        <button
+                                            disabled
+                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium cursor-not-allowed opacity-50"
+                                            type="button"
+                                        >
+                                            <Icons.Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                            <span>Improving</span>
+                                        </button>
+                                    ) : originalMessage !== null ? (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    onClick={handleRevert}
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all text-primary bg-primary/15"
+                                                    type="button"
+                                                >
+                                                    <IconArrowBackUp className="w-4 h-4" />
+                                                    <span>Revert</span>
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="text-xs">
+                                                Revert to original prompt
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    ) : (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    onClick={handleImprove}
+                                                    disabled={!message.trim() || isLoading}
+                                                    className={cn(
+                                                        'inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all',
+                                                        message.trim()
+                                                            ? 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                                                            : 'text-muted-foreground/50 cursor-not-allowed opacity-50'
+                                                    )}
+                                                    type="button"
+                                                >
+                                                    <IconWand className="w-4 h-4" />
+                                                    <span>Improve</span>
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="text-xs">
+                                                AI Improve Prompt
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
                                 </>
                             )}
 
@@ -523,6 +616,18 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                             <IconWorld className="w-4 h-4 mr-2" />
                                             <span>Search</span>
                                             {searchMode && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuSeparator />
+
+                                        {/* Improve Option */}
+                                        <DropdownMenuItem
+                                            onClick={originalMessage !== null ? handleRevert : handleImprove}
+                                            disabled={!message.trim() || isImproving || isLoading}
+                                            className="cursor-pointer"
+                                        >
+                                            {isImproving ? <Icons.Loader2 className="w-4 h-4 mr-2 animate-spin" /> : originalMessage !== null ? <IconArrowBackUp className="w-4 h-4 mr-2" /> : <IconWand className="w-4 h-4 mr-2" />}
+                                            <span>{isImproving ? "Improving..." : originalMessage !== null ? "Revert Prompt" : "Improve Prompt"}</span>
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
