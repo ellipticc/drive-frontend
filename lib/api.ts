@@ -769,33 +769,30 @@ class ApiClient {
           try {
             // Use adjusted timestamp to account for clock skew
             const timestamp = this.getAdjustedNow().toString();
-            let fullPath = endpoint;
-
-            if (!endpoint.startsWith('http')) {
+            
+            // For device signature verification, use ONLY the endpoint path (relative to API base)
+            let signaturePath = endpoint;
+            
+            // If endpoint doesn't contain query params, check if the full URL would have them
+            if (!endpoint.includes('?') && !endpoint.startsWith('http')) {
               try {
                 const requestUrl = `${this.baseURL}${endpoint}`;
                 const urlObj = new URL(requestUrl);
-                fullPath = urlObj.pathname + urlObj.search;
+                if (urlObj.search) {
+                  signaturePath = endpoint + urlObj.search;
+                }
               } catch {
-                fullPath = endpoint;
-              }
-            } else {
-              // If it's a full URL, extract the path
-              try {
-                const urlObj = new URL(endpoint);
-                fullPath = urlObj.pathname + urlObj.search;
-              } catch {
-                fullPath = endpoint;
+                // Fall back to endpoint if URL parsing fails
               }
             }
 
-            const message = `${method.toUpperCase()}:${fullPath}:${timestamp}`;
+            const message = `${method.toUpperCase()}:${signaturePath}:${timestamp}`;
             
             // Log signature details for debugging
             if (process.env.NODE_ENV === 'development') {
               console.debug(`[DeviceAuth] Signing message:
   Endpoint: ${endpoint}
-  Full Path: ${fullPath}
+  Signature Path: ${signaturePath}
   Method: ${method.toUpperCase()}
   Timestamp: ${timestamp}
   Message: ${message}`);
