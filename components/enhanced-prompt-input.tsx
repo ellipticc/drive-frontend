@@ -7,6 +7,7 @@ import { isPromptTooLong } from "@/lib/constants/prompt-limits";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAudioRecording } from "@/hooks/use-audio-recording";
 import { AudioLinesIcon } from "@/components/ui/audio-lines";
+import { useIsMobileDevice } from "@/lib/mobile-utils";
 
 export const Icons = {
     Plus: IconPlus,
@@ -141,8 +142,10 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const [localModel, setLocalModel] = useState('auto');
     const [thinkingMode, setThinkingMode] = useState(false);
     const [searchMode, setSearchMode] = useState(false);
-
     const [tokenError, setTokenError] = useState(false);
+
+    // Mobile detection
+    const isMobile = useIsMobileDevice();
 
     // Audio recording state
     const {
@@ -386,7 +389,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                 onChange={(e) => setMessage(e.target.value)}
                                 onPaste={handlePaste}
                                 onKeyDown={handleKeyDown}
-                                placeholder="How can I help you today?"
+                                placeholder={conversationId ? "Reply..." : "How can I help you today?"}
                                 data-has-content={hasContent ? "true" : undefined}
                                 className="w-full bg-transparent border-0 outline-none text-foreground text-[16px] placeholder:text-muted-foreground resize-none overflow-hidden py-0 leading-relaxed block font-normal antialiased"
                                 rows={1}
@@ -408,205 +411,320 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                     <div className="flex gap-2 w-full items-center justify-between">
 
                         <div className={cn("flex items-center gap-1", isLoading && "pointer-events-none")}>
-                            {/* Attach File Button */}
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <button
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                                        type="button"
-                                        aria-label="Attach file"
-                                    >
-                                        <Icons.Plus className="w-5 h-5" />
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="text-xs">
-                                    Attach files
-                                </TooltipContent>
-                            </Tooltip>
+                            {/* Attach File Button - No tooltip on mobile */}
+                            {!isMobile ? (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                                            type="button"
+                                            aria-label="Attach file"
+                                        >
+                                            <Icons.Plus className="w-5 h-5" />
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-xs">
+                                        Attach files
+                                    </TooltipContent>
+                                </Tooltip>
+                            ) : (
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                                    type="button"
+                                    aria-label="Attach file"
+                                >
+                                    <Icons.Plus className="w-5 h-5" />
+                                </button>
+                            )}
 
-                            {/* Thinking Mode Button - With Label */}
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <button
-                                        onClick={() => {
-                                            if (isThinkingSupported) setThinkingMode(!thinkingMode);
-                                        }}
-                                        disabled={!isThinkingSupported}
-                                        className={cn(
-                                            'inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all',
-                                            isThinkingSupported && thinkingMode
-                                                ? 'bg-primary/15 text-primary'
-                                                : isThinkingSupported
-                                                    ? 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
-                                                    : 'text-muted-foreground/50 cursor-not-allowed opacity-50'
-                                        )}
-                                        type="button"
-                                    >
-                                        <IconBrain className="w-4 h-4" />
-                                        <span>Reasoning</span>
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="text-xs">
-                                    {isThinkingSupported
-                                        ? 'Deeper reasoning for complex questions'
-                                        : 'This model doesn\'t support reasoning'}
-                                </TooltipContent>
-                            </Tooltip>
+                            {/* Desktop: Show Reasoning & Search inline */}
+                            {!isMobile && (
+                                <>
+                                    {/* Thinking Mode Button - With Label */}
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                onClick={() => {
+                                                    if (isThinkingSupported) setThinkingMode(!thinkingMode);
+                                                }}
+                                                disabled={!isThinkingSupported}
+                                                className={cn(
+                                                    'inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all',
+                                                    isThinkingSupported && thinkingMode
+                                                        ? 'bg-primary/15 text-primary'
+                                                        : isThinkingSupported
+                                                            ? 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                                                            : 'text-muted-foreground/50 cursor-not-allowed opacity-50'
+                                                )}
+                                                type="button"
+                                            >
+                                                <IconBrain className="w-4 h-4" />
+                                                <span>Reasoning</span>
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-xs">
+                                            {isThinkingSupported
+                                                ? 'Deeper reasoning for complex questions'
+                                                : 'This model doesn\'t support reasoning'}
+                                        </TooltipContent>
+                                    </Tooltip>
 
-                            {/* Search Mode Button - With Label */}
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <button
-                                        onClick={() => setSearchMode(!searchMode)}
-                                        className={cn(
-                                            'inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all',
-                                            searchMode
-                                                ? 'bg-primary/15 text-primary'
-                                                : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
-                                        )}
-                                        type="button"
-                                    >
-                                        <IconWorld className="w-4 h-4" />
-                                        <span>Search</span>
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="text-xs">
-                                    Use web search for current information
-                                </TooltipContent>
-                            </Tooltip>
+                                    {/* Search Mode Button - With Label */}
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                onClick={() => setSearchMode(!searchMode)}
+                                                className={cn(
+                                                    'inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all',
+                                                    searchMode
+                                                        ? 'bg-primary/15 text-primary'
+                                                        : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                                                )}
+                                                type="button"
+                                            >
+                                                <IconWorld className="w-4 h-4" />
+                                                <span>Search</span>
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-xs">
+                                            Use web search for current information
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </>
+                            )}
+
+                            {/* Mobile: More dropdown with Reasoning & Search */}
+                            {isMobile && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all">
+                                        <Icons.Plus className="w-4 h-4" />
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent side="top" align="start">
+                                        {/* Reasoning Option */}
+                                        <DropdownMenuItem
+                                            onClick={() => {
+                                                if (isThinkingSupported) setThinkingMode(!thinkingMode);
+                                            }}
+                                            disabled={!isThinkingSupported}
+                                            className="cursor-pointer"
+                                        >
+                                            <IconBrain className="w-4 h-4 mr-2" />
+                                            <span>Reasoning</span>
+                                            {thinkingMode && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
+                                        </DropdownMenuItem>
+
+                                        {/* Search Option */}
+                                        <DropdownMenuItem
+                                            onClick={() => setSearchMode(!searchMode)}
+                                            className="cursor-pointer"
+                                        >
+                                            <IconWorld className="w-4 h-4 mr-2" />
+                                            <span>Search</span>
+                                            {searchMode && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
                         </div>
-
 
                         <div className="flex-1" />
 
-
                         <div className="flex items-center gap-1">
-                            {/* Model Selector */}
-                            <DropdownMenu>
-                                <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 px-2.5 gap-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all outline-none focus:outline-none focus-visible:outline-none">
-                                    <span className="inline text-[12px] max-w-[80px] truncate">{currentModel.name}</span>
-                                    <Icons.SelectArrow className="shrink-0 opacity-75 w-3 h-3" />
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent side="top" align="end" className="min-w-[220px]">
-                                    <DropdownMenuLabel className="text-xs text-muted-foreground">Platform Models</DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    {models.map((model) => (
-                                        <DropdownMenuItem
-                                            key={model.id}
-                                            onClick={() => handleModelChange(model.id)}
-                                            className="flex items-center gap-2 cursor-pointer"
-                                        >
-                                            <ModelSelectorLogo provider={model.provider as any} className="w-4 h-4 mr-1" />
-                                            <div className="flex flex-col flex-1">
-                                                <span className="text-sm font-medium">{model.name}</span>
-                                                <span className="text-[10px] text-muted-foreground">{model.description}</span>
-                                            </div>
-                                            {effectiveModel === model.id && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
-                                        </DropdownMenuItem>
-                                    ))}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            {/* Model Selector - Hidden on mobile to save space */}
+                            {!isMobile && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 px-2.5 gap-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all outline-none focus:outline-none focus-visible:outline-none">
+                                        <span className="inline text-[12px] max-w-[80px] truncate">{currentModel.name}</span>
+                                        <Icons.SelectArrow className="shrink-0 opacity-75 w-3 h-3" />
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent side="top" align="end" className="min-w-[220px]">
+                                        <DropdownMenuLabel className="text-xs text-muted-foreground">Platform Models</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {models.map((model) => (
+                                            <DropdownMenuItem
+                                                key={model.id}
+                                                onClick={() => handleModelChange(model.id)}
+                                                className="flex items-center gap-2 cursor-pointer"
+                                            >
+                                                <ModelSelectorLogo provider={model.provider as any} className="w-4 h-4 mr-1" />
+                                                <div className="flex flex-col flex-1">
+                                                    <span className="text-sm font-medium">{model.name}</span>
+                                                    <span className="text-[10px] text-muted-foreground">{model.description}</span>
+                                                </div>
+                                                {effectiveModel === model.id && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
 
                             {/* Send/Stop/Audio Button */}
                             {isLoading ? (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            onClick={onStop}
-                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors pointer-events-auto opacity-100"
-                                            type="button"
-                                            aria-label="Stop generation"
-                                        >
-                                            <Icons.SquareFilled className="w-4 h-4" />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="text-xs">
-                                        Stop generation (Esc)
-                                    </TooltipContent>
-                                </Tooltip>
+                                !isMobile ? (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                onClick={onStop}
+                                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors pointer-events-auto opacity-100"
+                                                type="button"
+                                                aria-label="Stop generation"
+                                            >
+                                                <Icons.SquareFilled className="w-4 h-4" />
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-xs">
+                                            Stop generation (Esc)
+                                        </TooltipContent>
+                                    </Tooltip>
+                                ) : (
+                                    <button
+                                        onClick={onStop}
+                                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors pointer-events-auto opacity-100"
+                                        type="button"
+                                        aria-label="Stop generation"
+                                    >
+                                        <Icons.SquareFilled className="w-4 h-4" />
+                                    </button>
+                                )
                             ) : !hasContent && audioState === 'idle' ? (
                                 // Audio Recording Button - Show when input is empty
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            onClick={startRecording}
-                                            className={cn(
-                                                "inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all",
-                                                "bg-primary text-primary-foreground hover:bg-primary/90"
-                                            )}
-                                            type="button"
-                                            aria-label="Start dictation"
-                                        >
-                                            <AudioLinesIcon size={16} className="text-primary-foreground" />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="text-xs">
-                                        Dictation
-                                    </TooltipContent>
-                                </Tooltip>
+                                !isMobile ? (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                onClick={startRecording}
+                                                className={cn(
+                                                    "inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all",
+                                                    "bg-primary text-primary-foreground hover:bg-primary/90"
+                                                )}
+                                                type="button"
+                                                aria-label="Start dictation"
+                                            >
+                                                <AudioLinesIcon size={16} className="text-primary-foreground" />
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-xs">
+                                            Dictation
+                                        </TooltipContent>
+                                    </Tooltip>
+                                ) : (
+                                    <button
+                                        onClick={startRecording}
+                                        className={cn(
+                                            "inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all",
+                                            "bg-primary text-primary-foreground hover:bg-primary/90"
+                                        )}
+                                        type="button"
+                                        aria-label="Start dictation"
+                                    >
+                                        <AudioLinesIcon size={16} className="text-primary-foreground" />
+                                    </button>
+                                )
                             ) : audioState !== 'idle' && audioState !== 'no_audio_detected' ? (
                                 // Recording/Transcribing Controls - Simplified
                                 <div className="flex items-center gap-2">
                                     {/* Cancel Dictation */}
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <button
-                                                onClick={cancelRecording}
-                                                disabled={audioState.includes('transcribing')}
-                                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
-                                                type="button"
-                                                aria-label="Cancel dictation"
-                                            >
-                                                <Icons.X className="w-4 h-4" />
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" className="text-xs">
-                                            Cancel Dictation
-                                        </TooltipContent>
-                                    </Tooltip>
+                                    {!isMobile ? (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    onClick={cancelRecording}
+                                                    disabled={audioState.includes('transcribing')}
+                                                    className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
+                                                    type="button"
+                                                    aria-label="Cancel dictation"
+                                                >
+                                                    <Icons.X className="w-4 h-4" />
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="text-xs">
+                                                Cancel Dictation
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    ) : (
+                                        <button
+                                            onClick={cancelRecording}
+                                            disabled={audioState.includes('transcribing')}
+                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
+                                            type="button"
+                                            aria-label="Cancel dictation"
+                                        >
+                                            <Icons.X className="w-4 h-4" />
+                                        </button>
+                                    )}
 
                                     {/* Submit Dictation */}
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <button
-                                                onClick={stopRecording}
-                                                disabled={audioState.includes('transcribing')}
-                                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-                                                type="button"
-                                                aria-label="Submit dictation"
-                                            >
-                                                <Icons.Check className="w-4 h-4" />
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" className="text-xs">
-                                            Submit Dictation
-                                        </TooltipContent>
-                                    </Tooltip>
+                                    {!isMobile ? (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    onClick={stopRecording}
+                                                    disabled={audioState.includes('transcribing')}
+                                                    className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                                    type="button"
+                                                    aria-label="Submit dictation"
+                                                >
+                                                    <Icons.Check className="w-4 h-4" />
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="text-xs">
+                                                Submit Dictation
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    ) : (
+                                        <button
+                                            onClick={stopRecording}
+                                            disabled={audioState.includes('transcribing')}
+                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                            type="button"
+                                            aria-label="Submit dictation"
+                                        >
+                                            <Icons.Check className="w-4 h-4" />
+                                        </button>
+                                    )}
                                 </div>
                             ) : (
                                 // Regular Send Button
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            onClick={handleSend}
-                                            disabled={!hasContent}
-                                            className={cn(
-                                                "inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all",
-                                                hasContent
-                                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                                    : "bg-muted text-muted-foreground cursor-not-allowed"
-                                            )}
-                                            type="button"
-                                            aria-label="Send message"
-                                        >
-                                            <Icons.ArrowUp className="w-4 h-4" />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="text-xs">
-                                        {hasContent ? 'Send message (Enter)' : 'Message is empty'}
-                                    </TooltipContent>
-                                </Tooltip>
+                                !isMobile ? (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                onClick={handleSend}
+                                                disabled={!hasContent}
+                                                className={cn(
+                                                    "inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all",
+                                                    hasContent
+                                                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                                        : "bg-muted text-muted-foreground cursor-not-allowed"
+                                                )}
+                                                type="button"
+                                                aria-label="Send message"
+                                            >
+                                                <Icons.ArrowUp className="w-4 h-4" />
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-xs">
+                                            {hasContent ? 'Send message (Enter)' : 'Message is empty'}
+                                        </TooltipContent>
+                                    </Tooltip>
+                                ) : (
+                                    <button
+                                        onClick={handleSend}
+                                        disabled={!hasContent}
+                                        className={cn(
+                                            "inline-flex items-center justify-center h-8 w-8 rounded-lg transition-all",
+                                            hasContent
+                                                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                                : "bg-muted text-muted-foreground cursor-not-allowed"
+                                        )}
+                                        type="button"
+                                        aria-label="Send message"
+                                    >
+                                        <Icons.ArrowUp className="w-4 h-4" />
+                                    </button>
+                                )
                             )}
                         </div>
                     </div>

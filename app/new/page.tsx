@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useUser } from "@/components/user-context"
-import { IconPlus, IconChevronLeft, IconMessage, IconSettings, IconFolder, IconSearch, IconChevronRight, IconMenu, IconX, IconEdit, IconTrash, IconChevronDown, IconStar, IconDownload, IconPencil, IconArrowDown, IconSparkles, IconRotateClockwise, IconBookmark } from "@tabler/icons-react";
+import { IconPlus, IconChevronLeft, IconMessage, IconSettings, IconFolder, IconSearch, IconChevronRight, IconMenu, IconX, IconEdit, IconTrash, IconChevronDown, IconStar, IconDownload, IconPencil, IconArrowDown, IconRotateClockwise, IconBookmark } from "@tabler/icons-react";
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
 
@@ -1815,9 +1815,6 @@ export default function AssistantPage() {
 
                             {/* Greeting / Brand */}
                             <div className="text-center space-y-2">
-                                <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-primary/10 mb-4">
-                                    <IconSparkles className="size-8 text-primary" />
-                                </div>
                                 <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
                                     How can I help you today?
                                 </h1>

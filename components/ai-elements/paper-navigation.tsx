@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { useIsMobileDevice } from '@/lib/mobile-utils';
 
 interface Block {
     id?: string;
@@ -29,6 +30,7 @@ export function PaperScrollNavigation({
     highlightBlock,
     clearHighlight 
 }: PaperScrollNavigationProps) {
+    const isMobile = useIsMobileDevice();
     const [activeId, setActiveId] = useState<string | null>(null);
     const [isHovered, setIsHovered] = useState(false);
     const [highlightedId, setHighlightedId] = useState<string | null>(null);
@@ -47,6 +49,9 @@ export function PaperScrollNavigation({
             ...b,
             level: getHeadingLevel(b.type as string)
         }));
+
+    // Hide navigation on mobile devices
+    if (isMobile) return null;
 
     // Handle navigation only on user interaction
     const handleNavigationInfo = (id: string) => {

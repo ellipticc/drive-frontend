@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { useIsMobileDevice } from '@/lib/mobile-utils';
 
 interface Message {
     id?: string;
@@ -15,6 +16,7 @@ interface ChatScrollNavigationProps {
 }
 
 export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNavigationProps) {
+    const isMobile = useIsMobileDevice();
     const [activeId, setActiveId] = useState<string | null>(null);
     const [isHovered, setIsHovered] = useState(false);
     const observerRef = useRef<IntersectionObserver | null>(null);
@@ -26,6 +28,9 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
 
     // Filter only user messages that have IDs
     const userMessages = messages.filter(m => m.role === 'user' && m.id && m.content);
+
+    // Hide navigation on mobile devices
+    if (isMobile) return null;
 
     // Handle navigation only on user interaction
     const handleNavigationInfo = (id: string) => {
