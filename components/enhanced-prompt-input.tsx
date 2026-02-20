@@ -10,19 +10,6 @@ import { useAudioRecording } from "@/hooks/use-audio-recording";
 import { AudioLinesIcon } from "@/components/ui/audio-lines";
 import { useIsMobileDevice } from "@/lib/mobile-utils";
 
-export const Icons = {
-    Plus: IconPlus,
-    Thinking: IconBrain,
-    SelectArrow: IconChevronDown,
-    ArrowUp: IconArrowUp,
-    X: IconX,
-    SquareFilled: IconSquareFilled,
-    FileText: IconFileText,
-    Loader2: IconLoader2,
-    Check: IconCheck,
-    Archive: IconArchive,
-};
-
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -40,6 +27,19 @@ import {
     ContextWindowBreakdown,
 } from "@/components/ai-elements/context"
 import { Shimmer } from "@/components/ai-elements/shimmer";
+
+export const Icons = {
+    Plus: IconPlus,
+    Thinking: IconBrain,
+    SelectArrow: IconChevronDown,
+    ArrowUp: IconArrowUp,
+    X: IconX,
+    SquareFilled: IconSquareFilled,
+    FileText: IconFileText,
+    Loader2: IconLoader2,
+    Check: IconCheck,
+    Archive: IconArchive,
+};
 
 interface AttachedFile {
     id: string;
