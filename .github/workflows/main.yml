@@ -29,11 +29,29 @@ jobs:
           TIME=$(git show -s --format=%cI HEAD 2>/dev/null || date -u --iso-8601=seconds)
           echo "time=$TIME" >> $GITHUB_OUTPUT
 
+      - name: Determine NODE_ENV
+        id: node_env
+        env:
+          # Read repository-level variable NODE_ENV if provided
+          REPO_NODE_ENV: ${{ vars.NODE_ENV }}
+        run: |
+          # Prefer repository variable NODE_ENV if set; otherwise default to 'production'
+          if [ -n "${REPO_NODE_ENV}" ]; then
+            echo "Using repository NODE_ENV=${REPO_NODE_ENV}"
+            echo "node_env=${REPO_NODE_ENV}" >> $GITHUB_OUTPUT
+          else
+            # Default to production for CI builds
+            echo "NODE_ENV not set in repository variables — defaulting to 'production'"
+            echo "node_env=production" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and Export
         run: npm run build
         env:
-          # Add build-time environment variables here
-          NODE_ENV: production
+          # NODE_ENV for the build — resolved from repository variable or default
+          NODE_ENV: ${{ steps.node_env.outputs.node_env }}
+          # Expose to frontend as a runtime-accessible public var
+          NEXT_PUBLIC_APP_ENV: ${{ steps.node_env.outputs.node_env }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           NEXT_PUBLIC_GOOGLE_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_API_KEY }}
