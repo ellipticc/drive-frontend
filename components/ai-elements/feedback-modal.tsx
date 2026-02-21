@@ -131,7 +131,7 @@ export function FeedbackModal({
                             value={details}
                             onChange={(e) => setDetails(e.target.value)}
                             maxLength={1000}
-                            className="resize-none h-32 overflow-y-auto"
+                            className="resize-none h-32 overflow-y-auto [field-sizing:fixed]"
                         />
                     </div>
 

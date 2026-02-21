@@ -201,17 +201,17 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
           )}
         >
           <div className="flex items-center w-full relative">
-            <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight group-hover/chat-item:[mask-image:linear-gradient(to_right,black_80%,transparent_100%)]" />
+            <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight pr-6" />
 
             {/* Actions dropdown on hover */}
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 focus-within:opacity-100 transition-opacity flex items-center bg-transparent">
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 focus-within:opacity-100 transition-opacity flex items-center bg-transparent">
               <DropdownMenu>
                 <Tooltip delayDuration={300}>
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
                       <div
                         role="button"
-                        className="flex items-center justify-center size-6 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/50 hover:text-sidebar-foreground cursor-pointer"
+                        className="flex items-center justify-center size-5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/80 hover:text-sidebar-foreground cursor-pointer"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <IconDotsVertical className="size-4" />
@@ -399,7 +399,8 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
       </SidebarMenuButton>
 
       {isExpanded && state !== "collapsed" && (
-        <SidebarMenuSub className="mx-0 border-none px-0">
+        <SidebarMenuSub className="relative mx-0 border-none px-0">
+          <div className="absolute left-3.5 top-0 bottom-0 w-px bg-border/50 pointer-events-none group-data-[collapsible=icon]:hidden" />
           {visibleChats.map((chat) => (
             <ChatItem key={chat.id} chat={chat} actions={actions} />
           ))}
@@ -482,7 +483,8 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
       </SidebarMenuButton>
 
       {isExpanded && state !== "collapsed" && (
-        <SidebarMenuSub className="mx-0 border-none px-0">
+        <SidebarMenuSub className="relative mx-0 border-none px-0">
+          <div className="absolute left-3.5 top-0 bottom-0 w-px bg-border/50 pointer-events-none group-data-[collapsible=icon]:hidden" />
           {groups.map((group, groupIdx) => {
             const hasGroupMore = hasMore && groupIdx === groups.length - 1;
             const limit = hasGroupMore
@@ -495,7 +497,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
 
             return (
               <React.Fragment key={group.label}>
-                <div className="pl-8 py-1.5 text-[10px] uppercase font-semibold text-muted-foreground/50 tracking-wider">
+                <div className="pl-8 py-1.5 text-xs font-medium text-muted-foreground/70 select-none tracking-tight">
                   {group.label}
                 </div>
                 {visibleChats.map((chat) => (
