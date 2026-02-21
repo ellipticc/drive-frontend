@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconThumbUp, IconCheck, IconX, IconCode, IconChevronDown, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowsMinimize, IconBrain, IconClock, IconBookmark, IconArrowRight } from "@tabler/icons-react"
+import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconThumbUp, IconCheck, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowsMinimize, IconBrain, IconArrowRight, IconHandStop } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
@@ -468,8 +468,13 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                         onClick={handleDownload}
                                     />
 
-                                    {/* Timing Metrics Indicator */}
-                                    {message.total_time !== undefined && Number(message.total_time) > 0 && (() => {
+                                    {/* Timing Metrics Indicator / Interrupted State */}
+                                    {message.content && /Stopped by user/i.test(message.content) ? (
+                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md bg-muted/40 border border-border/40 select-none cursor-default">
+                                            <IconHandStop className="size-3.5" />
+                                            <span>Interrupted</span>
+                                        </div>
+                                    ) : message.total_time !== undefined && Number(message.total_time) > 0 && (() => {
                                         const totalTime = Number(message.total_time);
                                         const ttft = Number(message.ttft);
                                         const tps = Number(message.tps);

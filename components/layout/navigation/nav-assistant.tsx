@@ -13,9 +13,6 @@ import {
   IconTrash,
 } from "@tabler/icons-react"
 import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -399,7 +396,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
       </SidebarMenuButton>
 
       {isExpanded && state !== "collapsed" && (
-        <SidebarMenuSub className="relative mx-0 border-none px-0">
+        <SidebarMenuSub className="relative mx-0 border-none px-0 min-w-0">
           <div className="absolute left-3.5 top-0 bottom-0 w-px bg-border/50 pointer-events-none group-data-[collapsible=icon]:hidden" />
           {visibleChats.map((chat) => (
             <ChatItem key={chat.id} chat={chat} actions={actions} />
@@ -409,7 +406,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
             <SidebarMenuSubItem>
               <SidebarMenuSubButton
                 asChild
-                className="text-muted-foreground/60 hover:text-muted-foreground cursor-pointer transition-colors"
+                className="text-muted-foreground/60 hover:text-muted-foreground cursor-pointer transition-colors ml-5 px-3 h-8 rounded-md min-w-0"
                 onClick={onSearchOpen}
               >
                 <span>See all</span>
@@ -483,7 +480,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
       </SidebarMenuButton>
 
       {isExpanded && state !== "collapsed" && (
-        <SidebarMenuSub className="relative mx-0 border-none px-0">
+        <SidebarMenuSub className="relative mx-0 border-none px-0 min-w-0">
           <div className="absolute left-3.5 top-0 bottom-0 w-px bg-border/50 pointer-events-none group-data-[collapsible=icon]:hidden" />
           {groups.map((group, groupIdx) => {
             const hasGroupMore = hasMore && groupIdx === groups.length - 1;
@@ -511,7 +508,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
             <SidebarMenuSubItem>
               <SidebarMenuSubButton
                 asChild
-                className="text-muted-foreground/60 hover:text-muted-foreground cursor-pointer transition-colors"
+                className="text-muted-foreground/60 hover:text-muted-foreground cursor-pointer transition-colors ml-5 px-3 h-8 rounded-md min-w-0"
                 onClick={onSearchOpen}
               >
                 <span>See all</span>
