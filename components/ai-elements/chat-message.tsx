@@ -470,7 +470,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
 
                                     {/* Timing Metrics Indicator / Interrupted State */}
                                     {message.content && /Stopped by user/i.test(message.content) ? (
-                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md bg-muted/40 border border-border/40 select-none cursor-default">
+                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md select-none cursor-default">
                                             <IconHandStop className="size-3.5" />
                                             <span>Interrupted</span>
                                         </div>

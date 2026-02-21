@@ -1516,7 +1516,7 @@ export default function AssistantPage() {
     const handleCancel = () => {
         const controller = abortControllerRef.current;
         if (controller) {
-            // Mark we're cancelling; do NOT set isLoading false here so UI indicates stopping
+            // Mark we're cancelling
             setIsCancelling(true);
             try {
                 controller.abort();
@@ -1525,22 +1525,27 @@ export default function AssistantPage() {
             }
 
             // Update UI to reflect immediate stop intent (partial content preserved)
-            setMessages(prev => {
-                const newMessages = [...prev];
-                const lastIdx = newMessages.length - 1;
-                const lastMessage = newMessages[lastIdx];
-                if (lastMessage && lastMessage.role === 'assistant') {
-                    const newContent = lastMessage.content && !/Stopped by user/i.test(lastMessage.content)
-                        ? lastMessage.content + "\n\n*Stopped by user.*"
-                        : lastMessage.content;
-                    newMessages[lastIdx] = {
-                        ...lastMessage,
-                        isThinking: false,
-                        content: newContent
-                    };
-                }
-                return newMessages;
-            });
+            const lastMessage = messages[messages.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant') {
+                const newContent = lastMessage.content && !/Stopped by user/i.test(lastMessage.content)
+                    ? lastMessage.content + "\n\n*Stopped by user.*"
+                    : lastMessage.content;
+
+                setMessages(prev => {
+                    const newMessages = [...prev];
+                    const lastIdx = newMessages.length - 1;
+                    if (newMessages[lastIdx] && newMessages[lastIdx].role === 'assistant') {
+                        newMessages[lastIdx] = {
+                            ...newMessages[lastIdx],
+                            isThinking: false,
+                            content: newContent
+                        };
+                    }
+                    return newMessages;
+                });
+
+                console.log('[Cancel] User stopped generation, truncated content shown');
+            }
         }
     };
 

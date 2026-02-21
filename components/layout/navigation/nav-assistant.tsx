@@ -193,8 +193,8 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
           isActive={isActive}
           onClick={handleNavigate}
           className={cn(
-            "group/chat-item relative cursor-pointer ml-5 px-3 h-8 rounded-md transition-none",
-            isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+            "group/chat-item relative cursor-pointer ml-5 px-3 h-8 rounded-md transition-none w-40",
+            isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:text-sidebar-accent-foreground"
           )}
         >
           <div className="flex items-center w-full relative">
@@ -406,7 +406,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
             <SidebarMenuSubItem>
               <SidebarMenuSubButton
                 asChild
-                className="text-muted-foreground/60 hover:text-muted-foreground cursor-pointer transition-colors ml-5 px-3 h-8 rounded-md min-w-0"
+                className="text-muted-foreground/60 hover:text-muted-foreground cursor-pointer ml-5 px-3 h-8 rounded-md min-w-0"
                 onClick={onSearchOpen}
               >
                 <span>See all</span>
@@ -508,7 +508,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
             <SidebarMenuSubItem>
               <SidebarMenuSubButton
                 asChild
-                className="text-muted-foreground/60 hover:text-muted-foreground cursor-pointer transition-colors ml-5 px-3 h-8 rounded-md min-w-0"
+                className="text-muted-foreground/60 hover:text-muted-foreground cursor-pointer ml-5 px-3 h-8 rounded-md min-w-0"
                 onClick={onSearchOpen}
               >
                 <span>See all</span>
