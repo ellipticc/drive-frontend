@@ -118,7 +118,7 @@ function SmartTruncatedTooltip({ text, className }: { text: string; className?: 
           ref={textRef}
           onMouseEnter={checkTruncation}
           className={cn(
-            "block whitespace-nowrap overflow-hidden [mask-image:linear-gradient(to_right,#000_calc(100%-28px),transparent)]",
+            "block whitespace-nowrap overflow-hidden [mask-image:linear-gradient(to_right,#000_calc(100%-28px),transparent)] group-hover/chat-item:[mask-image:none]",
             className
           )}
         >
@@ -196,7 +196,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
           isActive={isActive}
           onClick={handleNavigate}
           className={cn(
-            "group/chat-item relative cursor-pointer",
+            "group/chat-item relative cursor-pointer hover:pr-10",
             isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
           )}
         >
@@ -204,14 +204,14 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
             <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight" />
 
             {/* Actions dropdown on hover */}
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 transition-opacity flex items-center bg-transparent">
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 transition-opacity flex items-center bg-transparent">
               <DropdownMenu>
                 <Tooltip delayDuration={300}>
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
                       <div
                         role="button"
-                        className="flex items-center justify-center size-5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/50 hover:text-sidebar-foreground cursor-pointer"
+                        className="flex items-center justify-center w-8 h-6 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/50 hover:text-sidebar-foreground cursor-pointer"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <IconDotsVertical className="size-4" />
