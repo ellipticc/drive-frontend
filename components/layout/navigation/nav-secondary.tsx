@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sidebar"
 import { SupportRequestDialog } from "@/components/support-request-dialog"
 import { FeedbackPopover } from "@/components/modals/feedback-popover"
+import { FeedbackDialog } from "@/components/modals/feedback-dialog"
 import { Kbd } from "@/components/ui/kbd"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -172,31 +173,62 @@ export function NavSecondary({
                     )}
                   </SidebarMenuButton>
                 ) : item.id === "feedback" ? (
-                  <Tooltip>
-                    <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
-                      <TooltipTrigger asChild>
-                        <SidebarMenuButton
-                          isActive={feedbackOpen}
-                          className="pr-8 group/nav group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
-                        >
-                          {(() => {
-                            const IconComponent = getIcon(item, feedbackOpen)
-                            return <IconComponent className="size-4 shrink-0" />
-                          })()}
-                          <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
-                          <div className="ms-auto opacity-0 group-hover/nav:opacity-60 transition-opacity group-data-[collapsible=icon]:hidden">
-                            <Kbd>F</Kbd>
+                  // Use Dialog on mobile, Popover on desktop
+                  isMobile ? (
+                    <>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <SidebarMenuButton
+                            isActive={feedbackOpen}
+                            onClick={() => setFeedbackOpen(true)}
+                            className="pr-8 group/nav group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
+                          >
+                            {(() => {
+                              const IconComponent = getIcon(item, feedbackOpen)
+                              return <IconComponent className="size-4 shrink-0" />
+                            })()}
+                            <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
+                            <div className="ms-auto opacity-0 group-hover/nav:opacity-60 transition-opacity group-data-[collapsible=icon]:hidden">
+                              <Kbd>F</Kbd>
+                            </div>
+                          </SidebarMenuButton>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" hidden={state !== 'collapsed' || isMobile}>
+                          <div className="flex items-center gap-1">
+                            {item.title}
+                            {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
                           </div>
-                        </SidebarMenuButton>
-                      </TooltipTrigger>
-                    </FeedbackPopover>
-                    <TooltipContent side="right" hidden={state !== 'collapsed' || isMobile}>
-                      <div className="flex items-center gap-1">
-                        {item.title}
-                        {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
+                        </TooltipContent>
+                      </Tooltip>
+                      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+                    </>
+                  ) : (
+                    <Tooltip>
+                      <FeedbackPopover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+                        <TooltipTrigger asChild>
+                          <SidebarMenuButton
+                            isActive={feedbackOpen}
+                            className="pr-8 group/nav group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
+                          >
+                            {(() => {
+                              const IconComponent = getIcon(item, feedbackOpen)
+                              return <IconComponent className="size-4 shrink-0" />
+                            })()}
+                            <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
+                            <div className="ms-auto opacity-0 group-hover/nav:opacity-60 transition-opacity group-data-[collapsible=icon]:hidden">
+                              <Kbd>F</Kbd>
+                            </div>
+                          </SidebarMenuButton>
+                        </TooltipTrigger>
+                      </FeedbackPopover>
+                      <TooltipContent side="right" hidden={state !== 'collapsed' || isMobile}>
+                        <div className="flex items-center gap-1">
+                          {item.title}
+                          {item.shortcut && <Kbd>{item.shortcut}</Kbd>}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  )
                 ) : (
                   <SidebarMenuButton
                     asChild

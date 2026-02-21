@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { IconPlus, IconChevronDown, IconArrowUp, IconX, IconFileText, IconLoader2, IconCheck, IconArchive, IconBrain, IconWorld, IconSquareFilled, IconAlertCircle, IconWand, IconArrowBackUp } from "@tabler/icons-react";
+import { IconPlus, IconChevronDown, IconArrowUp, IconX, IconFileText, IconLoader2, IconCheck, IconArchive, IconBrain, IconWorld, IconSquareFilled, IconAlertCircle, IconWand, IconArrowBackUp, IconPaperclip } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
@@ -283,6 +283,8 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const handleSend = async () => {
         if ((!message.trim() && files.length === 0 && contextItems.length === 0) || isLoading) return;
 
+        setOriginalMessage(null);
+
         // Check token limit before sending
         if (isPromptTooLong(message)) {
             setTokenError(true);
@@ -416,7 +418,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
 
 
                     <div className={cn("relative mb-1", isLoading && "pointer-events-none")}>
-                        <div className="max-h-60 w-full overflow-y-auto overflow-x-hidden custom-scrollbar font-sans break-words min-h-[2.5rem] pl-1 relative">
+                        <div className="max-h-60 w-full overflow-y-auto overflow-x-hidden custom-scrollbar font-sans break-words min-h-[2.5rem] pl-1 pr-14 relative">
                             {isImproving ? (
                                 <Shimmer className="w-full text-[16px] leading-relaxed py-0 block min-h-[1.5em] text-foreground p-[2px]">
                                     {message || "Improving..."}
@@ -454,8 +456,8 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                     <div className="flex gap-2 w-full items-center justify-between">
 
                         <div className={cn("flex items-center gap-1", isLoading && "pointer-events-none")}>
-                            {/* Attach File Button - No tooltip on mobile */}
-                            {!isMobile ? (
+                            {/* Attach File Button - Desktop only, Mobile uses dropdown */}
+                            {!isMobile && (
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <button
@@ -471,15 +473,6 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                         Attach files
                                     </TooltipContent>
                                 </Tooltip>
-                            ) : (
-                                <button
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                                    type="button"
-                                    aria-label="Attach file"
-                                >
-                                    <Icons.Plus className="w-5 h-5" />
-                                </button>
                             )}
 
                             {/* Desktop: Show Reasoning & Search inline */}
@@ -551,7 +544,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                             <TooltipTrigger asChild>
                                                 <button
                                                     onClick={handleRevert}
-                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all text-primary bg-primary/15"
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                                                     type="button"
                                                 >
                                                     <IconArrowBackUp className="w-4 h-4" />
@@ -588,13 +581,24 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                 </>
                             )}
 
-                            {/* Mobile: More dropdown with Reasoning & Search */}
+                            {/* Mobile: More dropdown with Reasoning, Search, Files & Improve */}
                             {isMobile && (
                                 <DropdownMenu>
                                     <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all">
                                         <Icons.Plus className="w-4 h-4" />
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent side="top" align="start">
+                                    <DropdownMenuContent side="top" align="start" className="w-max">
+                                        {/* Attach File Option */}
+                                        <DropdownMenuItem
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="cursor-pointer"
+                                        >
+                                            <IconPaperclip className="w-4 h-4 mr-2" />
+                                            <span>Attach Files</span>
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuSeparator />
+
                                         {/* Reasoning Option */}
                                         <DropdownMenuItem
                                             onClick={() => {
@@ -620,7 +624,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
 
                                         <DropdownMenuSeparator />
 
-                                        {/* Improve Option */}
+                                        {/* Improve/Revert Option */}
                                         <DropdownMenuItem
                                             onClick={originalMessage !== null ? handleRevert : handleImprove}
                                             disabled={!message.trim() || isImproving || isLoading}

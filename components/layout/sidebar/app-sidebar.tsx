@@ -244,7 +244,7 @@ export const AppSidebar = React.memo(function AppSidebar({
   }
 
   return (
-    <Sidebar collapsible="icon" className="bg-sidebar" {...props}>
+    <Sidebar collapsible="icon" className="bg-sidebar flex flex-col" {...props}>
       <SidebarHeader className="gap-2 p-2">
         <SidebarMenu>
           <SidebarMenuItem>
@@ -354,10 +354,10 @@ export const AppSidebar = React.memo(function AppSidebar({
           </CommandList>
         </CommandDialog>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="flex-1">
         <NavMain items={data.navMain} />
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="mt-auto">
         <NavSecondary items={data.navSecondary} />
         <NavUser user={data.user} />
       </SidebarFooter>

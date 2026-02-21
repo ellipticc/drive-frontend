@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { apiClient } from "@/lib/api"
-import { IconBubbleText, IconLoader2, IconDatabaseSmile } from "@tabler/icons-react"
+import { IconLoader2 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { usePathname } from "next/navigation"
 
@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Kbd } from "@/components/ui/kbd"
 
 interface FeedbackPopoverProps extends React.HTMLAttributes<HTMLElement> {
     children: React.ReactNode
