@@ -2,6 +2,7 @@
 
 import {
   IconChevronRight,
+  IconChevronDown,
   IconLoader2,
   type Icon,
   IconStack2Filled,
@@ -66,6 +67,8 @@ export function NavMain({
     }
     return false
   })
+
+  const [isVaultHovered, setIsVaultHovered] = useState(false)
 
   // attestations UI removed; state previously used for attestations submenu (removed)
 
@@ -214,6 +217,8 @@ export function NavMain({
               return (
                 <SidebarMenuItem key={item.id || item.title} className="space-y-1">
                   <SidebarMenuButton
+                    onMouseEnter={() => setIsVaultHovered(true)}
+                    onMouseLeave={() => setIsVaultHovered(false)}
                     tooltip={item.shortcut ? {
                       children: (
                         <div className="flex items-center gap-2">
@@ -225,7 +230,6 @@ export function NavMain({
                     isActive={pathname === item.url}
                     onClick={(e) => {
                       if (item.url === '/vault') {
-                        // Force simple navigation to vault root
                         const hasFolderId = searchParams.get('folderId');
                         if (pathname === '/vault' && !hasFolderId) return;
                         handleNavigate('/vault');
@@ -233,15 +237,35 @@ export function NavMain({
                         handleNavigate(item.url);
                       }
                     }}
-                    className="cursor-pointer group/nav-item pr-8"
+                    className="cursor-pointer group/nav-item"
                     data-space-id="root"
                     data-space-name="Vault"
                   >
-                    {(() => {
-                      const isActive = pathname === item.url
-                      const IconComponent = getIcon(item, isActive)
-                      return IconComponent && <IconComponent className="shrink-0" />
-                    })()}
+                    {!isMyFilesLeaf ? (
+                      <div
+                        role="button"
+                        onClick={toggleMyFiles}
+                        className="flex items-center justify-center p-0.5 -ml-1 mr-1 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                      >
+                        {isVaultHovered && state !== 'collapsed' ? (
+                          <IconChevronDown
+                            className={cn("size-4 shrink-0 transition-transform duration-200", !isMyFilesExpanded && "-rotate-90")}
+                          />
+                        ) : (
+                          (() => {
+                            const isActive = pathname === item.url;
+                            const IconComponent = getIcon(item, isActive);
+                            return IconComponent && <IconComponent className="shrink-0 size-4" />;
+                          })()
+                        )}
+                      </div>
+                    ) : (
+                      (() => {
+                        const isActive = pathname === item.url;
+                        const IconComponent = getIcon(item, isActive);
+                        return IconComponent && <IconComponent className="shrink-0" />;
+                      })()
+                    )}
                     <span>{item.title}</span>
                     {item.shortcut && (
                       <kbd className="pointer-events-none ml-auto h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/nav-item:opacity-100 transition-opacity sm:inline-flex">
@@ -254,17 +278,6 @@ export function NavMain({
                       </span>
                     )}
                   </SidebarMenuButton>
-                  {!isMyFilesLeaf && state !== 'collapsed' && (
-                    <div
-                      role="button"
-                      onClick={toggleMyFiles}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-20 cursor-pointer"
-                    >
-                      <IconChevronRight
-                        className={cn("size-3.5 transition-transform duration-200", isMyFilesExpanded && "rotate-90")}
-                      />
-                    </div>
-                  )}
 
                   {/* Always render submenu container for Folders */}
                   {isMyFilesExpanded && (

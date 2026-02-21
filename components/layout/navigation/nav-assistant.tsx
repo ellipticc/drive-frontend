@@ -196,7 +196,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
           isActive={isActive}
           onClick={handleNavigate}
           className={cn(
-            "group/chat-item relative cursor-pointer hover:pr-10",
+            "group/chat-item relative cursor-pointer hover:pr-7",
             isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
           )}
         >
@@ -211,7 +211,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
                     <DropdownMenuTrigger asChild>
                       <div
                         role="button"
-                        className="flex items-center justify-center w-8 h-6 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/50 hover:text-sidebar-foreground cursor-pointer"
+                        className="flex items-center justify-center size-6 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/50 hover:text-sidebar-foreground cursor-pointer"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <IconDotsVertical className="size-4" />

@@ -41,6 +41,26 @@ export function useAICrypto(): UseAICryptoReturn {
 
     const [chats, setChats] = useState<{ id: string, title: string, pinned: boolean, archived: boolean, createdAt: string }[]>([]);
 
+    // Cross-instance sync: dispatch and listen for chat mutations via custom events
+    const instanceId = useRef(Math.random().toString(36));
+
+    const broadcastChats = useCallback((updatedChats: typeof chats) => {
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('chat-mutation', { detail: { chats: updatedChats, source: instanceId.current } }));
+        }
+    }, []);
+
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail;
+            if (detail.source !== instanceId.current) {
+                setChats(detail.chats);
+            }
+        };
+        window.addEventListener('chat-mutation', handler);
+        return () => window.removeEventListener('chat-mutation', handler);
+    }, []);
+
     // Cache guard: prevent re-fetching chats on every re-render
     const hasLoadedChats = useRef(false);
 
@@ -158,42 +178,53 @@ export function useAICrypto(): UseAICryptoReturn {
             });
 
             // Optimistic Update
-            setChats(prev => prev.map(c => c.id === conversationId ? { ...c, title: newTitle } : c));
+            const updated = chats.map(c => c.id === conversationId ? { ...c, title: newTitle } : c);
+            setChats(updated);
+            broadcastChats(updated);
         } catch (e) {
             console.error("Failed to rename chat:", e);
             throw e;
         }
-    }, [userKeys, kyberPublicKey]);
+    }, [userKeys, kyberPublicKey, chats, broadcastChats]);
 
     const pinChat = useCallback(async (conversationId: string, pinned: boolean) => {
         // Optimistic update
-        setChats(prev => prev.map(c => c.id === conversationId ? { ...c, pinned } : c));
+        const updated = chats.map(c => c.id === conversationId ? { ...c, pinned } : c);
+        setChats(updated);
+        broadcastChats(updated);
         try {
             await apiClient.updateChat(conversationId, { pinned });
         } catch (e) {
             console.error("Failed to pin chat:", e);
             // Revert on failure
-            setChats(prev => prev.map(c => c.id === conversationId ? { ...c, pinned: !pinned } : c));
+            const reverted = chats.map(c => c.id === conversationId ? { ...c, pinned: !pinned } : c);
+            setChats(reverted);
+            broadcastChats(reverted);
         }
-    }, []);
+    }, [chats, broadcastChats]);
 
     const archiveChat = useCallback(async (conversationId: string, archived: boolean) => {
-        setChats(prev => prev.map(c => c.id === conversationId ? { ...c, archived } : c)); // Optimistic
+        const updated = chats.map(c => c.id === conversationId ? { ...c, archived } : c);
+        setChats(updated);
+        broadcastChats(updated);
         try {
             await apiClient.updateChat(conversationId, { archived });
         } catch (err) {
             console.error("Failed to archive chat", err);
-            setChats(prev => prev.map(c => c.id === conversationId ? { ...c, archived: !archived } : c)); // Revert
+            const reverted = chats.map(c => c.id === conversationId ? { ...c, archived: !archived } : c);
+            setChats(reverted);
+            broadcastChats(reverted);
         }
-    }, []);
+    }, [chats, broadcastChats]);
 
     const deleteChat = useCallback(async (conversationId: string) => {
-        setChats(prev => prev.filter(c => c.id !== conversationId)); // Optimistic
+        const updated = chats.filter(c => c.id !== conversationId);
+        setChats(updated);
+        broadcastChats(updated);
 
         if (typeof window !== "undefined") {
             const currentUrlId = new URLSearchParams(window.location.search).get('conversationId');
             if (currentUrlId === conversationId) {
-                // Redirect to new chat
                 window.history.replaceState(null, '', '/new');
             }
         }
@@ -202,9 +233,9 @@ export function useAICrypto(): UseAICryptoReturn {
             await apiClient.deleteChat(conversationId);
         } catch (err) {
             console.error("Failed to delete chat:", err);
-            loadChats(); // Revert/Reload if failed
+            loadChats();
         }
-    }, [loadChats]);
+    }, [chats, broadcastChats, loadChats]);
 
     // Helper: Parse thinking tags from content and move to reasoning (supports both <thinking> and <think>)
     const parseThinkingFromContent = (content: string, existingReasoning?: string): { content: string; reasoning: string } => {

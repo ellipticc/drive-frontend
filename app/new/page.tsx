@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useUser } from "@/components/user-context"
-import { IconPlus, IconChevronLeft, IconMessage, IconSettings, IconFolder, IconSearch, IconChevronRight, IconMenu, IconX, IconEdit, IconTrash, IconChevronDown, IconStar, IconDownload, IconPencil, IconArrowDown, IconRotateClockwise, IconBookmark } from "@tabler/icons-react";
+import { IconPlus, IconChevronLeft, IconMessage, IconSettings, IconFolder, IconSearch, IconChevronRight, IconMenu, IconX, IconEdit, IconTrash, IconChevronDown, IconPin, IconPinFilled, IconDownload, IconPencil, IconArrowDown, IconRotateClockwise, IconBookmark } from "@tabler/icons-react";
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
 
@@ -95,7 +95,7 @@ export default function AssistantPage() {
     const hasScrolledRef = React.useRef(false);
     const shouldAutoScrollRef = React.useRef(true);
 
-    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats, chats, renameChat, deleteChat } = useAICrypto();
+    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats, chats, renameChat, pinChat, deleteChat } = useAICrypto();
 
     // Available models for system rerun popovers
     const availableModels = [
@@ -1673,13 +1673,14 @@ export default function AssistantPage() {
 
     const handleToggleStar = async () => {
         if (!conversationId) return;
+        const newPinned = !isStarred;
+        setIsStarred(newPinned); // Optimistic local UI
         try {
-            const newStarred = !isStarred;
-            await apiClient.updateConversation(conversationId, { pinned: newStarred });
-            setIsStarred(newStarred);
-            toast.success(newStarred ? "Chat starred" : "Chat unstarred");
+            await pinChat(conversationId, newPinned);
+            toast.success(newPinned ? "Chat pinned" : "Chat unpinned");
         } catch (e) {
             console.error("Failed to update chat", e);
+            setIsStarred(!newPinned); // Revert
             toast.error("Failed to update chat");
         }
     };
@@ -1741,8 +1742,8 @@ export default function AssistantPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start" className="w-48">
                                 <DropdownMenuItem onClick={handleToggleStar}>
-                                    <IconStar className={cn("mr-2 size-4", isStarred ? "fill-primary text-primary" : "")} />
-                                    {isStarred ? "Unstar" : "Star"}
+                                    {isStarred ? <IconPinFilled className="mr-2 size-4 text-primary" /> : <IconPin className="mr-2 size-4" />}
+                                    {isStarred ? "Unpin" : "Pin"}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => {
                                     setTempTitle(chatTitle || "New Chat");
@@ -1773,11 +1774,11 @@ export default function AssistantPage() {
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors" onClick={handleToggleStar}>
-                        <IconStar className={cn("size-4", isStarred ? "fill-primary text-primary" : "")} />
+                        {isStarred ? <IconPinFilled className="size-4 text-primary" /> : <IconPin className="size-4" />}
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                    <p>{isStarred ? "Unstar" : "Star"}</p>
+                    <p>{isStarred ? "Unpin" : "Pin"}</p>
                 </TooltipContent>
             </Tooltip>
 
