@@ -355,64 +355,58 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
   const hasMore = pinnedChats.length > MAX_VISIBLE_CHATS_PINNED
 
   return (
-    <SidebarGroup className="p-0 px-2 mt-1">
-      <SidebarGroupContent>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={onSearchOpen}
+        className="cursor-pointer group/nav-item transition-all"
+        tooltip={{
+          children: "Pinned",
+          side: "right",
+          hidden: state !== "collapsed"
+        }}
+      >
+        <div
+          role="button"
+          onClick={toggleExpanded}
+          className="flex items-center justify-center p-0.5 -ml-1 mr-1 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+        >
+          {isHovered && state !== "collapsed" ? (
+            <IconChevronDown
+              className={cn(
+                "size-4 shrink-0 transition-transform duration-200",
+                !isExpanded && "-rotate-90"
+              )}
+            />
+          ) : (
+            <IconPinFilled className="size-4 shrink-0 text-muted-foreground" />
+          )}
+        </div>
+        <span className="font-medium group-data-[collapsible=icon]:hidden">
+          Pinned
+        </span>
+      </SidebarMenuButton>
+
+      {isExpanded && state !== "collapsed" && (
+        <div className="mt-1 ml-[11px] border-l border-border/40 pl-0 relative">
+          <div className="flex flex-col gap-[3px]">
+            {visibleChats.map((chat) => (
+              <ChatItem key={chat.id} chat={chat} actions={actions} />
+            ))}
+          </div>
+
+          {hasMore && (
+            <div
+              className="px-3 py-1.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground cursor-pointer transition-colors"
               onClick={onSearchOpen}
-              className="cursor-pointer group/nav-item transition-all"
-              tooltip={{
-                children: "Pinned",
-                side: "right",
-                hidden: state !== "collapsed"
-              }}
             >
-              <div
-                role="button"
-                onClick={toggleExpanded}
-                className="flex items-center justify-center p-0.5 -ml-1 mr-1 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              >
-                {isHovered && state !== "collapsed" ? (
-                  <IconChevronDown
-                    className={cn(
-                      "size-4 shrink-0 transition-transform duration-200",
-                      !isExpanded && "-rotate-90"
-                    )}
-                  />
-                ) : (
-                  <IconPinFilled className="size-4 shrink-0 text-muted-foreground" />
-                )}
-              </div>
-              <span className="font-medium group-data-[collapsible=icon]:hidden">
-                Pinned
-              </span>
-            </SidebarMenuButton>
-
-            {isExpanded && state !== "collapsed" && (
-              <div className="mt-1 ml-[11px] border-l border-border/40 pl-0 relative">
-                <div className="flex flex-col gap-[3px]">
-                  {visibleChats.map((chat) => (
-                    <ChatItem key={chat.id} chat={chat} actions={actions} />
-                  ))}
-                </div>
-
-                {hasMore && (
-                  <div
-                    className="px-3 py-1.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground cursor-pointer transition-colors"
-                    onClick={onSearchOpen}
-                  >
-                    See all
-                  </div>
-                )}
-              </div>
-            )}
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
+              See all
+            </div>
+          )}
+        </div>
+      )}
+    </SidebarMenuItem>
   )
 }
 
@@ -443,81 +437,75 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
   const hasMore = historyChatsCount > MAX_VISIBLE_CHATS_HISTORY
 
   return (
-    <SidebarGroup className="p-0 px-2 mt-1">
-      <SidebarGroupContent>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={onSearchOpen}
+        className="cursor-pointer group/nav-item transition-all"
+        tooltip={{
+          children: "History",
+          side: "right",
+          hidden: state !== "collapsed"
+        }}
+      >
+        <div
+          role="button"
+          onClick={toggleExpanded}
+          className="flex items-center justify-center p-0.5 -ml-1 mr-1 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+        >
+          {isHovered && state !== "collapsed" ? (
+            <IconChevronDown
+              className={cn(
+                "size-4 shrink-0 transition-transform duration-200",
+                !isExpanded && "-rotate-90"
+              )}
+            />
+          ) : (
+            <IconHistory className="size-4 shrink-0 text-muted-foreground" />
+          )}
+        </div>
+        <span className="font-medium group-data-[collapsible=icon]:hidden">
+          History
+        </span>
+      </SidebarMenuButton>
+
+      {isExpanded && state !== "collapsed" && (
+        <div className="mt-1 ml-[11px] border-l border-border/40 pl-0">
+          {groups.map((group) => {
+            const remainingSlots = MAX_VISIBLE_CHATS_HISTORY - totalShown
+            if (remainingSlots <= 0) return null
+
+            const visibleChats = group.chats.slice(0, remainingSlots)
+            totalShown += visibleChats.length
+
+            if (visibleChats.length === 0) return null
+
+            return (
+              <div key={group.label} className="mb-2 relative">
+                <div className="px-3 py-1 text-[11px] font-medium text-muted-foreground/60 select-none">
+                  {group.label}
+                </div>
+
+                <div className="flex flex-col gap-[3px]">
+                  {visibleChats.map((chat) => (
+                    <ChatItem key={chat.id} chat={chat} actions={actions} />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+
+          {hasMore && (
+            <div
+              className="px-3 py-1.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground cursor-pointer transition-colors"
               onClick={onSearchOpen}
-              className="cursor-pointer group/nav-item transition-all"
-              tooltip={{
-                children: "History",
-                side: "right",
-                hidden: state !== "collapsed"
-              }}
             >
-              <div
-                role="button"
-                onClick={toggleExpanded}
-                className="flex items-center justify-center p-0.5 -ml-1 mr-1 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              >
-                {isHovered && state !== "collapsed" ? (
-                  <IconChevronDown
-                    className={cn(
-                      "size-4 shrink-0 transition-transform duration-200",
-                      !isExpanded && "-rotate-90"
-                    )}
-                  />
-                ) : (
-                  <IconHistory className="size-4 shrink-0 text-muted-foreground" />
-                )}
-              </div>
-              <span className="font-medium group-data-[collapsible=icon]:hidden">
-                History
-              </span>
-            </SidebarMenuButton>
-
-            {isExpanded && state !== "collapsed" && (
-              <div className="mt-1 ml-[11px] border-l border-border/40 pl-0">
-                {groups.map((group) => {
-                  const remainingSlots = MAX_VISIBLE_CHATS_HISTORY - totalShown
-                  if (remainingSlots <= 0) return null
-
-                  const visibleChats = group.chats.slice(0, remainingSlots)
-                  totalShown += visibleChats.length
-
-                  if (visibleChats.length === 0) return null
-
-                  return (
-                    <div key={group.label} className="mb-2 relative">
-                      <div className="px-3 py-1 text-[11px] font-medium text-muted-foreground/60 select-none">
-                        {group.label}
-                      </div>
-
-                      <div className="flex flex-col gap-[3px]">
-                        {visibleChats.map((chat) => (
-                          <ChatItem key={chat.id} chat={chat} actions={actions} />
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })}
-
-                {hasMore && (
-                  <div
-                    className="px-3 py-1.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground cursor-pointer transition-colors"
-                    onClick={onSearchOpen}
-                  >
-                    See all
-                  </div>
-                )}
-              </div>
-            )}
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
+              See all
+            </div>
+          )}
+        </div>
+      )}
+    </SidebarMenuItem>
   )
 }
