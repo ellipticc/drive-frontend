@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { IconChevronDown, IconLoader2, IconStackFilled } from "@tabler/icons-react"
 import {
     SidebarMenuSub,
@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils"
 export function NavDrafts({ item }: { item: any }) {
     const router = useRouter()
     const pathname = usePathname()
+    const searchParams = useSearchParams()
     const { state, toggleSidebar } = useSidebar()
     const { t } = useLanguage()
 
@@ -131,7 +132,7 @@ export function NavDrafts({ item }: { item: any }) {
                         </div>
                     )
                 }}
-                isActive={pathname === item.url || pathname.startsWith('/paper/')}
+                isActive={pathname === item.url && !searchParams.has('fileId')}
                 onClick={() => handleNavigate(item.url)}
                 className="cursor-pointer group/nav-item"
                 data-space-id="draft"
@@ -175,6 +176,7 @@ export function NavDrafts({ item }: { item: any }) {
                                 <Tooltip delayDuration={500}>
                                     <TooltipTrigger asChild>
                                         <SidebarMenuSubButton
+                                            isActive={searchParams.get('fileId') === paper.id}
                                             onClick={() => handleNavigate(`/paper?fileId=${paper.id}`)}
                                             className="cursor-pointer flex items-center gap-2"
                                         >

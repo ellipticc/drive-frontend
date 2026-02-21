@@ -249,7 +249,7 @@ export const AppSidebar = React.memo(function AppSidebar({
   }
 
   return (
-    <Sidebar collapsible="icon" className="bg-sidebar flex flex-col" {...props}>
+    <Sidebar collapsible="icon" className="bg-sidebar flex flex-col overflow-x-hidden" {...props}>
       <SidebarHeader className="gap-2 p-2 relative z-20">
         <SidebarMenu>
           <SidebarMenuItem>

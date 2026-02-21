@@ -227,7 +227,7 @@ export function NavMain({
                         </div>
                       )
                     } : item.title}
-                    isActive={pathname === item.url}
+                    isActive={pathname === item.url && (item.id !== 'my-files' || !searchParams.has('folderId'))}
                     onClick={(e) => {
                       if (item.url === '/vault') {
                         const hasFolderId = searchParams.get('folderId');

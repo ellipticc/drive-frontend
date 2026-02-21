@@ -196,22 +196,22 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
           isActive={isActive}
           onClick={handleNavigate}
           className={cn(
-            "group/chat-item relative cursor-pointer ml-4 pl-4 pr-2 h-8 transition-none",
+            "group/chat-item relative cursor-pointer ml-5 px-3 h-8 rounded-md transition-none",
             isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
           )}
         >
           <div className="flex items-center w-full relative">
-            <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight" />
+            <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight group-hover/chat-item:[mask-image:linear-gradient(to_right,black_70%,transparent_90%)]" />
 
             {/* Actions dropdown on hover */}
-            <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 focus-within:opacity-100 transition-opacity flex items-center bg-transparent">
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 focus-within:opacity-100 transition-opacity flex items-center bg-transparent">
               <DropdownMenu>
                 <Tooltip delayDuration={300}>
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
                       <div
                         role="button"
-                        className="flex items-center justify-center size-5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/80 hover:text-sidebar-foreground cursor-pointer bg-background/80 backdrop-blur-sm shadow-[-4px_0_12px_var(--background)]"
+                        className="flex items-center justify-center size-5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/80 hover:text-sidebar-foreground cursor-pointer"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <IconDotsVertical className="size-4" />

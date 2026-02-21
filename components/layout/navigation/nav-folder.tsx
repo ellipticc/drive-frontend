@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { IconChevronRight, IconFolder, IconLoader2 } from "@tabler/icons-react"
 import {
     SidebarMenuSub,
@@ -25,6 +25,7 @@ interface NavFolderProps {
 
 export function NavFolder({ folder, level = 0 }: NavFolderProps) {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const { t } = useLanguage()
     const [isOpen, setIsOpen] = React.useState(() => {
         if (typeof window !== "undefined") {
@@ -96,7 +97,7 @@ export function NavFolder({ folder, level = 0 }: NavFolderProps) {
 
     return (
         <SidebarMenuSubItem>
-            <SidebarMenuSubButton asChild>
+            <SidebarMenuSubButton asChild isActive={searchParams.get('folderId') === folder.id}>
                 <button
                     onClick={handleNavigate}
                     className="flex items-center gap-2 flex-1 min-w-0 pr-8 relative group/folder-btn transition-colors duration-200"

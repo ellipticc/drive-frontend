@@ -129,11 +129,14 @@ export function FeedbackModal({
                         <Textarea
                             placeholder={isLike ? "What was satisfying about this response?" : "What was unsatisfying about this response?"}
                             value={details}
-                            onChange={(e) => setDetails(e.target.value)}
+                            onChange={(e) => setDetails(e.target.value.slice(0, 1000))}
                             maxLength={1000}
                             className="resize-none h-32 overflow-y-auto break-all"
                             style={{ fieldSizing: "fixed", wordBreak: "break-all" } as any}
                         />
+                        <div className="text-xs text-muted-foreground text-right mt-1">
+                            {details.length} / 1000
+                        </div>
                     </div>
 
                     {/* Context Toggle */}
