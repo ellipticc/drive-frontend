@@ -89,7 +89,7 @@ export const Context = ({
 
   return (
     <ContextContext.Provider value={contextValue}>
-      <HoverCard closeDelay={400} openDelay={150} {...props} />
+      <HoverCard closeDelay={100} openDelay={100} {...props} />
     </ContextContext.Provider>
   );
 };
@@ -232,12 +232,12 @@ export const ContextContentFooter = ({
   const { modelId, usage } = useContextValue();
   const costUSD = modelId
     ? getUsage({
-        modelId,
-        usage: {
-          input: usage?.inputTokens ?? 0,
-          output: usage?.outputTokens ?? 0,
-        },
-      }).costUSD?.totalUSD
+      modelId,
+      usage: {
+        input: usage?.inputTokens ?? 0,
+        output: usage?.outputTokens ?? 0,
+      },
+    }).costUSD?.totalUSD
     : undefined;
   const totalCost = new Intl.NumberFormat("en-US", {
     currency: "USD",
@@ -282,9 +282,9 @@ export const ContextInputUsage = ({
 
   const inputCost = modelId
     ? getUsage({
-        modelId,
-        usage: { input: inputTokens, output: 0 },
-      }).costUSD?.totalUSD
+      modelId,
+      usage: { input: inputTokens, output: 0 },
+    }).costUSD?.totalUSD
     : undefined;
   const inputCostText = new Intl.NumberFormat("en-US", {
     currency: "USD",
@@ -322,9 +322,9 @@ export const ContextOutputUsage = ({
 
   const outputCost = modelId
     ? getUsage({
-        modelId,
-        usage: { input: 0, output: outputTokens },
-      }).costUSD?.totalUSD
+      modelId,
+      usage: { input: 0, output: outputTokens },
+    }).costUSD?.totalUSD
     : undefined;
   const outputCostText = new Intl.NumberFormat("en-US", {
     currency: "USD",
@@ -362,9 +362,9 @@ export const ContextReasoningUsage = ({
 
   const reasoningCost = modelId
     ? getUsage({
-        modelId,
-        usage: { reasoningTokens },
-      }).costUSD?.totalUSD
+      modelId,
+      usage: { reasoningTokens },
+    }).costUSD?.totalUSD
     : undefined;
   const reasoningCostText = new Intl.NumberFormat("en-US", {
     currency: "USD",
@@ -402,9 +402,9 @@ export const ContextCacheUsage = ({
 
   const cacheCost = modelId
     ? getUsage({
-        modelId,
-        usage: { cacheReads: cacheTokens, input: 0, output: 0 },
-      }).costUSD?.totalUSD
+      modelId,
+      usage: { cacheReads: cacheTokens, input: 0, output: 0 },
+    }).costUSD?.totalUSD
     : undefined;
   const cacheCostText = new Intl.NumberFormat("en-US", {
     currency: "USD",
@@ -433,8 +433,8 @@ const TokensWithCost = ({
     {tokens === undefined
       ? "—"
       : new Intl.NumberFormat("en-US", {
-          notation: "compact",
-        }).format(tokens)}
+        notation: "compact",
+      }).format(tokens)}
     {costText ? (
       <span className="ml-2 text-muted-foreground">• {costText}</span>
     ) : null}
@@ -517,7 +517,7 @@ export const ContextWindowBreakdown = ({
           <div className="space-y-1 w-full">
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">• Messages</span>
-              <span className="font-mono">{calculatePercent(messageTokens).toFixed(1)}% · {new Intl.NumberFormat('en-US',{notation: 'compact'}).format(messageTokens)}</span>
+              <span className="font-mono">{calculatePercent(messageTokens).toFixed(1)}% · {new Intl.NumberFormat('en-US', { notation: 'compact' }).format(messageTokens)}</span>
             </div>
 
             <div className="ml-3 space-y-0.5">
@@ -525,7 +525,7 @@ export const ContextWindowBreakdown = ({
               {userMessageTokens > 0 && (
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="text-muted-foreground">    User messages</span>
-                  <span className="font-mono">{calculatePercent(userMessageTokens).toFixed(1)}% · {new Intl.NumberFormat('en-US',{notation: 'compact'}).format(userMessageTokens)}</span>
+                  <span className="font-mono">{calculatePercent(userMessageTokens).toFixed(1)}% · {new Intl.NumberFormat('en-US', { notation: 'compact' }).format(userMessageTokens)}</span>
                 </div>
               )}
 
@@ -533,7 +533,7 @@ export const ContextWindowBreakdown = ({
               {assistantMessageTokens > 0 && (
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="text-muted-foreground">    Assistant messages</span>
-                  <span className="font-mono">{calculatePercent(assistantMessageTokens).toFixed(1)}% · {new Intl.NumberFormat('en-US',{notation: 'compact'}).format(assistantMessageTokens)}</span>
+                  <span className="font-mono">{calculatePercent(assistantMessageTokens).toFixed(1)}% · {new Intl.NumberFormat('en-US', { notation: 'compact' }).format(assistantMessageTokens)}</span>
                 </div>
               )}
             </div>
