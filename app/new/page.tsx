@@ -63,6 +63,9 @@ interface Message {
     reasoning?: string;
     reasoningDuration?: number;
     suggestions?: string[];
+    ttft?: number;
+    tps?: number;
+    total_time?: number;
 }
 
 
@@ -859,6 +862,30 @@ export default function AssistantPage() {
                             continue;
                         }
 
+                        // Handle metrics events
+                        if (eventType === 'metrics' && dataStr) {
+                            try {
+                                const metricsData = JSON.parse(dataStr);
+                                setMessages(prev => {
+                                    const newMessages = [...prev];
+                                    const lastIdx = newMessages.length - 1;
+                                    const lastMessage = newMessages[lastIdx];
+                                    if (lastMessage && lastMessage.role === 'assistant') {
+                                        newMessages[lastIdx] = {
+                                            ...lastMessage,
+                                            ttft: metricsData.ttft,
+                                            tps: metricsData.tps,
+                                            total_time: metricsData.total_time
+                                        };
+                                    }
+                                    return newMessages;
+                                });
+                            } catch (e) {
+                                console.warn('Failed to parse metrics event', dataStr, e);
+                            }
+                            continue;
+                        }
+
                         // Handle regular content events
                         if (dataStr === '[DONE]') {
                             console.log('[Stream] Received [DONE]. answerBuffer.length:', answerBuffer.length, 'reasoning.length:', assistantReasoningContent.length);
@@ -1353,87 +1380,113 @@ export default function AssistantPage() {
                 for (const event of events) {
                     if (!event.trim()) continue;
                     const lines = event.split('\n');
+                    let eventType = 'data';
+                    let dataStr = '';
+
                     for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const dataStr = line.replace('data: ', '').trim();
-                            if (dataStr === '[DONE]') break;
+                        if (line.startsWith('event: ')) {
+                            eventType = line.replace('event: ', '').trim();
+                        } else if (line.startsWith('data: ')) {
+                            dataStr += line.replace('data: ', '').trim();
+                        }
+                    }
 
-                            try {
-                                const data = JSON.parse(dataStr);
+                    if (dataStr === '[DONE]') break;
 
-                                // Decryption Handling
-                                let decryptedContent = "";
-                                if (data.encrypted_content && data.iv) {
-                                    const { decrypted, sessionKey } = await decryptStreamChunk(
-                                        data.encrypted_content,
-                                        data.iv,
-                                        data.encapsulated_key,
-                                        currentSessionKey
-                                    );
-                                    decryptedContent = decrypted;
-                                    currentSessionKey = sessionKey;
+                    if (eventType === 'metrics' && dataStr) {
+                        try {
+                            const data = JSON.parse(dataStr);
+                            setMessages(prev => {
+                                const newMessages = [...prev];
+                                const msg = newMessages[messageIndex];
+                                if (!msg) return newMessages;
+
+                                msg.ttft = data.ttft;
+                                msg.tps = data.tps;
+                                msg.total_time = data.total_time;
+
+                                return newMessages;
+                            });
+                        } catch (e) { }
+                        continue;
+                    }
+
+                    if (dataStr && eventType !== 'metrics' && eventType !== 'sources' && eventType !== 'stream-complete') {
+                        try {
+                            const data = JSON.parse(dataStr);
+
+                            // Decryption Handling
+                            let decryptedContent = "";
+                            if (data.encrypted_content && data.iv) {
+                                const { decrypted, sessionKey } = await decryptStreamChunk(
+                                    data.encrypted_content,
+                                    data.iv,
+                                    data.encapsulated_key,
+                                    currentSessionKey
+                                );
+                                decryptedContent = decrypted;
+                                currentSessionKey = sessionKey;
+                            }
+
+                            setMessages(prev => {
+                                const newMessages = [...prev];
+                                const msg = newMessages[messageIndex];
+                                if (!msg) return newMessages;
+
+                                if (data.tool_calls) {
+                                    const currentToolCalls = msg.toolCalls || [];
+                                    const newToolCalls = [...currentToolCalls];
+                                    for (const tc of data.tool_calls) {
+                                        if (!newToolCalls[tc.index]) {
+                                            newToolCalls[tc.index] = { id: tc.id, type: tc.type, function: { name: tc.function?.name, arguments: "" } };
+                                        }
+                                        if (tc.function?.arguments) {
+                                            newToolCalls[tc.index].function.arguments += tc.function.arguments;
+                                        }
+                                    }
+                                    msg.toolCalls = newToolCalls;
+                                    msg.isThinking = false;
+                                    if (msg.versions && typeof msg.currentVersionIndex === 'number') {
+                                        if (msg.versions[msg.currentVersionIndex]) {
+                                            msg.versions[msg.currentVersionIndex].toolCalls = newToolCalls;
+                                        }
+                                    }
                                 }
 
-                                setMessages(prev => {
-                                    const newMessages = [...prev];
-                                    const msg = newMessages[messageIndex];
-                                    if (!msg) return newMessages;
-
-                                    if (data.tool_calls) {
-                                        const currentToolCalls = msg.toolCalls || [];
-                                        const newToolCalls = [...currentToolCalls];
-                                        for (const tc of data.tool_calls) {
-                                            if (!newToolCalls[tc.index]) {
-                                                newToolCalls[tc.index] = { id: tc.id, type: tc.type, function: { name: tc.function?.name, arguments: "" } };
-                                            }
-                                            if (tc.function?.arguments) {
-                                                newToolCalls[tc.index].function.arguments += tc.function.arguments;
-                                            }
-                                        }
-                                        msg.toolCalls = newToolCalls;
-                                        msg.isThinking = false;
-                                        if (msg.versions && typeof msg.currentVersionIndex === 'number') {
-                                            if (msg.versions[msg.currentVersionIndex]) {
-                                                msg.versions[msg.currentVersionIndex].toolCalls = newToolCalls;
-                                            }
+                                const contentToAdd = decryptedContent || data.content || "";
+                                if (contentToAdd) {
+                                    assistantMessageContent += contentToAdd;
+                                    msg.content = assistantMessageContent;
+                                    msg.isThinking = false;
+                                    if (msg.versions && typeof msg.currentVersionIndex === 'number') {
+                                        if (msg.versions[msg.currentVersionIndex]) {
+                                            msg.versions[msg.currentVersionIndex].content = assistantMessageContent;
                                         }
                                     }
+                                }
 
-                                    const contentToAdd = decryptedContent || data.content || "";
-                                    if (contentToAdd) {
-                                        assistantMessageContent += contentToAdd;
-                                        msg.content = assistantMessageContent;
-                                        msg.isThinking = false;
-                                        if (msg.versions && typeof msg.currentVersionIndex === 'number') {
-                                            if (msg.versions[msg.currentVersionIndex]) {
-                                                msg.versions[msg.currentVersionIndex].content = assistantMessageContent;
-                                            }
+                                if (data.id) {
+                                    msg.id = data.id;
+                                    if (msg.versions && typeof msg.currentVersionIndex === 'number') {
+                                        if (msg.versions[msg.currentVersionIndex]) {
+                                            msg.versions[msg.currentVersionIndex].id = data.id;
                                         }
                                     }
+                                }
 
-                                    if (data.id) {
-                                        msg.id = data.id;
-                                        if (msg.versions && typeof msg.currentVersionIndex === 'number') {
-                                            if (msg.versions[msg.currentVersionIndex]) {
-                                                msg.versions[msg.currentVersionIndex].id = data.id;
-                                            }
+                                if (data.suggestions) {
+                                    msg.suggestions = data.suggestions;
+                                    if (msg.versions && typeof msg.currentVersionIndex === 'number') {
+                                        if (msg.versions[msg.currentVersionIndex]) {
+                                            msg.versions[msg.currentVersionIndex].suggestions = data.suggestions;
                                         }
                                     }
+                                }
 
-                                    if (data.suggestions) {
-                                        msg.suggestions = data.suggestions;
-                                        if (msg.versions && typeof msg.currentVersionIndex === 'number') {
-                                            if (msg.versions[msg.currentVersionIndex]) {
-                                                msg.versions[msg.currentVersionIndex].suggestions = data.suggestions;
-                                            }
-                                        }
-                                    }
+                                return newMessages;
+                            });
 
-                                    return newMessages;
-                                });
-
-                            } catch (e) { console.error(e); }
-                        }
+                        } catch (e) { console.error(e); }
                     }
                 }
             }

@@ -5,11 +5,11 @@ import { cn } from "@/lib/utils"
 import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconThumbUp, IconCheck, IconX, IconCode, IconChevronDown, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowsMinimize, IconBrain, IconClock, IconBookmark, IconArrowRight } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Reasoning, ReasoningTrigger, ReasoningContent, detectThinkingTagType } from "@/components/ai-elements/reasoning"
-import { TextSelectionMenu } from "@/components/ai-elements/text-selection-menu"
 import {
     InlineCitation,
     InlineCitationText,
@@ -62,6 +62,9 @@ export interface Message {
     reasoning?: string; // Content inside <think> tags
     reasoningDuration?: number; // Duration of thinking in seconds
     suggestions?: string[];
+    ttft?: number;
+    tps?: number;
+    total_time?: number;
 }
 
 interface ChatMessageProps {
@@ -464,6 +467,36 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                         label="Download"
                                         onClick={handleDownload}
                                     />
+
+                                    {/* Timing Metrics Indicator */}
+                                    {message.total_time !== undefined && message.total_time > 0 && (
+                                        <HoverCard>
+                                            <HoverCardTrigger className="flex items-center text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded hover:bg-muted/50 transition-colors cursor-default">
+                                                {message.total_time < 1000
+                                                    ? `${Math.round(message.total_time)}ms`
+                                                    : `${(message.total_time / 1000).toFixed(1)}s`}
+                                            </HoverCardTrigger>
+                                            <HoverCardContent side="right" align="center" className="flex flex-col gap-1.5 p-3 text-sm min-w-[180px]">
+                                                <div className="font-medium text-xs text-muted-foreground pb-1 border-b">Timing Metrics</div>
+                                                <div className="flex justify-between gap-4 text-xs">
+                                                    <span className="text-muted-foreground">Total Time:</span>
+                                                    <span className="font-mono">{message.total_time < 1000 ? `${Math.round(message.total_time)}ms` : `${(message.total_time / 1000).toFixed(2)}s`}</span>
+                                                </div>
+                                                {message.ttft !== undefined && message.ttft > 0 && (
+                                                    <div className="flex justify-between gap-4 text-xs">
+                                                        <span className="text-muted-foreground">Time to First Token:</span>
+                                                        <span className="font-mono">{message.ttft < 1000 ? `${Math.round(message.ttft)}ms` : `${(message.ttft / 1000).toFixed(2)}s`}</span>
+                                                    </div>
+                                                )}
+                                                {message.tps !== undefined && message.tps > 0 && (
+                                                    <div className="flex justify-between gap-4 text-xs">
+                                                        <span className="text-muted-foreground">Speed:</span>
+                                                        <span className="font-mono">{message.tps.toFixed(1)} tokens/s</span>
+                                                    </div>
+                                                )}
+                                            </HoverCardContent>
+                                        </HoverCard>
+                                    )}
                                 </div>
 
                                 {/* Right Actions - Version Navigation */}

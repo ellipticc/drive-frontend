@@ -204,7 +204,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     useEffect(() => {
         if (textareaRef.current) {
             textareaRef.current.style.height = "auto";
-            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 384) + "px";
+            textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
         }
     }, [message]);
 
@@ -418,7 +418,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
 
 
                     <div className={cn("relative mb-1", isLoading && "pointer-events-none")}>
-                        <div className="max-h-60 w-full overflow-y-auto overflow-x-hidden custom-scrollbar font-sans break-words min-h-[2.5rem] pl-1 pr-14 relative">
+                        <div className="max-h-[40vh] w-full overflow-y-auto overflow-x-hidden custom-scrollbar font-sans break-words min-h-[2.5rem] pl-1 pr-12 md:pr-32 relative">
                             {isImproving ? (
                                 <Shimmer className="w-full text-[16px] leading-relaxed py-0 block min-h-[1.5em] text-foreground p-[2px]">
                                     {message || "Improving..."}
