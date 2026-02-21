@@ -11,13 +11,14 @@ import {
   IconLayoutSidebar,
   IconSearch,
   IconWritingSign,
+  IconEdit,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
 import { NavSecondary } from "@/components/layout/navigation/nav-secondary"
 import { NavUser } from "@/components/layout/navigation/nav-user"
 
-import { NavNew } from "@/components/layout/navigation/nav-new"
+import { NavHistory } from "@/components/layout/navigation/nav-assistant"
 import {
   Sidebar,
   SidebarTrigger,
@@ -289,14 +290,14 @@ export const AppSidebar = React.memo(function AppSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu className="mt-3 mb-1">
-          <NavNew />
+          {/* Search button */}
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => setSearchOpen(true)}
               tooltip={{
                 children: (
                   <div className="flex items-center gap-1">
-                    Search Chats
+                    Search
                     <Kbd>
                       <span className="text-[10px]">Ctrl</span>K
                     </Kbd>
@@ -305,12 +306,38 @@ export const AppSidebar = React.memo(function AppSidebar({
                 side: "right",
                 hidden: state !== "collapsed"
               }}
-              className="relative group/menu-button group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
+              className="relative group/menu-button group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 hover:bg-sidebar-accent"
             >
               <IconSearch className="size-4 shrink-0" />
               <span className="group-data-[collapsible=icon]:hidden">Search</span>
               <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-60 transition-opacity flex group-data-[collapsible=icon]:hidden sm:flex">
                 <span className="text-[10px]">Ctrl</span>K
+              </kbd>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
+          {/* Chat (new chat) button */}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => router.push('/new')}
+              tooltip={{
+                children: (
+                  <div className="flex items-center gap-1">
+                    New Chat
+                    <Kbd>
+                      <span className="text-[9px]">⌘⇧</span>O
+                    </Kbd>
+                  </div>
+                ),
+                side: "right",
+                hidden: state !== "collapsed"
+              }}
+              className="relative group/menu-button group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
+            >
+              <IconEdit className="size-4 shrink-0" />
+              <span className="group-data-[collapsible=icon]:hidden">Chat</span>
+              <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-60 transition-opacity flex group-data-[collapsible=icon]:hidden sm:flex">
+                <span className="text-[9px]">⌘⇧</span>O
               </kbd>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -355,6 +382,7 @@ export const AppSidebar = React.memo(function AppSidebar({
         </CommandDialog>
       </SidebarHeader>
       <SidebarContent className="flex-1">
+        <NavHistory onSearchOpen={() => setSearchOpen(true)} />
         <NavMain items={data.navMain} />
       </SidebarContent>
       <SidebarFooter className="mt-auto">

@@ -3,8 +3,9 @@
 import * as React from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import {
-  IconFolder,
-  IconFolderOpen,
+  IconHistory,
+  IconChevronDown,
+  IconChevronRight,
   IconDotsVertical,
   IconPencil,
   IconPin,
@@ -13,11 +14,12 @@ import {
   IconTrash,
 } from "@tabler/icons-react"
 import {
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
-  SidebarMenuItem,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
   SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -38,28 +40,77 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { useAICrypto } from "@/hooks/use-ai-crypto"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
-interface NavAssistantProps {
-  item: {
-    title: string
-    url: string
-    icon?: any
-    id?: string
-  }
+interface NavHistoryProps {
+  onSearchOpen: () => void
 }
 
-export function NavAssistant({ item }: NavAssistantProps) {
+// Group chats by timeline label (Today, month names)
+function groupChatsByTimeline(chats: { id: string; title: string; pinned: boolean; archived: boolean; createdAt: string }[]) {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today.getTime() - 86400000)
+
+  const groups: { label: string; chats: typeof chats }[] = []
+  const groupMap = new Map<string, typeof chats>()
+
+  // Sort: pinned first, then by date descending
+  const sorted = [...chats]
+    .filter(c => !c.archived)
+    .sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+
+  for (const chat of sorted) {
+    const d = new Date(chat.createdAt)
+    let label: string
+
+    if (d >= today) {
+      label = "Today"
+    } else if (d >= yesterday) {
+      label = "Yesterday"
+    } else {
+      // Use month name (e.g. "February")
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+      const monthLabel = monthNames[d.getMonth()]
+      // Add year if not current year
+      label = d.getFullYear() === now.getFullYear() ? monthLabel : `${monthLabel} ${d.getFullYear()}`
+    }
+
+    if (!groupMap.has(label)) {
+      groupMap.set(label, [])
+    }
+    groupMap.get(label)!.push(chat)
+  }
+
+  // Convert map to ordered array
+  for (const [label, groupChats] of groupMap) {
+    groups.push({ label, chats: groupChats })
+  }
+
+  return groups
+}
+
+const MAX_VISIBLE_CHATS = 10
+
+export function NavHistory({ onSearchOpen }: NavHistoryProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { chats, renameChat, pinChat, deleteChat, archiveChat } = useAICrypto()
+  const { state } = useSidebar()
 
-  const [isAssistantExpanded, setIsAssistantExpanded] = React.useState(() => {
+  const [isExpanded, setIsExpanded] = React.useState(() => {
     if (typeof window !== "undefined") {
-      return sessionStorage.getItem("assistant-expanded") === "true"
+      const stored = sessionStorage.getItem("history-expanded")
+      return stored === null ? true : stored === "true" // default expanded
     }
-    return false
+    return true
   })
+
+  const [isHovered, setIsHovered] = React.useState(false)
 
   // Delete Dialog State
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
@@ -82,9 +133,8 @@ export function NavAssistant({ item }: NavAssistantProps) {
     if (editTitle.trim()) {
       try {
         await renameChat(chatId, editTitle.trim())
-        toast.success("Chat renamed successfully")
-      } catch (error) {
-        console.error("Failed to rename chat:", error)
+        toast.success("Chat renamed")
+      } catch {
         toast.error("Failed to rename chat")
       }
     }
@@ -104,221 +154,216 @@ export function NavAssistant({ item }: NavAssistantProps) {
         setDeleteDialogOpen(false)
         setChatToDelete(null)
         toast.success("Chat deleted")
-      } catch (error) {
-        console.error("Failed to delete chat:", error)
+      } catch {
         toast.error("Failed to delete chat")
       }
     }
   }
 
-  const handleAssistantToggle = (e: React.MouseEvent) => {
+  const toggleExpanded = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    const newState = !isAssistantExpanded
-    setIsAssistantExpanded(newState)
-    sessionStorage.setItem("assistant-expanded", String(newState))
+    const next = !isExpanded
+    setIsExpanded(next)
+    sessionStorage.setItem("history-expanded", String(next))
   }
 
-  const isAssistantActive = pathname.startsWith("/new")
   const currentConversationId = searchParams.get("conversationId")
+  const groups = groupChatsByTimeline(chats)
+
+  // Count total visible chats
+  let totalShown = 0
+  const hasMore = chats.filter(c => !c.archived).length > MAX_VISIBLE_CHATS
 
   return (
-    <SidebarMenuItem key={item.id || item.title}>
-      <SidebarMenuButton
-        onClick={() => handleNavigate("/new")}
-        tooltip={item.title}
-        isActive={isAssistantActive && !currentConversationId && isAssistantExpanded}
-        className="group/assist-btn pr-8"
-      >
-        {item.icon && <item.icon />}
-        <span>{item.title}</span>
-      </SidebarMenuButton>
-      <div
-        role="button"
-        onClick={handleAssistantToggle}
-        className="absolute right-1 top-1.5 p-1 rounded-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors z-20 cursor-pointer text-sidebar-foreground"
-      >
-        {isAssistantExpanded ? (
-          <IconFolderOpen className="size-4" />
-        ) : (
-          <IconFolder className="size-4" />
-        )}
-      </div>
+    <SidebarGroup className="p-0 px-2">
+      <SidebarGroupContent>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <div
+              className="flex items-center w-full"
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+            >
+              <SidebarMenuButton
+                onClick={onSearchOpen}
+                tooltip={{
+                  children: "History",
+                  side: "right",
+                  hidden: state !== "collapsed"
+                }}
+                className="flex-1 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
+              >
+                {isHovered && state !== "collapsed" ? (
+                  <IconChevronDown
+                    className={cn(
+                      "size-4 shrink-0 transition-transform duration-200",
+                      !isExpanded && "-rotate-90"
+                    )}
+                  />
+                ) : (
+                  <IconHistory className="size-4 shrink-0" />
+                )}
+                <span className="group-data-[collapsible=icon]:hidden">History</span>
+              </SidebarMenuButton>
 
-      {isAssistantExpanded && (
-        <SidebarMenuSub className="ml-3.5 border-l border-border/50">
-          {/* Unified List (Pinned first, then Recent) */}
-          {chats
-            .sort((a, b) => {
-              if (a.pinned === b.pinned) {
-                return (
-                  new Date(b.createdAt).getTime() -
-                  new Date(a.createdAt).getTime()
-                )
-              }
-              return a.pinned ? -1 : 1
-            })
-            .filter((chat) => !chat.archived)
-            .map((chat) => {
-              const isEditing = editingChatId === chat.id
-
-              return (
-                <SidebarMenuSubItem
-                  key={chat.id}
-                  className="group/menu-sub-item relative"
+              {/* Chevron toggle (separate click target) */}
+              {state !== "collapsed" && (
+                <div
+                  role="button"
+                  onClick={toggleExpanded}
+                  className="p-1 rounded-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors cursor-pointer text-muted-foreground shrink-0"
                 >
-                  {isEditing ? (
-                    <SidebarMenuSubButton
-                      asChild
-                      isActive={currentConversationId === chat.id}
-                      className="group/chat-item pr-7 h-8"
-                    >
-                      <div onClick={(e) => e.preventDefault()}>
-                        <Input
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter")
-                              handleRenameSave(chat.id)
-                            if (e.key === "Escape")
-                              setEditingChatId(null)
-                            e.stopPropagation()
-                          }}
-                          onBlur={() => handleRenameSave(chat.id)}
-                          autoFocus
-                          className="h-6 text-xs px-1 py-0"
-                        />
+                  <IconChevronDown
+                    className={cn(
+                      "size-3.5 transition-transform duration-200",
+                      !isExpanded && "-rotate-90"
+                    )}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Chat history list with timeline grouping */}
+            {isExpanded && state !== "collapsed" && (
+              <div className="mt-1">
+                {groups.map((group) => {
+                  const remainingSlots = MAX_VISIBLE_CHATS - totalShown
+                  if (remainingSlots <= 0) return null
+
+                  const visibleChats = group.chats.slice(0, remainingSlots)
+                  totalShown += visibleChats.length
+
+                  return (
+                    <div key={group.label} className="mb-1">
+                      {/* Timeline label */}
+                      <div className="px-3 py-1 text-[11px] font-medium text-muted-foreground/60 select-none">
+                        {group.label}
                       </div>
-                    </SidebarMenuSubButton>
-                  ) : (
-                    <SidebarMenuSubButton
-                      onClick={() =>
-                        !isEditing &&
-                        handleNavigate(`/new?conversationId=${chat.id}`)
-                      }
-                      isActive={currentConversationId === chat.id}
-                      className="group/chat-item pr-7 h-8"
-                    >
-                      <Tooltip delayDuration={700}>
-                        <TooltipTrigger asChild>
-                          <span className="truncate flex-1 text-xs">
-                            {chat.title}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent
-                          side="top"
-                          align="start"
-                          className="max-w-[200px] break-words"
-                        >
-                          {chat.title}
-                        </TooltipContent>
-                      </Tooltip>
 
-                      {chat.pinned && (
-                        <IconPinFilled className="size-3 text-muted-foreground mr-1 shrink-0" />
-                      )}
-                    </SidebarMenuSubButton>
-                  )}
+                      {/* Chat items with left border */}
+                      <div className="ml-[11px] border-l border-border/40 pl-0">
+                        {visibleChats.map((chat) => {
+                          const isEditing = editingChatId === chat.id
+                          const isActive = currentConversationId === chat.id
 
-                  {!isEditing && (
-                    <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/menu-sub-item:opacity-100 transition-opacity flex gap-0.5">
-                      <DropdownMenu>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <DropdownMenuTrigger asChild>
-                              <div
-                                role="button"
-                                className="p-0.5 hover:bg-sidebar-accent rounded-sm text-muted-foreground hover:text-foreground cursor-pointer"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <IconDotsVertical className="size-3.5" />
-                              </div>
-                            </DropdownMenuTrigger>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">
-                            More options
-                          </TooltipContent>
-                        </Tooltip>
+                          return (
+                            <div
+                              key={chat.id}
+                              className={cn(
+                                "group/chat-item relative flex items-center h-7 pl-3 pr-1 text-xs cursor-pointer rounded-r-md transition-colors",
+                                isActive
+                                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                              )}
+                              onClick={() => !isEditing && handleNavigate(`/new?conversationId=${chat.id}`)}
+                            >
+                              {isEditing ? (
+                                <Input
+                                  value={editTitle}
+                                  onChange={(e) => setEditTitle(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleRenameSave(chat.id)
+                                    if (e.key === "Escape") setEditingChatId(null)
+                                    e.stopPropagation()
+                                  }}
+                                  onBlur={() => handleRenameSave(chat.id)}
+                                  autoFocus
+                                  className="h-5 text-xs px-1 py-0 w-full"
+                                />
+                              ) : (
+                                <>
+                                  <Tooltip delayDuration={700}>
+                                    <TooltipTrigger asChild>
+                                      <span className="truncate flex-1">
+                                        {chat.title}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" align="start" className="max-w-[200px] break-words">
+                                      {chat.title}
+                                    </TooltipContent>
+                                  </Tooltip>
 
-                        <DropdownMenuContent
-                          side="bottom"
-                          align="end"
-                          sideOffset={8}
-                          className="w-40 origin-top-right"
-                        >
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleRenameStart(chat)
-                            }}
-                          >
-                            <IconPencil className="size-3.5 mr-2" />
-                            <span>Rename</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={async (e) => {
-                              e.stopPropagation()
-                              try {
-                                await pinChat(chat.id, !chat.pinned)
-                                toast.success(
-                                  chat.pinned
-                                    ? "Chat unpinned"
-                                    : "Chat pinned"
-                                )
-                              } catch (error) {
-                                console.error(
-                                  "Failed to toggle pin:",
-                                  error
-                                )
-                                toast.error("Failed to update chat")
-                              }
-                            }}
-                          >
-                            {chat.pinned ? (
-                              <IconPin className="size-3.5 mr-2" />
-                            ) : (
-                              <IconPinFilled className="size-3.5 mr-2" />
-                            )}
-                            <span>{chat.pinned ? "Unpin" : "Pin"}</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={async (e) => {
-                              e.stopPropagation()
-                              try {
-                                await archiveChat(chat.id, true)
-                                toast.success("Chat archived")
-                              } catch (error) {
-                                console.error(
-                                  "Failed to archive chat:",
-                                  error
-                                )
-                                toast.error("Failed to archive chat")
-                              }
-                            }}
-                          >
-                            <IconArchive className="size-3.5 mr-2" />
-                            <span>Archive</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDeleteClick(chat.id)
-                            }}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10 focus:text-destructive focus:bg-destructive/10 cursor-pointer"
-                          >
-                            <IconTrash className="size-3.5 mr-2" />
-                            <span>Delete</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                                  {chat.pinned && (
+                                    <IconPinFilled className="size-3 text-muted-foreground ml-1 shrink-0" />
+                                  )}
+
+                                  {/* Actions dropdown on hover */}
+                                  <div className="absolute right-0.5 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 transition-opacity">
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <div
+                                          role="button"
+                                          className="p-0.5 hover:bg-sidebar-accent rounded-sm text-muted-foreground hover:text-foreground cursor-pointer"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <IconDotsVertical className="size-3" />
+                                        </div>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent side="bottom" align="end" sideOffset={8} className="w-40">
+                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleRenameStart(chat) }}>
+                                          <IconPencil className="size-3.5 mr-2" />
+                                          Rename
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          onClick={async (e) => {
+                                            e.stopPropagation()
+                                            try {
+                                              await pinChat(chat.id, !chat.pinned)
+                                              toast.success(chat.pinned ? "Unpinned" : "Pinned")
+                                            } catch { toast.error("Failed") }
+                                          }}
+                                        >
+                                          {chat.pinned ? <IconPin className="size-3.5 mr-2" /> : <IconPinFilled className="size-3.5 mr-2" />}
+                                          {chat.pinned ? "Unpin" : "Pin"}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          onClick={async (e) => {
+                                            e.stopPropagation()
+                                            try {
+                                              await archiveChat(chat.id, true)
+                                              toast.success("Archived")
+                                            } catch { toast.error("Failed") }
+                                          }}
+                                        >
+                                          <IconArchive className="size-3.5 mr-2" />
+                                          Archive
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(chat.id) }}
+                                          className="text-destructive hover:text-destructive hover:bg-destructive/10 focus:text-destructive focus:bg-destructive/10"
+                                        >
+                                          <IconTrash className="size-3.5 mr-2" />
+                                          Delete
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
-                  )}
-                </SidebarMenuSubItem>
-              )
-            })}
-        </SidebarMenuSub>
-      )}
+                  )
+                })}
+
+                {/* See all link */}
+                {hasMore && (
+                  <div
+                    className="px-3 py-1.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground cursor-pointer transition-colors"
+                    onClick={onSearchOpen}
+                  >
+                    See all
+                  </div>
+                )}
+              </div>
+            )}
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroupContent>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -327,14 +372,10 @@ export function NavAssistant({ item }: NavAssistantProps) {
             <DialogTitle>Delete Chat?</DialogTitle>
           </DialogHeader>
           <div className="py-2 text-sm text-muted-foreground">
-            Are you sure you want to delete this chat? This action cannot be
-            undone.
+            Are you sure you want to delete this chat? This action cannot be undone.
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
             </Button>
             <Button variant="destructive" onClick={confirmDelete}>
@@ -343,6 +384,6 @@ export function NavAssistant({ item }: NavAssistantProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </SidebarMenuItem>
+    </SidebarGroup>
   )
 }

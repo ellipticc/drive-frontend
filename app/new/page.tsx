@@ -167,46 +167,36 @@ export default function AssistantPage() {
     const [displayedTitle, setDisplayedTitle] = React.useState("");
     const [isTypingTitle, setIsTypingTitle] = React.useState(false);
 
-    // Fetch Chat Title/Status
+    // Fetch Chat Title/Status from already-loaded chats (avoids redundant API call)
     React.useEffect(() => {
         if (!conversationId) {
             setChatTitle("New Chat");
             setDisplayedTitle("New Chat");
+            return;
         }
 
-        const fetchChatDetails = async () => {
-            try {
-                const { data } = await apiClient.getChats();
-                const currentChat = (data?.chats || []).find((c: any) => c.id === conversationId);
-                if (currentChat) {
-                    const newTitle = (currentChat as any).title || "New Chat";
-                    setChatTitle(newTitle);
-                    setIsStarred(!!(currentChat as any).pinned);
+        // Use the chats array from useAICrypto() which is already loaded
+        const currentChat = chats.find((c) => c.id === conversationId);
+        if (currentChat) {
+            const newTitle = currentChat.title || "New Chat";
+            setChatTitle(newTitle);
+            setIsStarred(!!currentChat.pinned);
 
-                    // Always display the title immediately without typing effect
-                    if (true) {
-                        setIsTypingTitle(true);
-                        let i = 0;
-                        setDisplayedTitle("");
-                        const interval = setInterval(() => {
-                            setDisplayedTitle(newTitle.substring(0, i + 1));
-                            i++;
-                            if (i >= newTitle.length) {
-                                clearInterval(interval);
-                                setIsTypingTitle(false);
-                            }
-                        }, 30); // 30ms per char
-                        return () => clearInterval(interval);
-                    } else {
-                        setDisplayedTitle(newTitle);
-                    }
+            // Typing effect for title
+            setIsTypingTitle(true);
+            let i = 0;
+            setDisplayedTitle("");
+            const interval = setInterval(() => {
+                setDisplayedTitle(newTitle.substring(0, i + 1));
+                i++;
+                if (i >= newTitle.length) {
+                    clearInterval(interval);
+                    setIsTypingTitle(false);
                 }
-            } catch (e) {
-                console.error("Failed to fetch chat details", e);
-            }
-        };
-        fetchChatDetails();
-    }, [conversationId]); // We use setChatTitle from closure
+            }, 30);
+            return () => clearInterval(interval);
+        }
+    }, [conversationId, chats]);
 
     const scrollToMessage = (messageId: string, behavior: ScrollBehavior = 'smooth') => {
         const element = document.getElementById(`message-${messageId}`);

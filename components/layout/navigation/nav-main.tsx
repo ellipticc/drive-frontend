@@ -4,8 +4,6 @@ import {
   IconChevronRight,
   IconLoader2,
   type Icon,
-  IconChevronDown,
-  IconChevronUp,
   IconStack2Filled,
   IconTrashFilled,
   IconClockHour9Filled,
@@ -15,14 +13,6 @@ import {
   IconHelpCircleFilled,
   IconBubbleTextFilled,
   IconWritingSignFilled,
-  IconPin,
-  IconPinFilled,
-  IconTrash,
-  IconFolder,
-  IconFolderOpen,
-  IconDotsVertical,
-  IconPencil,
-  IconArchive,
 } from "@tabler/icons-react"
 import { useState, useEffect, useCallback, Fragment } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
@@ -30,10 +20,9 @@ import { useLanguage } from "@/lib/i18n/language-context"
 import { apiClient, FolderContentItem } from "@/lib/api"
 import { decryptFilename } from "@/lib/crypto"
 import { masterKeyManager } from "@/lib/master-key"
-import { toast } from "sonner"
 import { NavFolder } from "./nav-folder"
 import { NavDrafts } from "./nav-drafts"
-import { NavAssistant } from "./nav-assistant"
+
 import { cn } from "@/lib/utils"
 import { Kbd } from "@/components/ui/kbd"
 import {
@@ -43,8 +32,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -306,10 +293,6 @@ export function NavMain({
                   )}
                 </SidebarMenuItem>
               );
-            }
-
-            if (item.id === 'assistant') {
-              return <NavAssistant item={item} />
             }
 
             if (item.id === 'trash') {
