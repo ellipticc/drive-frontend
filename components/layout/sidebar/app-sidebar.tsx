@@ -346,10 +346,9 @@ export const AppSidebar = React.memo(function AppSidebar({
             </SidebarMenuButton>
           </SidebarMenuItem>
 
+          <NavPinned onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
+          <NavHistory onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
         </SidebarMenu>
-
-        <NavPinned onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
-        <NavHistory onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
 
         <CommandDialog
           open={searchOpen}
