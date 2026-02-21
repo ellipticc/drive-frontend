@@ -418,7 +418,11 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
 
 
                     <div className={cn("relative mb-1", isLoading && "pointer-events-none")}>
-                        <div className="max-h-[40vh] w-full overflow-y-auto overflow-x-hidden custom-scrollbar font-sans break-words min-h-[2.5rem] pl-1 pr-12 md:pr-32 relative">
+                        <div className="max-h-[40vh] w-full overflow-y-auto overflow-x-hidden custom-scrollbar font-sans break-words min-h-[2.5rem] pl-1 pr-3 relative">
+                            {/* Spacer that floats right to push first ~2 lines away from the context circle */}
+                            {conversationId && usedContextTokens > 0 && (
+                                <div className="float-right w-10 h-8 pointer-events-none" aria-hidden="true" />
+                            )}
                             {isImproving ? (
                                 <Shimmer className="w-full text-[16px] leading-relaxed py-0 block min-h-[1.5em] text-foreground p-[2px]">
                                     {message || "Improving..."}

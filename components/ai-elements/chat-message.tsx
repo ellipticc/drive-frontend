@@ -469,34 +469,39 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                     />
 
                                     {/* Timing Metrics Indicator */}
-                                    {message.total_time !== undefined && message.total_time > 0 && (
-                                        <HoverCard>
-                                            <HoverCardTrigger className="flex items-center text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded hover:bg-muted/50 transition-colors cursor-default">
-                                                {message.total_time < 1000
-                                                    ? `${Math.round(message.total_time)}ms`
-                                                    : `${(message.total_time / 1000).toFixed(1)}s`}
-                                            </HoverCardTrigger>
-                                            <HoverCardContent side="right" align="center" className="flex flex-col gap-1.5 p-3 text-sm min-w-[180px]">
-                                                <div className="font-medium text-xs text-muted-foreground pb-1 border-b">Timing Metrics</div>
-                                                <div className="flex justify-between gap-4 text-xs">
-                                                    <span className="text-muted-foreground">Total Time:</span>
-                                                    <span className="font-mono">{message.total_time < 1000 ? `${Math.round(message.total_time)}ms` : `${(message.total_time / 1000).toFixed(2)}s`}</span>
-                                                </div>
-                                                {message.ttft !== undefined && message.ttft > 0 && (
+                                    {message.total_time !== undefined && Number(message.total_time) > 0 && (() => {
+                                        const totalTime = Number(message.total_time);
+                                        const ttft = Number(message.ttft);
+                                        const tps = Number(message.tps);
+                                        return (
+                                            <HoverCard>
+                                                <HoverCardTrigger className="flex items-center text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded hover:bg-muted/50 transition-colors cursor-default">
+                                                    {totalTime < 1000
+                                                        ? `${Math.round(totalTime)}ms`
+                                                        : `${(totalTime / 1000).toFixed(1)}s`}
+                                                </HoverCardTrigger>
+                                                <HoverCardContent side="right" align="center" className="flex flex-col gap-1.5 p-3 text-sm min-w-[180px]">
+                                                    <div className="font-medium text-xs text-muted-foreground pb-1 border-b">Timing Metrics</div>
                                                     <div className="flex justify-between gap-4 text-xs">
-                                                        <span className="text-muted-foreground">Time to First Token:</span>
-                                                        <span className="font-mono">{message.ttft < 1000 ? `${Math.round(message.ttft)}ms` : `${(message.ttft / 1000).toFixed(2)}s`}</span>
+                                                        <span className="text-muted-foreground">Total Time:</span>
+                                                        <span className="font-mono">{totalTime < 1000 ? `${Math.round(totalTime)}ms` : `${(totalTime / 1000).toFixed(2)}s`}</span>
                                                     </div>
-                                                )}
-                                                {message.tps !== undefined && message.tps > 0 && (
-                                                    <div className="flex justify-between gap-4 text-xs">
-                                                        <span className="text-muted-foreground">Speed:</span>
-                                                        <span className="font-mono">{message.tps.toFixed(1)} tokens/s</span>
-                                                    </div>
-                                                )}
-                                            </HoverCardContent>
-                                        </HoverCard>
-                                    )}
+                                                    {ttft > 0 && (
+                                                        <div className="flex justify-between gap-4 text-xs">
+                                                            <span className="text-muted-foreground">Time to First Token:</span>
+                                                            <span className="font-mono">{ttft < 1000 ? `${Math.round(ttft)}ms` : `${(ttft / 1000).toFixed(2)}s`}</span>
+                                                        </div>
+                                                    )}
+                                                    {tps > 0 && (
+                                                        <div className="flex justify-between gap-4 text-xs">
+                                                            <span className="text-muted-foreground">Speed:</span>
+                                                            <span className="font-mono">{tps.toFixed(1)} tok/s</span>
+                                                        </div>
+                                                    )}
+                                                </HoverCardContent>
+                                            </HoverCard>
+                                        );
+                                    })()}
                                 </div>
 
                                 {/* Right Actions - Version Navigation */}
