@@ -7,7 +7,6 @@ import {
   IconChevronDown,
   IconDotsVertical,
   IconPencil,
-  IconPin,
   IconPinFilled,
   IconArchive,
   IconTrash,
@@ -22,6 +21,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -37,21 +37,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
-import { useAICrypto } from "@/hooks/use-ai-crypto"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
+// --- Types ---
+
+type ChatType = { id: string; title: string; pinned: boolean; archived: boolean; createdAt: string }
+
+type ChatActions = {
+  renameChat: (conversationId: string, newTitle: string) => Promise<void>
+  pinChat: (conversationId: string, pinned: boolean) => Promise<void>
+  archiveChat: (conversationId: string, archived: boolean) => Promise<void>
+  deleteChat: (conversationId: string) => Promise<void>
+}
+
 // --- Helper Functions ---
 
-function groupChatsByTimeline(chats: { id: string; title: string; pinned: boolean; archived: boolean; createdAt: string }[]) {
+function groupChatsByTimeline(chats: ChatType[]) {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const yesterday = new Date(today.getTime() - 86400000)
 
-  const groups: { label: string; chats: typeof chats }[] = []
-  const groupMap = new Map<string, typeof chats>()
+  const groups: { label: string; chats: ChatType[] }[] = []
+  const groupMap = new Map<string, ChatType[]>()
 
-  // Exclude pinned items from timeline grouping
   const sorted = [...chats]
     .filter(c => !c.archived && !c.pinned)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -118,39 +127,53 @@ function SmartTruncatedTooltip({ text, className }: { text: string; className?: 
   )
 }
 
-function ChatItem({ chat }: { chat: any }) {
+// ChatItem receives actions as props - NO useAICrypto call here
+function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { renameChat, pinChat, archiveChat, deleteChat } = useAICrypto()
   const currentConversationId = searchParams.get("conversationId")
 
-  const [isEditing, setIsEditing] = React.useState(false)
-  const [editTitle, setEditTitle] = React.useState(chat.title)
+  const [renameDialogOpen, setRenameDialogOpen] = React.useState(false)
+  const [renameTitle, setRenameTitle] = React.useState("")
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
 
   const isActive = currentConversationId === chat.id
 
   const handleNavigate = () => {
-    if (!isEditing) router.push(`/new?conversationId=${chat.id}`)
+    router.push(`/new?conversationId=${chat.id}`)
+  }
+
+  const openRenameDialog = () => {
+    setRenameTitle(chat.title)
+    setRenameDialogOpen(true)
   }
 
   const handleRenameSave = async () => {
-    if (editTitle.trim() && editTitle.trim() !== chat.title) {
-      try {
-        await renameChat(chat.id, editTitle.trim())
-        toast.success("Chat renamed")
-      } catch {
-        toast.error("Failed to rename chat")
-      }
-    } else {
-      setEditTitle(chat.title) // reset if empty or unchanged
+    const trimmed = renameTitle.trim()
+    if (!trimmed) {
+      toast.error("Title cannot be empty")
+      return
     }
-    setIsEditing(false)
+    if (trimmed.length > 100) {
+      toast.error("Title must be 100 characters or less")
+      return
+    }
+    if (trimmed === chat.title) {
+      setRenameDialogOpen(false)
+      return
+    }
+    try {
+      await actions.renameChat(chat.id, trimmed)
+      toast.success("Chat renamed")
+      setRenameDialogOpen(false)
+    } catch {
+      toast.error("Failed to rename chat")
+    }
   }
 
   const confirmDelete = async () => {
     try {
-      await deleteChat(chat.id)
+      await actions.deleteChat(chat.id)
       setDeleteDialogOpen(false)
       toast.success("Chat deleted")
     } catch {
@@ -162,96 +185,112 @@ function ChatItem({ chat }: { chat: any }) {
     <>
       <div
         className={cn(
-          "group/chat-item relative flex items-center h-7 pl-3 pr-1 text-[13px] cursor-pointer rounded-r-md transition-colors",
+          "group/chat-item relative flex items-center h-7 ml-2 pl-2 pr-1 text-[13px] cursor-pointer rounded-md transition-colors",
           isActive
             ? "bg-sidebar-accent text-sidebar-accent-foreground"
             : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
         )}
         onClick={handleNavigate}
       >
-        {isEditing ? (
-          <Input
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleRenameSave()
-              if (e.key === "Escape") {
-                setEditTitle(chat.title)
-                setIsEditing(false)
-              }
-              e.stopPropagation()
-            }}
-            onBlur={handleRenameSave}
-            autoFocus
-            className="h-5 text-xs px-1 py-0 w-full"
-            onClick={(e) => e.stopPropagation()}
-          />
-        ) : (
-          <>
-            <SmartTruncatedTooltip text={chat.title} className="flex-1 pr-4" />
+        <SmartTruncatedTooltip text={chat.title} className="flex-1 pr-5" />
 
-            {/* Actions dropdown on hover */}
-            <div className="absolute right-0.5 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 transition-opacity">
-              <DropdownMenu>
-                <Tooltip delayDuration={300}>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <div
-                        role="button"
-                        className="p-0.5 hover:bg-sidebar-accent rounded-sm text-muted-foreground hover:text-foreground cursor-pointer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <IconDotsVertical className="size-3.5" />
-                      </div>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">Options</TooltipContent>
-                </Tooltip>
+        {/* Actions dropdown on hover */}
+        <div className="absolute right-0.5 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 transition-opacity">
+          <DropdownMenu>
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <div
+                    role="button"
+                    className="p-0.5 hover:bg-sidebar-accent rounded-sm text-muted-foreground hover:text-foreground cursor-pointer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <IconDotsVertical className="size-3.5" />
+                  </div>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="top">Options</TooltipContent>
+            </Tooltip>
 
-                <DropdownMenuContent side="bottom" align="start" sideOffset={8} className="w-40">
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setIsEditing(true) }}>
-                    <IconPencil className="size-3.5 mr-2" />
-                    Rename
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={async (e) => {
-                      e.stopPropagation()
-                      try {
-                        await pinChat(chat.id, !chat.pinned)
-                        toast.success(chat.pinned ? "Unpinned" : "Pinned")
-                      } catch { toast.error("Failed") }
-                    }}
-                  >
-                    {chat.pinned ? <IconPin className="size-3.5 mr-2" /> : <IconPinFilled className="size-3.5 mr-2" />}
-                    {chat.pinned ? "Unpin" : "Pin"}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={async (e) => {
-                      e.stopPropagation()
-                      try {
-                        await archiveChat(chat.id, true)
-                        toast.success("Archived")
-                      } catch { toast.error("Failed") }
-                    }}
-                  >
-                    <IconArchive className="size-3.5 mr-2" />
-                    Archive
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={(e) => { e.stopPropagation(); setDeleteDialogOpen(true) }}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10 focus:text-destructive focus:bg-destructive/10"
-                  >
-                    <IconTrash className="size-3.5 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </>
-        )}
+            <DropdownMenuContent side="bottom" align="end" sideOffset={4} className="w-40">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openRenameDialog() }}>
+                <IconPencil className="size-3.5 mr-2" />
+                Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={async (e) => {
+                  e.stopPropagation()
+                  try {
+                    await actions.pinChat(chat.id, !chat.pinned)
+                    toast.success(chat.pinned ? "Unpinned" : "Pinned")
+                  } catch { toast.error("Failed") }
+                }}
+              >
+                <IconPinFilled className="size-3.5 mr-2" />
+                {chat.pinned ? "Unpin" : "Pin"}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={async (e) => {
+                  e.stopPropagation()
+                  try {
+                    await actions.archiveChat(chat.id, true)
+                    toast.success("Archived")
+                  } catch { toast.error("Failed") }
+                }}
+              >
+                <IconArchive className="size-3.5 mr-2" />
+                Archive
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={(e) => { e.stopPropagation(); setDeleteDialogOpen(true) }}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 focus:text-destructive focus:bg-destructive/10"
+              >
+                <IconTrash className="size-3.5 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
+      {/* Rename Dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Rename Chat</DialogTitle>
+          </DialogHeader>
+          <div className="py-3">
+            <Label htmlFor="rename-input" className="text-sm text-muted-foreground mb-2 block">
+              Chat title
+            </Label>
+            <Input
+              id="rename-input"
+              value={renameTitle}
+              onChange={(e) => setRenameTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRenameSave()
+              }}
+              maxLength={100}
+              autoFocus
+              placeholder="Enter a title..."
+            />
+            {renameTitle.trim().length === 0 && (
+              <p className="text-xs text-destructive mt-1">Title cannot be empty</p>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRenameSave} disabled={renameTitle.trim().length === 0}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -274,14 +313,15 @@ function ChatItem({ chat }: { chat: any }) {
   )
 }
 
-// --- Specific Nav Components ---
+// --- Nav Components ---
 
 interface NavProps {
   onSearchOpen: () => void
+  chats: ChatType[]
+  actions: ChatActions
 }
 
-export function NavPinned({ onSearchOpen }: NavProps) {
-  const { chats } = useAICrypto()
+export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
   const { state } = useSidebar()
 
   const [isExpanded, setIsExpanded] = React.useState(() => {
@@ -293,9 +333,12 @@ export function NavPinned({ onSearchOpen }: NavProps) {
   })
   const [isHovered, setIsHovered] = React.useState(false)
 
-  const pinnedChats = [...chats]
-    .filter(c => c.pinned && !c.archived)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  const pinnedChats = React.useMemo(() =>
+    [...chats]
+      .filter(c => !!c.pinned && !c.archived)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [chats]
+  )
 
   if (pinnedChats.length === 0) return null
 
@@ -331,7 +374,7 @@ export function NavPinned({ onSearchOpen }: NavProps) {
                 <div
                   role="button"
                   onClick={toggleExpanded}
-                  className="flex items-center justify-center size-6 -ml-1 rounded-sm hover:bg-sidebar-accent/50 transition-colors shrink-0 cursor-pointer"
+                  className="flex items-center justify-center size-6 -ml-1 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
                 >
                   {isHovered && state !== "collapsed" ? (
                     <IconChevronDown
@@ -355,9 +398,9 @@ export function NavPinned({ onSearchOpen }: NavProps) {
 
             {isExpanded && state !== "collapsed" && (
               <div className="mt-1 ml-[11px] border-l border-border/40 pl-0 relative">
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-[3px]">
                   {visibleChats.map((chat) => (
-                    <ChatItem key={chat.id} chat={chat} />
+                    <ChatItem key={chat.id} chat={chat} actions={actions} />
                   ))}
                 </div>
 
@@ -378,8 +421,7 @@ export function NavPinned({ onSearchOpen }: NavProps) {
   )
 }
 
-export function NavHistory({ onSearchOpen }: NavProps) {
-  const { chats } = useAICrypto()
+export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
   const { state } = useSidebar()
 
   const [isExpanded, setIsExpanded] = React.useState(() => {
@@ -400,7 +442,7 @@ export function NavHistory({ onSearchOpen }: NavProps) {
     sessionStorage.setItem("history-expanded", String(next))
   }
 
-  const groups = groupChatsByTimeline(chats)
+  const groups = React.useMemo(() => groupChatsByTimeline(chats), [chats])
   let totalShown = 0
   const historyChatsCount = chats.filter(c => !c.pinned && !c.archived).length
   const hasMore = historyChatsCount > MAX_VISIBLE_CHATS_HISTORY
@@ -426,7 +468,7 @@ export function NavHistory({ onSearchOpen }: NavProps) {
                 <div
                   role="button"
                   onClick={toggleExpanded}
-                  className="flex items-center justify-center size-6 -ml-1 rounded-sm hover:bg-sidebar-accent/50 transition-colors shrink-0 cursor-pointer"
+                  className="flex items-center justify-center size-6 -ml-1 rounded-sm hover:bg-sidebar-accent transition-colors shrink-0 cursor-pointer"
                 >
                   {isHovered && state !== "collapsed" ? (
                     <IconChevronDown
@@ -465,9 +507,9 @@ export function NavHistory({ onSearchOpen }: NavProps) {
                         {group.label}
                       </div>
 
-                      <div className="flex flex-col gap-0.5">
+                      <div className="flex flex-col gap-[3px]">
                         {visibleChats.map((chat) => (
-                          <ChatItem key={chat.id} chat={chat} />
+                          <ChatItem key={chat.id} chat={chat} actions={actions} />
                         ))}
                       </div>
                     </div>

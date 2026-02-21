@@ -65,6 +65,7 @@ export const AppSidebar = React.memo(function AppSidebar({
   const { user: contextUser, loading: userLoading } = useUser()
   const { toggleSidebar, state, isMobile } = useSidebar()
   const { chats, renameChat, pinChat, deleteChat, archiveChat } = useAICrypto();
+  const chatActions = React.useMemo(() => ({ renameChat, pinChat, deleteChat, archiveChat }), [renameChat, pinChat, deleteChat, archiveChat]);
   const [searchOpen, setSearchOpen] = React.useState(false)
 
   // Keyboard shortcut for search (Cmd+K) and new chat (Ctrl+Shift+O)
@@ -308,11 +309,11 @@ export const AppSidebar = React.memo(function AppSidebar({
                 side: "right",
                 hidden: state !== "collapsed"
               }}
-              className="relative group/menu-button bg-muted/50 border border-border/50 hover:bg-muted/80 text-muted-foreground transition-colors justify-start h-9 px-3 rounded-lg group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:justify-center"
+              className="relative group/menu-button bg-muted/40 border border-border/40 hover:bg-muted/70 hover:border-border/60 text-muted-foreground transition-all justify-start h-8 px-2.5 rounded-md group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:justify-center"
             >
-              <IconSearch className="size-4 shrink-0" />
-              <span className="group-data-[collapsible=icon]:hidden">Search</span>
-              <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-60 transition-opacity flex group-data-[collapsible=icon]:hidden sm:flex">
+              <IconSearch className="size-4 shrink-0 opacity-50" />
+              <span className="group-data-[collapsible=icon]:hidden text-muted-foreground/70 text-[13px]">Search</span>
+              <kbd className="pointer-events-none ml-auto h-5 select-none items-center gap-0.5 rounded border bg-muted/60 px-1.5 font-mono text-[10px] font-medium text-muted-foreground/50 inline-flex group-data-[collapsible=icon]:hidden">
                 <span className="text-[10px]">Ctrl</span>K
               </kbd>
             </SidebarMenuButton>
@@ -385,8 +386,8 @@ export const AppSidebar = React.memo(function AppSidebar({
         </CommandDialog>
       </SidebarHeader>
       <SidebarContent className="flex-1">
-        <NavPinned onSearchOpen={() => setSearchOpen(true)} />
-        <NavHistory onSearchOpen={() => setSearchOpen(true)} />
+        <NavPinned onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
+        <NavHistory onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
         <NavMain items={data.navMain} />
       </SidebarContent>
       <SidebarFooter className="mt-auto">

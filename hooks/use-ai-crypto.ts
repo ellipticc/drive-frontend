@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { masterKeyManager } from '@/lib/master-key';
 import { keyManager } from '@/lib/key-manager';
 import type { UserKeypairs } from '@/lib/key-manager';
@@ -40,6 +40,9 @@ export function useAICrypto(): UseAICryptoReturn {
     const [error, setError] = useState<string | null>(null);
 
     const [chats, setChats] = useState<{ id: string, title: string, pinned: boolean, archived: boolean, createdAt: string }[]>([]);
+
+    // Cache guard: prevent re-fetching chats on every re-render
+    const hasLoadedChats = useRef(false);
 
     useEffect(() => {
         let mounted = true;
@@ -91,8 +94,9 @@ export function useAICrypto(): UseAICryptoReturn {
         }
     }, [userKeys]);
 
-    const loadChats = useCallback(async () => {
+    const loadChats = useCallback(async (forceRefresh = false) => {
         if (!userKeys) return;
+        if (hasLoadedChats.current && !forceRefresh) return; // Skip if already cached
         try {
             const res = await apiClient.getChats();
             const responseData = res as any;
@@ -126,6 +130,7 @@ export function useAICrypto(): UseAICryptoReturn {
             }));
 
             setChats(processed);
+            hasLoadedChats.current = true;
         } catch (e) {
             console.error("Failed to load chats:", e);
         }
@@ -161,11 +166,14 @@ export function useAICrypto(): UseAICryptoReturn {
     }, [userKeys, kyberPublicKey]);
 
     const pinChat = useCallback(async (conversationId: string, pinned: boolean) => {
+        // Optimistic update
+        setChats(prev => prev.map(c => c.id === conversationId ? { ...c, pinned } : c));
         try {
             await apiClient.updateChat(conversationId, { pinned });
-            setChats(prev => prev.map(c => c.id === conversationId ? { ...c, pinned } : c));
         } catch (e) {
             console.error("Failed to pin chat:", e);
+            // Revert on failure
+            setChats(prev => prev.map(c => c.id === conversationId ? { ...c, pinned: !pinned } : c));
         }
     }, []);
 
