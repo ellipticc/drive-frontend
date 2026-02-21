@@ -425,7 +425,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'like' ? "text-green-500" : "text-muted-foreground hover:text-green-500 hover:bg-muted/80 dark:hover:bg-muted/50")}
+                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'like' ? "text-green-500" : "text-muted-foreground hover:text-green-500 hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30")}
                                                 onClick={() => handleFeedback('like')}
                                             >
                                                 <IconThumbUp className="size-3.5" />
@@ -440,7 +440,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'dislike' ? "text-red-500" : "text-muted-foreground hover:text-red-500 hover:bg-muted/80 dark:hover:bg-muted/50")}
+                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'dislike' ? "text-red-500" : "text-muted-foreground hover:text-red-500 hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30")}
                                                 onClick={() => handleFeedback('dislike')}
                                             >
                                                 <IconThumbDown className="size-3.5" />
@@ -485,7 +485,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                             : `${(displayValue / 1000).toFixed(1)}s`;
                                         return (
                                             <HoverCard>
-                                                <HoverCardTrigger className="flex items-center text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md hover:bg-muted/60 transition-colors cursor-default select-none">
+                                                <HoverCardTrigger className="flex items-center text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md hover:bg-sidebar-accent/10 dark:hover:bg-sidebar-accent/20 transition-colors cursor-default select-none">
                                                     {displayText}
                                                 </HoverCardTrigger>
                                                 <HoverCardContent side="right" align="center" className="flex flex-col gap-1.5 p-3 text-sm min-w-[180px] w-auto">

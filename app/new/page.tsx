@@ -1722,7 +1722,7 @@ export default function AssistantPage() {
                             "h-8 font-semibold px-2 shrink-0 max-w-[300px] sm:max-w-[400px] justify-start rounded-md transition-colors",
                             isTypingTitle || displayedTitle === "New Chat"
                                 ? "cursor-default bg-transparent"
-                                : "cursor-pointer hover:bg-muted/80 dark:hover:bg-muted/50 group-hover/control:bg-muted/80"
+                                : "cursor-pointer hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 group-hover/control:bg-sidebar-accent/20"
                         )}
                         onClick={() => {
                             if (!isTypingTitle && displayedTitle !== "New Chat") {
@@ -1741,7 +1741,7 @@ export default function AssistantPage() {
                     {(!isTypingTitle && displayedTitle && displayedTitle !== "New Chat") && (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/70 rounded-md transition-colors hover:bg-muted/80 dark:hover:bg-muted/50 group-hover/control:bg-muted/80">
+                                <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/70 rounded-md transition-colors hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 group-hover/control:bg-sidebar-accent/20">
                                     <IconChevronDown className="size-4" />
                                 </Button>
                             </DropdownMenuTrigger>
@@ -1778,7 +1778,7 @@ export default function AssistantPage() {
         <div className="flex items-center gap-1">
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors" onClick={handleToggleStar}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors" onClick={handleToggleStar}>
                         {isStarred ? <IconPinFilled className="size-4 text-primary" /> : <IconPin className="size-4" />}
                     </Button>
                 </TooltipTrigger>
@@ -1789,7 +1789,7 @@ export default function AssistantPage() {
 
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors" onClick={() => router.push('/new')}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors" onClick={() => router.push('/new')}>
                         <IconEdit className="size-4" />
                     </Button>
                 </TooltipTrigger>
@@ -1800,7 +1800,7 @@ export default function AssistantPage() {
 
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors" onClick={() => {
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors" onClick={() => {
                         // Conversation export with timestamps + Ellipticc notice
                         const lines: string[] = [];
                         const exportedAt = new Date();
@@ -1837,6 +1837,20 @@ export default function AssistantPage() {
                     <p>Download</p>
                 </TooltipContent>
             </Tooltip>
+
+            {/* Show LLM used */}
+            {model && (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span className="text-xs text-muted-foreground px-2 py-1 rounded hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30">
+                            {model}
+                        </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                        <p>Generated using {model}</p>
+                    </TooltipContent>
+                </Tooltip>
+            )}
         </div>
     ) : null;
 
