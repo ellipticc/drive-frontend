@@ -190,21 +190,21 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
 
   return (
     <>
-      <SidebarMenuSubItem>
+      <SidebarMenuSubItem className="w-full">
         <SidebarMenuSubButton
           asChild
           isActive={isActive}
           onClick={handleNavigate}
           className={cn(
-            "group/chat-item relative cursor-pointer hover:pr-7",
+            "group/chat-item relative cursor-pointer pl-8 h-8 transition-none",
             isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
           )}
         >
-          <div className="flex items-center w-full">
-            <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight" />
+          <div className="flex items-center w-full relative">
+            <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight group-hover/chat-item:[mask-image:linear-gradient(to_right,black_80%,transparent_100%)]" />
 
             {/* Actions dropdown on hover */}
-            <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 transition-opacity flex items-center bg-transparent">
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 focus-within:opacity-100 transition-opacity flex items-center bg-transparent">
               <DropdownMenu>
                 <Tooltip delayDuration={300}>
                   <TooltipTrigger asChild>
@@ -399,7 +399,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
       </SidebarMenuButton>
 
       {isExpanded && state !== "collapsed" && (
-        <SidebarMenuSub className="ml-3.5 border-l border-border/50">
+        <SidebarMenuSub className="mx-0 border-none px-0">
           {visibleChats.map((chat) => (
             <ChatItem key={chat.id} chat={chat} actions={actions} />
           ))}
@@ -482,7 +482,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
       </SidebarMenuButton>
 
       {isExpanded && state !== "collapsed" && (
-        <SidebarMenuSub className="ml-3.5 border-l border-border/50">
+        <SidebarMenuSub className="mx-0 border-none px-0">
           {groups.map((group, groupIdx) => {
             const hasGroupMore = hasMore && groupIdx === groups.length - 1;
             const limit = hasGroupMore
@@ -495,7 +495,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
 
             return (
               <React.Fragment key={group.label}>
-                <div className="px-3 py-1.5 text-[10px] uppercase font-semibold text-muted-foreground/50 tracking-wider">
+                <div className="pl-8 py-1.5 text-[10px] uppercase font-semibold text-muted-foreground/50 tracking-wider">
                   {group.label}
                 </div>
                 {visibleChats.map((chat) => (
