@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import {
   IconHelpCircle,
   IconCaretLeftRightFilled,
@@ -18,7 +18,7 @@ import { NavMain } from "@/components/layout/navigation/nav-main"
 import { NavSecondary } from "@/components/layout/navigation/nav-secondary"
 import { NavUser } from "@/components/layout/navigation/nav-user"
 
-import { NavHistory } from "@/components/layout/navigation/nav-assistant"
+import { NavHistory, NavPinned } from "@/components/layout/navigation/nav-assistant"
 import {
   Sidebar,
   SidebarTrigger,
@@ -58,6 +58,8 @@ export const AppSidebar = React.memo(function AppSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { t } = useLanguage()
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
   const { user: contextUser, loading: userLoading } = useUser()
@@ -306,7 +308,7 @@ export const AppSidebar = React.memo(function AppSidebar({
                 side: "right",
                 hidden: state !== "collapsed"
               }}
-              className="relative group/menu-button group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 hover:bg-sidebar-accent"
+              className="relative group/menu-button bg-muted/50 border border-border/50 hover:bg-muted/80 text-muted-foreground transition-colors justify-start h-9 px-3 rounded-lg group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:justify-center"
             >
               <IconSearch className="size-4 shrink-0" />
               <span className="group-data-[collapsible=icon]:hidden">Search</span>
@@ -332,6 +334,7 @@ export const AppSidebar = React.memo(function AppSidebar({
                 side: "right",
                 hidden: state !== "collapsed"
               }}
+              isActive={pathname === '/new' && !searchParams.get('conversationId')}
               className="relative group/menu-button group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
             >
               <IconEdit className="size-4 shrink-0" />
@@ -382,6 +385,7 @@ export const AppSidebar = React.memo(function AppSidebar({
         </CommandDialog>
       </SidebarHeader>
       <SidebarContent className="flex-1">
+        <NavPinned onSearchOpen={() => setSearchOpen(true)} />
         <NavHistory onSearchOpen={() => setSearchOpen(true)} />
         <NavMain items={data.navMain} />
       </SidebarContent>
