@@ -255,7 +255,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
                     onClick={(e) => { e.stopPropagation(); setDeleteDialogOpen(true) }}
                     className="text-red-600 focus:bg-red-600/15 focus:text-red-600 hover:bg-red-600/15 hover:text-red-700 dark:text-red-500 dark:focus:bg-red-500/20 dark:focus:text-red-400 dark:hover:bg-red-500/20 dark:hover:text-red-400 font-medium"
                   >
-                    <IconTrash className="size-3.5 mr-2" />
+                    <IconTrash className="size-3.5 mr-2 text-red-600 dark:text-red-500" />
                     Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -302,7 +302,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
       </Dialog >
 
       {/* Delete Dialog */}
-      < Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} >
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Chat?</DialogTitle>
@@ -310,7 +310,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
           <div className="py-2 text-sm text-muted-foreground">
             Are you sure you want to delete this chat? This action cannot be undone.
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
             </Button>
@@ -319,7 +319,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog >
+      </Dialog>
     </>
   )
 }

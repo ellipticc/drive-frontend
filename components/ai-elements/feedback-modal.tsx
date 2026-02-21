@@ -97,7 +97,7 @@ export function FeedbackModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] gap-6">
+            <DialogContent className="sm:max-w-[500px] gap-6 max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Provide Feedback</DialogTitle>
                     <DialogDescription>
@@ -131,7 +131,7 @@ export function FeedbackModal({
                             value={details}
                             onChange={(e) => setDetails(e.target.value)}
                             maxLength={1000}
-                            className="resize-none"
+                            className="resize-none max-h-32 overflow-y-auto"
                             rows={3}
                         />
                     </div>

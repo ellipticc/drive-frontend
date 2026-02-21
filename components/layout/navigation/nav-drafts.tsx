@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { IconChevronRight, IconLoader2, IconStackFilled } from "@tabler/icons-react"
+import { IconChevronDown, IconLoader2, IconStackFilled } from "@tabler/icons-react"
 import {
     SidebarMenuSub,
     SidebarMenuSubItem,
@@ -31,6 +31,7 @@ export function NavDrafts({ item }: { item: any }) {
         }
         return false
     })
+    const [isHovered, setIsHovered] = React.useState(false)
 
     const [papers, setPapers] = React.useState<FileItem[]>([])
     const [isLoading, setIsLoading] = React.useState(false)
@@ -120,6 +121,8 @@ export function NavDrafts({ item }: { item: any }) {
     return (
         <SidebarMenuItem>
             <SidebarMenuButton
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
                 tooltip={{
                     children: (
                         <div className="flex items-center gap-2">
@@ -130,29 +133,31 @@ export function NavDrafts({ item }: { item: any }) {
                 }}
                 isActive={pathname === item.url || pathname.startsWith('/paper/')}
                 onClick={() => handleNavigate(item.url)}
-                className={cn(
-                    "cursor-pointer relative group/nav-item",
-                    state === 'collapsed' ? "" : "pr-8"
-                )}
+                className="cursor-pointer group/nav-item"
                 data-space-id="draft"
                 data-space-name={t("sidebar.drafts")}
             >
-                {item.icon && <item.icon />}
+                {!isLeaf ? (
+                    <div
+                        role="button"
+                        onClick={toggleOpen}
+                        className="flex items-center justify-center p-0.5 -ml-1 mr-1 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                        {isHovered && state !== 'collapsed' ? (
+                            <IconChevronDown
+                                className={cn("size-4 shrink-0 transition-transform duration-200", !isOpen && "-rotate-90")}
+                            />
+                        ) : (
+                            item.icon && <item.icon className="shrink-0 size-4" />
+                        )}
+                    </div>
+                ) : (
+                    item.icon && <item.icon />
+                )}
                 <span>{item.title}</span>
                 {state !== 'collapsed' && (
                     <div className="ms-auto opacity-0 group-hover/nav-item:opacity-100 transition-opacity">
                         <Kbd>{item.shortcut || 'D'}</Kbd>
-                    </div>
-                )}
-
-                {!isLeaf && state !== 'collapsed' && (
-                    <div
-                        onClick={toggleOpen}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-20 cursor-pointer"
-                    >
-                        <IconChevronRight
-                            className={cn("size-3.5 transition-transform duration-200", isOpen && "rotate-90")}
-                        />
                     </div>
                 )}
             </SidebarMenuButton>

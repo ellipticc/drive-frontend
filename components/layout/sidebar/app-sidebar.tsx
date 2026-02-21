@@ -25,12 +25,13 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarGroup,
+  SidebarGroupContent,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Kbd } from "@/components/ui/kbd"
 import {
   CommandDialog,
@@ -318,37 +319,45 @@ export const AppSidebar = React.memo(function AppSidebar({
               </kbd>
             </SidebarMenuButton>
           </SidebarMenuItem>
-
-          {/* Chat (new chat) button */}
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => router.push('/new')}
-              tooltip={{
-                children: (
-                  <div className="flex items-center gap-1">
-                    New Chat
-                    <Kbd>
-                      <span className="text-[9px]">⌘⇧</span>O
-                    </Kbd>
-                  </div>
-                ),
-                side: "right",
-                hidden: state !== "collapsed"
-              }}
-              isActive={pathname === '/new' && !searchParams.get('conversationId')}
-              className="relative group/menu-button group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
-            >
-              <IconEdit className="size-4 shrink-0" />
-              <span className="group-data-[collapsible=icon]:hidden">Chat</span>
-              <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-60 transition-opacity flex group-data-[collapsible=icon]:hidden sm:flex">
-                <span className="text-[9px]">⌘⇧</span>O
-              </kbd>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-
-          <NavPinned onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
-          <NavHistory onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
         </SidebarMenu>
+      </SidebarHeader>
+      <SidebarContent className="flex-1 gap-0">
+        <SidebarGroup className="py-0">
+          <SidebarGroupContent>
+            <SidebarMenu className="mt-1">
+              {/* Chat (new chat) button */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => router.push('/new')}
+                  tooltip={{
+                    children: (
+                      <div className="flex items-center gap-1">
+                        New Chat
+                        <Kbd>
+                          <span className="text-[9px]">⌘⇧</span>O
+                        </Kbd>
+                      </div>
+                    ),
+                    side: "right",
+                    hidden: state !== "collapsed"
+                  }}
+                  isActive={pathname === '/new' && !searchParams.get('conversationId')}
+                  className="relative group/menu-button group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
+                >
+                  <IconEdit className="size-4 shrink-0" />
+                  <span className="group-data-[collapsible=icon]:hidden">Chat</span>
+                  <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-60 transition-opacity flex group-data-[collapsible=icon]:hidden sm:flex">
+                    <span className="text-[9px]">⌘⇧</span>O
+                  </kbd>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <NavPinned onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
+              <NavHistory onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <NavMain items={data.navMain} />
 
         <CommandDialog
           open={searchOpen}
@@ -387,9 +396,6 @@ export const AppSidebar = React.memo(function AppSidebar({
             </CommandGroup>
           </CommandList>
         </CommandDialog>
-      </SidebarHeader >
-      <SidebarContent className="flex-1 gap-0">
-        <NavMain items={data.navMain} />
       </SidebarContent>
       <SidebarFooter className="mt-auto">
         <NavSecondary items={data.navSecondary} />
