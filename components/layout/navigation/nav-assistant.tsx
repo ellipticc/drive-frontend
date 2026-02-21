@@ -203,7 +203,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
                 <DropdownMenuTrigger asChild>
                   <div
                     role="button"
-                    className="p-0.5 hover:bg-sidebar-accent rounded-sm text-muted-foreground hover:text-foreground cursor-pointer"
+                    className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-muted-foreground hover:text-foreground cursor-pointer"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <IconDotsVertical className="size-3.5" />
@@ -245,7 +245,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={(e) => { e.stopPropagation(); setDeleteDialogOpen(true) }}
-                className="text-destructive hover:text-destructive hover:bg-destructive/10 focus:text-destructive focus:bg-destructive/10"
+                className="text-red-600 focus:bg-red-600/15 focus:text-red-600 hover:bg-red-600/15 hover:text-red-700 dark:text-red-500 dark:focus:bg-red-500/20 dark:focus:text-red-400 dark:hover:bg-red-500/20 dark:hover:text-red-400 font-medium"
               >
                 <IconTrash className="size-3.5 mr-2" />
                 Delete
@@ -373,7 +373,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
               <div
                 role="button"
                 onClick={toggleExpanded}
-                className="flex items-center justify-center p-1 -ml-1.5 mr-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                className="flex items-center justify-center p-0.5 -ml-1 mr-1 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
               >
                 {isHovered && state !== "collapsed" ? (
                   <IconChevronDown
@@ -461,7 +461,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
               <div
                 role="button"
                 onClick={toggleExpanded}
-                className="flex items-center justify-center p-1 -ml-1.5 mr-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                className="flex items-center justify-center p-0.5 -ml-1 mr-1 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
               >
                 {isHovered && state !== "collapsed" ? (
                   <IconChevronDown

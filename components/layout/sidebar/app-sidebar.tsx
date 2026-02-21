@@ -345,7 +345,11 @@ export const AppSidebar = React.memo(function AppSidebar({
               </kbd>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
         </SidebarMenu>
+
+        <NavPinned onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
+        <NavHistory onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
 
         <CommandDialog
           open={searchOpen}
@@ -384,16 +388,14 @@ export const AppSidebar = React.memo(function AppSidebar({
             </CommandGroup>
           </CommandList>
         </CommandDialog>
-      </SidebarHeader>
+      </SidebarHeader >
       <SidebarContent className="flex-1 gap-0">
-        <NavPinned onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
-        <NavHistory onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
         <NavMain items={data.navMain} />
       </SidebarContent>
       <SidebarFooter className="mt-auto">
         <NavSecondary items={data.navSecondary} />
         <NavUser user={data.user} />
       </SidebarFooter>
-    </Sidebar>
+    </Sidebar >
   )
 })

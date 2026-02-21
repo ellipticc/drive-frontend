@@ -1675,7 +1675,7 @@ export default function AssistantPage() {
         if (!conversationId) return;
         try {
             const newStarred = !isStarred;
-            await apiClient.updateConversation(conversationId, { is_starred: newStarred });
+            await apiClient.updateConversation(conversationId, { pinned: newStarred });
             setIsStarred(newStarred);
             toast.success(newStarred ? "Chat starred" : "Chat unstarred");
         } catch (e) {
@@ -1778,6 +1778,17 @@ export default function AssistantPage() {
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
                     <p>{isStarred ? "Unstar" : "Star"}</p>
+                </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors" onClick={() => router.push('/new')}>
+                        <IconEdit className="size-4" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                    <p>New Chat</p>
                 </TooltipContent>
             </Tooltip>
 
