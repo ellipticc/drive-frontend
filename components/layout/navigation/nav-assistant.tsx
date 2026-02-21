@@ -196,12 +196,12 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
           isActive={isActive}
           onClick={handleNavigate}
           className={cn(
-            "group/chat-item relative cursor-pointer pl-8 h-8 transition-none",
+            "group/chat-item relative cursor-pointer ml-4 pl-4 pr-2 h-8 transition-none",
             isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
           )}
         >
           <div className="flex items-center w-full relative">
-            <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight pr-6" />
+            <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight" />
 
             {/* Actions dropdown on hover */}
             <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 focus-within:opacity-100 transition-opacity flex items-center bg-transparent">
@@ -211,7 +211,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
                     <DropdownMenuTrigger asChild>
                       <div
                         role="button"
-                        className="flex items-center justify-center size-5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/80 hover:text-sidebar-foreground cursor-pointer"
+                        className="flex items-center justify-center size-5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/80 hover:text-sidebar-foreground cursor-pointer bg-background/80 backdrop-blur-sm shadow-[-4px_0_12px_var(--background)]"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <IconDotsVertical className="size-4" />
@@ -380,7 +380,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
         <div
           role="button"
           onClick={toggleExpanded}
-          className="flex items-center justify-center p-0.5 -ml-1 mr-1 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+          className="flex items-center justify-center p-0.5 -mx-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
         >
           {isHovered && state !== "collapsed" ? (
             <IconChevronDown
@@ -464,7 +464,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
         <div
           role="button"
           onClick={toggleExpanded}
-          className="flex items-center justify-center p-0.5 -ml-1 mr-1 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+          className="flex items-center justify-center p-0.5 -mx-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
         >
           {isHovered && state !== "collapsed" ? (
             <IconChevronDown

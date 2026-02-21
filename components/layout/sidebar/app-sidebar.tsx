@@ -251,7 +251,6 @@ export const AppSidebar = React.memo(function AppSidebar({
   return (
     <Sidebar collapsible="icon" className="bg-sidebar flex flex-col" {...props}>
       <SidebarHeader className="gap-2 p-2 relative z-20">
-        <div className="absolute -bottom-6 left-0 right-0 h-6 pointer-events-none backdrop-blur-md [mask-image:linear-gradient(to_bottom,black_0%,transparent_100%)] group-data-[collapsible=icon]:hidden" />
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex w-full items-center justify-between group-data-[collapsible=icon]:hidden">
@@ -323,7 +322,7 @@ export const AppSidebar = React.memo(function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent className="flex-1 gap-0">
-        <SidebarGroup className="py-0">
+        <SidebarGroup className="py-0 pr-0 pl-2">
           <SidebarGroupContent>
             <SidebarMenu className="mt-1">
               {/* Chat (new chat) button */}
@@ -399,7 +398,6 @@ export const AppSidebar = React.memo(function AppSidebar({
         </CommandDialog>
       </SidebarContent>
       <SidebarFooter className="mt-auto relative z-20">
-        <div className="absolute -top-6 left-0 right-0 h-6 pointer-events-none backdrop-blur-md [mask-image:linear-gradient(to_top,black_0%,transparent_100%)] group-data-[collapsible=icon]:hidden" />
         <NavSecondary items={data.navSecondary} />
         <NavUser user={data.user} />
       </SidebarFooter>
