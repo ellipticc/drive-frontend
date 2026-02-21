@@ -205,8 +205,8 @@ export function NavMain({
   }
 
   return (
-    <SidebarGroup>
-      <SidebarGroupContent className="flex flex-col gap-2">
+    <SidebarGroup className="mt-1">
+      <SidebarGroupContent className="flex flex-col gap-[3px]">
         <SidebarMenu>
           {items.map((item, index) => {
             // Handle "Vault" with folder expansion

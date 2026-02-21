@@ -7,6 +7,7 @@ import {
   IconChevronDown,
   IconDotsVertical,
   IconPencil,
+  IconPin,
   IconPinFilled,
   IconArchive,
   IconTrash,
@@ -212,7 +213,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
               <TooltipContent side="top">Options</TooltipContent>
             </Tooltip>
 
-            <DropdownMenuContent side="bottom" align="end" sideOffset={4} className="w-40">
+            <DropdownMenuContent side="bottom" align="start" sideOffset={8} className="w-40">
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openRenameDialog() }}>
                 <IconPencil className="size-3.5 mr-2" />
                 Rename
@@ -226,7 +227,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
                   } catch { toast.error("Failed") }
                 }}
               >
-                <IconPinFilled className="size-3.5 mr-2" />
+                {chat.pinned ? <IconPinFilled className="size-3.5 mr-2" /> : <IconPin className="size-3.5 mr-2" />}
                 {chat.pinned ? "Unpin" : "Pin"}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -354,12 +355,15 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
   const hasMore = pinnedChats.length > MAX_VISIBLE_CHATS_PINNED
 
   return (
-    <SidebarGroup className="p-0 px-2 mt-2">
+    <SidebarGroup className="p-0 px-2 mt-1">
       <SidebarGroupContent>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              asChild
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              onClick={onSearchOpen}
+              className="cursor-pointer group/nav-item transition-all"
               tooltip={{
                 children: "Pinned",
                 side: "right",
@@ -367,33 +371,24 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
               }}
             >
               <div
-                className="flex w-full items-center cursor-default"
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
+                role="button"
+                onClick={toggleExpanded}
+                className="flex items-center justify-center p-1 -ml-1.5 mr-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
               >
-                <div
-                  role="button"
-                  onClick={toggleExpanded}
-                  className="flex items-center justify-center size-6 -ml-1 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
-                >
-                  {isHovered && state !== "collapsed" ? (
-                    <IconChevronDown
-                      className={cn(
-                        "size-4 shrink-0 transition-transform duration-200",
-                        !isExpanded && "-rotate-90"
-                      )}
-                    />
-                  ) : (
-                    <IconPinFilled className="size-4 shrink-0 text-muted-foreground" />
-                  )}
-                </div>
-                <div
-                  onClick={onSearchOpen}
-                  className="flex-1 ml-1 cursor-pointer h-full flex items-center group-data-[collapsible=icon]:hidden font-medium text-sidebar-foreground"
-                >
-                  Pinned
-                </div>
+                {isHovered && state !== "collapsed" ? (
+                  <IconChevronDown
+                    className={cn(
+                      "size-4 shrink-0 transition-transform duration-200",
+                      !isExpanded && "-rotate-90"
+                    )}
+                  />
+                ) : (
+                  <IconPinFilled className="size-4 shrink-0 text-muted-foreground" />
+                )}
               </div>
+              <span className="font-medium group-data-[collapsible=icon]:hidden">
+                Pinned
+              </span>
             </SidebarMenuButton>
 
             {isExpanded && state !== "collapsed" && (
@@ -448,12 +443,15 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
   const hasMore = historyChatsCount > MAX_VISIBLE_CHATS_HISTORY
 
   return (
-    <SidebarGroup className="p-0 px-2 mt-2">
+    <SidebarGroup className="p-0 px-2 mt-1">
       <SidebarGroupContent>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              asChild
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              onClick={onSearchOpen}
+              className="cursor-pointer group/nav-item transition-all"
               tooltip={{
                 children: "History",
                 side: "right",
@@ -461,33 +459,24 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
               }}
             >
               <div
-                className="flex w-full items-center cursor-default"
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
+                role="button"
+                onClick={toggleExpanded}
+                className="flex items-center justify-center p-1 -ml-1.5 mr-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
               >
-                <div
-                  role="button"
-                  onClick={toggleExpanded}
-                  className="flex items-center justify-center size-6 -ml-1 rounded-sm hover:bg-sidebar-accent transition-colors shrink-0 cursor-pointer"
-                >
-                  {isHovered && state !== "collapsed" ? (
-                    <IconChevronDown
-                      className={cn(
-                        "size-4 shrink-0 transition-transform duration-200",
-                        !isExpanded && "-rotate-90"
-                      )}
-                    />
-                  ) : (
-                    <IconHistory className="size-4 shrink-0 text-muted-foreground" />
-                  )}
-                </div>
-                <div
-                  onClick={onSearchOpen}
-                  className="flex-1 ml-1 cursor-pointer h-full flex items-center group-data-[collapsible=icon]:hidden font-medium text-sidebar-foreground"
-                >
-                  History
-                </div>
+                {isHovered && state !== "collapsed" ? (
+                  <IconChevronDown
+                    className={cn(
+                      "size-4 shrink-0 transition-transform duration-200",
+                      !isExpanded && "-rotate-90"
+                    )}
+                  />
+                ) : (
+                  <IconHistory className="size-4 shrink-0 text-muted-foreground" />
+                )}
               </div>
+              <span className="font-medium group-data-[collapsible=icon]:hidden">
+                History
+              </span>
             </SidebarMenuButton>
 
             {isExpanded && state !== "collapsed" && (

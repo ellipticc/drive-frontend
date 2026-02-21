@@ -385,7 +385,7 @@ export const AppSidebar = React.memo(function AppSidebar({
           </CommandList>
         </CommandDialog>
       </SidebarHeader>
-      <SidebarContent className="flex-1">
+      <SidebarContent className="flex-1 gap-0">
         <NavPinned onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
         <NavHistory onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
         <NavMain items={data.navMain} />
