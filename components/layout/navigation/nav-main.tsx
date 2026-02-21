@@ -258,7 +258,7 @@ export function NavMain({
                     <div
                       role="button"
                       onClick={toggleMyFiles}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-20 cursor-pointer"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm transition-colors text-muted-foreground/40 hover:text-muted-foreground z-20 cursor-pointer"
                     >
                       <IconChevronRight
                         className={cn("size-3.5 transition-transform duration-200", isMyFilesExpanded && "rotate-90")}

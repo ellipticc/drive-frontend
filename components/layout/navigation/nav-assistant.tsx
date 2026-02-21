@@ -117,7 +117,10 @@ function SmartTruncatedTooltip({ text, className }: { text: string; className?: 
         <span
           ref={textRef}
           onMouseEnter={checkTruncation}
-          className={cn("truncate", className)}
+          className={cn(
+            "block whitespace-nowrap overflow-hidden [mask-image:linear-gradient(to_right,#000_calc(100%-28px),transparent)]",
+            className
+          )}
         >
           {text}
         </span>
@@ -193,25 +196,25 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
           isActive={isActive}
           onClick={handleNavigate}
           className={cn(
-            "group/chat-item cursor-pointer pr-8",
+            "group/chat-item relative cursor-pointer",
             isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
           )}
         >
           <div className="flex items-center w-full">
-            <SmartTruncatedTooltip text={chat.title} className="flex-1 pr-5" />
+            <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight" />
 
             {/* Actions dropdown on hover */}
-            <div className="absolute right-0.5 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 transition-opacity">
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 transition-opacity flex items-center bg-transparent">
               <DropdownMenu>
                 <Tooltip delayDuration={300}>
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
                       <div
                         role="button"
-                        className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-muted-foreground hover:text-foreground cursor-pointer"
+                        className="flex items-center justify-center size-5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/50 hover:text-sidebar-foreground cursor-pointer"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <IconDotsVertical className="size-3.5" />
+                        <IconDotsVertical className="size-4" />
                       </div>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
