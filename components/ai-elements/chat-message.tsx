@@ -372,15 +372,15 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                                     </div>
                                                                 </SheetTrigger>
                                                                 <SheetContent side="right" className="w-[400px] sm:w-[540px] px-0 pb-0 flex flex-col" hideOverlay>
-                                                                    <SheetHeader className="px-6 pb-2 text-left space-y-1">
-                                                                        <SheetTitle className="flex items-center gap-2">
+                                                                    <SheetHeader className="px-6 py-4 text-left space-y-1.5 border-b border-border/40 shrink-0">
+                                                                        <SheetTitle className="flex items-center gap-3 pr-8">
                                                                             <IconFileText className="w-5 h-5 text-primary/80 shrink-0" />
-                                                                            <span className="truncate" title="Context Snippet">Context Snippet</span>
+                                                                            <span className="truncate text-base" title="Context Snippet">Context Snippet</span>
                                                                         </SheetTitle>
                                                                         <SheetDescription className="pl-7">Manually added context via user interaction</SheetDescription>
                                                                     </SheetHeader>
-                                                                    <ScrollArea className="flex-1 px-6 pb-6 mt-2">
-                                                                        <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed bg-muted/30 p-4 rounded-xl border border-border/50">
+                                                                    <ScrollArea className="flex-1 w-full min-h-0">
+                                                                        <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed bg-muted/30 p-4 m-6 rounded-xl border border-border/50">
                                                                             {ctx.content}
                                                                         </div>
                                                                     </ScrollArea>
@@ -396,15 +396,15 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                                     </div>
                                                                 </SheetTrigger>
                                                                 <SheetContent side="right" className="w-[400px] sm:w-[540px] px-0 pb-0 flex flex-col" hideOverlay>
-                                                                    <SheetHeader className="px-6 pb-2 text-left space-y-1">
-                                                                        <SheetTitle className="flex items-center gap-2">
+                                                                    <SheetHeader className="px-6 py-4 text-left space-y-1.5 border-b border-border/40 shrink-0">
+                                                                        <SheetTitle className="flex items-center gap-3 pr-8">
                                                                             <IconFileText className="w-5 h-5 text-primary/80 shrink-0" />
-                                                                            <span className="truncate" title={file.name}>{file.name}</span>
+                                                                            <span className="truncate text-base" title={file.name}>{file.name}</span>
                                                                         </SheetTitle>
                                                                         <SheetDescription className="pl-7">Extracted Document Text for LLM Context</SheetDescription>
                                                                     </SheetHeader>
-                                                                    <ScrollArea className="flex-1 px-6 pb-6 mt-2">
-                                                                        <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed bg-muted/30 p-4 rounded-xl border border-border/50">
+                                                                    <ScrollArea className="flex-1 w-full min-h-0">
+                                                                        <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed bg-muted/30 p-4 m-6 rounded-xl border border-border/50">
                                                                             {file.content}
                                                                         </div>
                                                                     </ScrollArea>

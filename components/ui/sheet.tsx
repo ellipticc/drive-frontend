@@ -137,11 +137,10 @@ function SheetContent({
         <SheetPrimitive.Content
           data-slot="sheet-content"
           className={cn(
-            "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
-            side === "right" &&
-            "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full border-l",
-            side === "left" &&
-            "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full border-r",
+            "bg-background fixed z-50 flex flex-col shadow-lg transition ease-in-out data-[state=closed]:duration-500 data-[state=open]:duration-500",
+            "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
+            side === "right" && "inset-y-0 right-0 h-full border-l",
+            side === "left" && "inset-y-0 left-0 h-full border-r",
             side === "top" &&
             "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b",
             side === "bottom" &&
@@ -189,11 +188,11 @@ function SheetContent({
             </div>
           )}
 
-          <div className="flex-shrink-0">
+          <div className="flex-1 overflow-y-auto w-full h-full flex flex-col min-h-0">
             {children}
           </div>
-          <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
-            <IconX className="size-6" />
+          <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-[1.05rem] right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+            <IconX className="size-5" />
             <span className="sr-only">Close</span>
           </SheetPrimitive.Close>
         </SheetPrimitive.Content>
