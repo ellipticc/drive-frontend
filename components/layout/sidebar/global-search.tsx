@@ -204,7 +204,7 @@ const ChatCommandItem = React.memo(function ChatCommandItem({
                 <IconBubbleText className="shrink-0 h-[15px] w-[15px] text-muted-foreground/60" />
 
                 {/* Title  always pr-[88px] so the right zone never shifts layout */}
-                <span className="truncate flex-1 min-w-0 text-lg pr-[88px]">{chat.title}</span>
+                <span className="truncate flex-1 min-w-0 text-base pr-[88px]">{chat.title}</span>
 
                 {/* Fixed 80px right-side zone: timestamp  icons, no layout shift */}
                 <div className="absolute right-2 w-[80px] flex items-center justify-end">
@@ -553,8 +553,8 @@ export function GlobalSearch({
                                     )}
                                 >
                                     <CommandList
-                                        className="flex-1 overflow-y-auto min-h-0 px-1.5 pt-0.5 pb-2"
-                                        style={{ overscrollBehavior: "contain", scrollPaddingBottom: "2.5rem" }}
+                                        className="flex-1 overflow-y-auto min-h-0 px-1.5 pt-0.5 pb-14"
+                                        style={{ overscrollBehavior: "contain" }}
                                     >
                                         <CommandEmpty className="py-10 text-center text-sm text-muted-foreground/60">
                                             No conversations found.
