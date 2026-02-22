@@ -601,29 +601,6 @@ export function GlobalSearch({
                                             </CommandGroup>
                                         ))}
                                     </CommandList>
-                                    
-                                    {/* Footer only in left column when expanded */}
-                                    {isExpanded && (
-                                        <div className="shrink-0 flex items-center justify-between px-3 py-2 bg-background border-t border-border/25 z-10">
-                                            <ActionTooltip tooltip="Collapse">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground rounded-md"
-                                                    onClick={() => setIsExpanded(false)}
-                                                >
-                                                    <IconArrowsDiagonalMinimize2 className="h-4 w-4" />
-                                                </Button>
-                                            </ActionTooltip>
-                                            <div className="flex items-center">
-                                                <FooterAction label="Open"   kbd=""  disabled={!footerChat} onClick={() => handleGo()} />
-                                                <span className="w-px h-3 bg-border/40 mx-1" />
-                                                <FooterAction label="Edit"   kbd="E" disabled={!footerChat} onClick={() => footerChat && handleOpenEdit(footerChat)} />
-                                                <span className="w-px h-3 bg-border/40 mx-1" />
-                                                <FooterAction label="Delete" kbd="D" disabled={!footerChat} destructive onClick={() => footerChat && handleOpenDelete(footerChat)} />
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
 
                                 {/*  RIGHT: Preview panel (expanded only)  */}
@@ -697,28 +674,29 @@ export function GlobalSearch({
                                 )}
                             </div>
 
-                            {/* Footer — only at bottom when NOT expanded */}
-                            {!isExpanded && (
-                                <div className="shrink-0 flex items-center justify-between px-3 py-2 bg-background border-t border-border/25 z-10">
-                                    <ActionTooltip tooltip="Expand preview">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground rounded-md"
-                                            onClick={() => setIsExpanded(true)}
-                                        >
-                                            <IconMaximize className="h-4 w-4" />
-                                        </Button>
-                                    </ActionTooltip>
-                                    <div className="flex items-center">
-                                        <FooterAction label="Open"   kbd=""  disabled={!footerChat} onClick={() => handleGo()} />
-                                        <span className="w-px h-3 bg-border/40 mx-1" />
-                                        <FooterAction label="Edit"   kbd="E" disabled={!footerChat} onClick={() => footerChat && handleOpenEdit(footerChat)} />
-                                        <span className="w-px h-3 bg-border/40 mx-1" />
-                                        <FooterAction label="Delete" kbd="D" disabled={!footerChat} destructive onClick={() => footerChat && handleOpenDelete(footerChat)} />
-                                    </div>
+                            {/* Footer — sticky at bottom, always visible */}
+                            <div className="sticky bottom-0 left-0 right-0 z-20 shrink-0 flex items-center justify-between px-3 py-2 bg-background border-t border-border/25">
+                                <ActionTooltip tooltip={isExpanded ? "Collapse" : "Expand preview"}>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground rounded-md"
+                                        onClick={() => setIsExpanded(v => !v)}
+                                    >
+                                        {isExpanded
+                                            ? <IconArrowsDiagonalMinimize2 className="h-4 w-4" />
+                                            : <IconMaximize className="h-4 w-4" />
+                                        }
+                                    </Button>
+                                </ActionTooltip>
+                                <div className="flex items-center">
+                                    <FooterAction label="Open"   kbd="Enter" disabled={!footerChat} onClick={() => handleGo()} />
+                                    <span className="w-px h-3 bg-border/40 mx-1" />
+                                    <FooterAction label="Edit"   kbd="E" disabled={!footerChat} onClick={() => footerChat && handleOpenEdit(footerChat)} />
+                                    <span className="w-px h-3 bg-border/40 mx-1" />
+                                    <FooterAction label="Delete" kbd="D" disabled={!footerChat} destructive onClick={() => footerChat && handleOpenDelete(footerChat)} />
                                 </div>
-                            )}
+                            </div>
                         </Command>
                     </DialogContent>
                 </Dialog>
