@@ -73,21 +73,21 @@ const ChatCommandItem = ({
         <CommandItem
             onSelect={onSelect}
             className={cn(
-                "cursor-pointer py-3 group relative flex items-center gap-2",
+                "cursor-pointer py-3 group relative flex items-center gap-2 rounded-xl outline-none focus-visible:ring-0",
                 isActive && "bg-accent/80 text-accent-foreground"
             )}
             value={chat.title + " " + chat.id} // value for CmdK filtering
         >
             <IconBubbleText className="shrink-0 h-4 w-4" />
-            <span className="truncate flex-1">{chat.title}</span>
+            <span className="truncate flex-1 min-w-0 pr-[92px]">{chat.title}</span>
 
-            {/* Timestamp (hidden on hover) */}
-            <span className="ml-2 w-[88px] text-right text-xs text-muted-foreground whitespace-nowrap group-hover:hidden group-focus:hidden block">
+            {/* Timestamp (fades out on hover) */}
+            <span className="absolute right-3 w-[80px] text-right text-xs text-muted-foreground transition-opacity duration-200 opacity-100 group-hover:opacity-0 group-focus:opacity-0 bg-transparent pointer-events-none">
                 {timeText}
             </span>
 
-            {/* Hover Actions (visible on hover) */}
-            <div className="ml-2 w-[88px] flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 group-focus:opacity-100 hidden group-hover:flex group-focus:flex" onClick={(e) => e.stopPropagation()}>
+            {/* Hover Actions (fades in on hover) */}
+            <div className="absolute right-2 flex items-center justify-end gap-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus:opacity-100 group-focus:pointer-events-auto transition-opacity duration-200 bg-background/80 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none px-1 rounded-md" onClick={(e) => e.stopPropagation()}>
                 <ActionTooltip tooltip="New Tab">
                     <Button
                         variant="ghost"
@@ -210,8 +210,8 @@ export function GlobalSearch({
 
     const handleOpenNewTab = React.useCallback((chat: ChatType) => {
         window.open(`/new?conversationId=${chat.id}`, '_blank')
-        onOpenChange(false)
-    }, [onOpenChange])
+        // DELIBERATELY DO NOT CLOSE THE DIALOG
+    }, [])
 
     // Keyboard Shortcuts (Ctrl+E, Ctrl+D, Enter for Open)
     React.useEffect(() => {
@@ -312,10 +312,10 @@ export function GlobalSearch({
                         shouldFilter={true}
                     >
                         {/* TOP HEADER: Full width search bar */}
-                        <div className="border-b border-border/50 relative z-10 w-full shrink-0">
+                        <div className={cn("border-b border-border/50 bg-background/50 relative z-10 w-full shrink-0 transition-all duration-300", isExpanded ? "p-0" : "")}>
                             <CommandInput
                                 placeholder="Search chats..."
-                                className={cn("h-14 border-none px-4", isExpanded && "h-16 text-lg")}
+                                className={cn("border-none px-6 transition-all duration-300", isExpanded ? "h-12 text-base" : "h-14 text-lg")}
                             />
                         </div>
 
@@ -325,13 +325,13 @@ export function GlobalSearch({
                             {/* LEFT COLUMN: History List */}
                             <div className={cn(
                                 "shrink-0 flex flex-col h-full overflow-hidden transition-all duration-300",
-                                isExpanded ? "w-[350px] border-r border-border/50 bg-sidebar/50 backdrop-blur-sm" : "w-full"
+                                isExpanded ? "w-[40%] border-r border-border/50 bg-sidebar/50 backdrop-blur-sm" : "w-full"
                             )}>
                                 <CommandList className="flex-1 overflow-y-auto w-full max-h-none py-2 px-2">
                                     <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
                                         No results found.
                                     </CommandEmpty>
-                                    <CommandGroup heading={filter === "pinned" ? "Pinned" : "History"}>
+                                    <CommandGroup heading={filter === "pinned" ? "Pinned" : "History"} className="[&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground">
                                         {filteredChats.map((chat) => (
                                             <ChatCommandItem
                                                 key={chat.id}
@@ -348,75 +348,11 @@ export function GlobalSearch({
                                         ))}
                                     </CommandGroup>
                                 </CommandList>
-
-                                {/* Sticky Footer */}
-                                <div className={cn(
-                                    "border-t border-border/50 flex items-center justify-between shrink-0",
-                                    isExpanded ? "p-3 bg-sidebar/50" : "p-2 bg-muted/40"
-                                )}>
-                                    {/* Left Side: Expand Toggle */}
-                                    <ActionTooltip tooltip={isExpanded ? "Collapse Preview" : "Expand Preview"}>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-muted-foreground hover:text-foreground h-8 px-2"
-                                            onClick={() => setIsExpanded(!isExpanded)}
-                                        >
-                                            {isExpanded ? <IconArrowsDiagonalMinimize2 className="h-4 w-4" /> : <IconMaximize className="h-4 w-4" />}
-                                        </Button>
-                                    </ActionTooltip>
-
-                                    {/* Right Side: Keyboard hints / Clickable Actions */}
-                                    <div className="flex items-center gap-1 sm:gap-2 mr-1">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 rounded-md flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted font-normal px-2"
-                                            onClick={handleGo}
-                                            disabled={!activeChatId}
-                                        >
-                                            <span className="text-xs">Open</span>
-                                            <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                                                Enter
-                                            </kbd>
-                                        </Button>
-
-                                        <div className="w-px h-3.5 bg-border/80 mx-0.5 hidden sm:block" />
-
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 rounded-md flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted font-normal px-2"
-                                            onClick={() => activeChat && handleOpenEdit(activeChat)}
-                                            disabled={!activeChatId}
-                                        >
-                                            <span className="text-xs">Edit</span>
-                                            <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                                                <span className="text-[10px]">Ctrl</span>E
-                                            </kbd>
-                                        </Button>
-
-                                        <div className="w-px h-3.5 bg-border/80 mx-0.5 hidden sm:block" />
-
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 rounded-md flex items-center gap-2 text-destructive/80 hover:text-destructive hover:bg-destructive/10 font-normal px-2"
-                                            onClick={() => activeChat && handleOpenDelete(activeChat)}
-                                            disabled={!activeChatId}
-                                        >
-                                            <span className="text-xs">Delete</span>
-                                            <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-destructive/20 bg-destructive/10 px-1.5 font-mono text-[10px] font-medium text-destructive">
-                                                <span className="text-[10px]">Ctrl</span>D
-                                            </kbd>
-                                        </Button>
-                                    </div>
-                                </div>
                             </div>
 
                             {/* RIGHT COLUMN: Real-time Preview Area (Only visible when expanded) */}
                             {isExpanded && (
-                                <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
+                                <div className="w-[60%] flex flex-col h-full overflow-hidden bg-background">
                                     {activeChatId ? (
                                         <div className="flex flex-col h-full">
                                             {/* Preview Scrollable Content */}
@@ -441,7 +377,7 @@ export function GlobalSearch({
                                                                 {/* Read-only renderer */}
                                                                 <div className={cn(
                                                                     "py-2 leading-relaxed max-w-[90%] break-words w-full",
-                                                                    msg.role === 'user' ? "bg-primary text-primary-foreground px-5 py-3 rounded-2xl max-w-[80%]" : ""
+                                                                    msg.role === 'user' ? "bg-primary text-primary-foreground px-5 py-3 rounded-xl max-w-[80%]" : ""
                                                                 )}>
                                                                     {msg.role === 'assistant' || msg.role === 'system' ? (
                                                                         <div className="prose prose-base dark:prose-invert max-w-none">
@@ -469,6 +405,70 @@ export function GlobalSearch({
                                     )}
                                 </div>
                             )}
+                        </div>
+
+                        {/* Sticky Footer attached to the whole Dialog container */}
+                        <div className={cn(
+                            "border-t border-border/50 flex items-center justify-between shrink-0 transition-colors duration-300 w-full",
+                            isExpanded ? "p-3 bg-sidebar/50" : "p-2 bg-muted/40"
+                        )}>
+                            {/* Left Side: Expand Toggle */}
+                            <ActionTooltip tooltip={isExpanded ? "Collapse Preview" : "Expand Preview"}>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-muted-foreground hover:text-foreground h-8 px-2 rounded-lg"
+                                    onClick={() => setIsExpanded(!isExpanded)}
+                                >
+                                    {isExpanded ? <IconArrowsDiagonalMinimize2 className="h-4 w-4" /> : <IconMaximize className="h-4 w-4" />}
+                                </Button>
+                            </ActionTooltip>
+
+                            {/* Right Side: Keyboard hints / Clickable Actions */}
+                            <div className="flex items-center gap-1 sm:gap-2 mr-1">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 rounded-lg flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted font-normal px-2"
+                                    onClick={handleGo}
+                                    disabled={!activeChatId}
+                                >
+                                    <span className="text-xs">Open</span>
+                                    <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded-[4px] border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                                        Enter
+                                    </kbd>
+                                </Button>
+
+                                <div className="w-px h-3.5 bg-border/80 mx-0.5 hidden sm:block" />
+
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 rounded-lg flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted font-normal px-2"
+                                    onClick={() => activeChat && handleOpenEdit(activeChat)}
+                                    disabled={!activeChatId}
+                                >
+                                    <span className="text-xs">Edit</span>
+                                    <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded-[4px] border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                                        <span className="text-[10px]">Ctrl</span>E
+                                    </kbd>
+                                </Button>
+
+                                <div className="w-px h-3.5 bg-border/80 mx-0.5 hidden sm:block" />
+
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 rounded-lg flex items-center gap-2 text-destructive/80 hover:text-destructive hover:bg-destructive/10 font-normal px-2"
+                                    onClick={() => activeChat && handleOpenDelete(activeChat)}
+                                    disabled={!activeChatId}
+                                >
+                                    <span className="text-xs">Delete</span>
+                                    <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded-[4px] border border-destructive/20 bg-destructive/10 px-1.5 font-mono text-[10px] font-medium text-destructive">
+                                        <span className="text-[10px]">Ctrl</span>D
+                                    </kbd>
+                                </Button>
+                            </div>
                         </div>
 
                         {/* Hidden active value tracker for cmdk */}
