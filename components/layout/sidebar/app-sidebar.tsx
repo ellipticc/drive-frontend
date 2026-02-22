@@ -36,20 +36,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Kbd } from "@/components/ui/kbd"
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useGlobalUpload } from "@/components/global-upload-context"
 import { useUser } from "@/components/user-context"
 import { useAICrypto } from "@/hooks/use-ai-crypto"
 import { getDiceBearAvatar } from "@/lib/avatar"
 import { useLanguage } from "@/lib/i18n/language-context"
+import { GlobalSearch } from "./global-search"
 
 const defaultUser = {
   name: "Loading...",
@@ -73,21 +66,6 @@ export const AppSidebar = React.memo(function AppSidebar({
   const [searchOpen, setSearchOpen] = React.useState(false)
   // filter applied when opening search via sidebar items ('pinned' or 'history')
   const [searchFilter, setSearchFilter] = React.useState<'pinned' | 'history' | null>(null)
-
-  // helper for rendering command dialog items with reactive timestamp
-  const ChatCommandItem = ({ chat, onSelect }: { chat: ChatType; onSelect: () => void }) => {
-    const timeText = useRelativeTime(chat.lastMessageAt || chat.createdAt);
-    return (
-      <CommandItem
-        onSelect={onSelect}
-        className="cursor-pointer py-3"
-      >
-        <IconBubbleText className="mr-2 h-4 w-4" />
-        <span>{chat.title}</span>
-        <span className="ml-auto text-xs text-muted-foreground">{timeText}</span>
-      </CommandItem>
-    );
-  };
 
   // Keyboard shortcut for search (Cmd+K) and new chat (Ctrl+Shift+O)
   React.useEffect(() => {
@@ -385,38 +363,14 @@ export const AppSidebar = React.memo(function AppSidebar({
         </SidebarGroup>
         <NavMain items={data.navMain} />
 
-        <CommandDialog
+        <GlobalSearch
           open={searchOpen}
           onOpenChange={(open) => {
             setSearchOpen(open);
             if (!open) setSearchFilter(null);
           }}
-          className="max-w-[85vw] w-[980px] sm:max-w-[980px] border-border/50"
-        >
-          <CommandInput placeholder="Search chats..." className="h-12" />
-          <CommandList className="h-[520px] overflow-y-auto">
-            <CommandEmpty>No results found.</CommandEmpty>
-            <CommandGroup heading={searchFilter === 'pinned' ? 'Pinned Chats' : 'Recent Chats'}>
-              {sortChatsByLastMessage(chats)
-                .filter((chat: ChatType) => {
-                  if (searchFilter === 'pinned') return chat.pinned && !chat.archived;
-                  if (searchFilter === 'history') return !chat.pinned && !chat.archived;
-                  return !chat.archived;
-                })
-                .map((chat: ChatType) => (
-                  <ChatCommandItem
-                    key={chat.id}
-                    chat={chat}
-                    onSelect={() => {
-                      router.push(`/new?conversationId=${chat.id}`);
-                      setSearchOpen(false);
-                      setSearchFilter(null);
-                    }}
-                  />
-                ))}
-            </CommandGroup>
-          </CommandList>
-        </CommandDialog>
+          filter={searchFilter}
+        />
       </SidebarContent>
       <SidebarFooter className="mt-auto relative z-20">
         <NavSecondary items={data.navSecondary} />
