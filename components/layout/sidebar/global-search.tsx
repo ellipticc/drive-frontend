@@ -208,8 +208,7 @@ const ChatCommandItem = React.memo(function ChatCommandItem({
                 )}
                 onPointerEnter={(e) => { e.stopPropagation(); onHoverStart() }}
                 onPointerLeave={(e) => { e.stopPropagation(); onHoverEnd() }}
-                onClick={(e) => { e.stopPropagation(); onSelect() }}
-                onDoubleClick={(e) => { e.stopPropagation(); onGo() }}
+                onClick={(e) => { e.stopPropagation(); onGo() }}
             >
                 <IconBubbleText className="shrink-0 h-[15px] w-[15px] text-muted-foreground/60" />
 
@@ -526,7 +525,7 @@ export function GlobalSearch({
                             <div
                                 className={cn(
                                     "shrink-0 w-full sticky top-0 z-20",
-                                    "bg-background border-b border-border/30",
+                                    "bg-background",
                                     isExpanded ? "h-10" : "h-11"
                                 )}
                             >
@@ -602,6 +601,29 @@ export function GlobalSearch({
                                             </CommandGroup>
                                         ))}
                                     </CommandList>
+                                    
+                                    {/* Footer only in left column when expanded */}
+                                    {isExpanded && (
+                                        <div className="shrink-0 flex items-center justify-between px-3 py-2 bg-background border-t border-border/25 z-10">
+                                            <ActionTooltip tooltip="Collapse">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground rounded-md"
+                                                    onClick={() => setIsExpanded(false)}
+                                                >
+                                                    <IconArrowsDiagonalMinimize2 className="h-4 w-4" />
+                                                </Button>
+                                            </ActionTooltip>
+                                            <div className="flex items-center">
+                                                <FooterAction label="Open"   kbd=""  disabled={!footerChat} onClick={() => handleGo()} />
+                                                <span className="w-px h-3 bg-border/40 mx-1" />
+                                                <FooterAction label="Edit"   kbd="E" disabled={!footerChat} onClick={() => footerChat && handleOpenEdit(footerChat)} />
+                                                <span className="w-px h-3 bg-border/40 mx-1" />
+                                                <FooterAction label="Delete" kbd="D" disabled={!footerChat} destructive onClick={() => footerChat && handleOpenDelete(footerChat)} />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/*  RIGHT: Preview panel (expanded only)  */}
@@ -609,15 +631,6 @@ export function GlobalSearch({
                                     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background">
                                         {previewConversationId ? (
                                             <>
-                                                {/* Title bar */}
-                                                {previewChat && (
-                                                    <div className="shrink-0 px-6 pt-5 pb-3 border-b border-border/20">
-                                                        <p className="text-sm font-semibold text-foreground/80 truncate">
-                                                            {previewChat.title}
-                                                        </p>
-                                                    </div>
-                                                )}
-
                                                 {/* Scrollable messages  full height, no overflow clipping */}
                                                 <div
                                                     ref={scrollRef}
@@ -638,7 +651,6 @@ export function GlobalSearch({
                                                                 <div
                                                                     key={msg.id || i}
                                                                     className={cn(
-                                                                        "pointer-events-none",
                                                                         msg.role === "user" ? "flex justify-end" : "flex justify-start"
                                                                     )}
                                                                 >
@@ -651,7 +663,7 @@ export function GlobalSearch({
                                                                         )}
                                                                     >
                                                                         {msg.role === "assistant" || msg.role === "system" ? (
-                                                                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                                                                            <div className="prose prose-sm dark:prose-invert max-w-none [&_.action-buttons]:hidden [&_.suggestions]:hidden [&_.regenerate-button]:hidden">
                                                                                 <ChatMessage
                                                                                     message={{
                                                                                         ...msg,
@@ -685,35 +697,28 @@ export function GlobalSearch({
                                 )}
                             </div>
 
-                            {/* Footer — shrink-0 natural flex child, NOT absolute.
-                                This ensures it never overlaps the scroll area. */}
-                            <div
-                                className="shrink-0 flex items-center justify-between px-3 py-2 bg-background border-t border-border/25 z-10"
-                            >
-                                {/* Expand / collapse */}
-                                <ActionTooltip tooltip={isExpanded ? "Collapse" : "Expand preview"}>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground rounded-md"
-                                        onClick={() => setIsExpanded(v => !v)}
-                                    >
-                                        {isExpanded
-                                            ? <IconArrowsDiagonalMinimize2 className="h-4 w-4" />
-                                            : <IconMaximize className="h-4 w-4" />
-                                        }
-                                    </Button>
-                                </ActionTooltip>
-
-                                {/* Keyboard actions */}
-                                <div className="flex items-center">
-                                    <FooterAction label="Open"   kbd=""   disabled={!footerChat} onClick={() => handleGo()} />
-                                    <span className="w-px h-3 bg-border/40 mx-1" />
-                                    <FooterAction label="Edit"   kbd="E"  disabled={!footerChat} onClick={() => footerChat && handleOpenEdit(footerChat)} />
-                                    <span className="w-px h-3 bg-border/40 mx-1" />
-                                    <FooterAction label="Delete" kbd="D"  disabled={!footerChat} destructive onClick={() => footerChat && handleOpenDelete(footerChat)} />
+                            {/* Footer — only at bottom when NOT expanded */}
+                            {!isExpanded && (
+                                <div className="shrink-0 flex items-center justify-between px-3 py-2 bg-background border-t border-border/25 z-10">
+                                    <ActionTooltip tooltip="Expand preview">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground rounded-md"
+                                            onClick={() => setIsExpanded(true)}
+                                        >
+                                            <IconMaximize className="h-4 w-4" />
+                                        </Button>
+                                    </ActionTooltip>
+                                    <div className="flex items-center">
+                                        <FooterAction label="Open"   kbd=""  disabled={!footerChat} onClick={() => handleGo()} />
+                                        <span className="w-px h-3 bg-border/40 mx-1" />
+                                        <FooterAction label="Edit"   kbd="E" disabled={!footerChat} onClick={() => footerChat && handleOpenEdit(footerChat)} />
+                                        <span className="w-px h-3 bg-border/40 mx-1" />
+                                        <FooterAction label="Delete" kbd="D" disabled={!footerChat} destructive onClick={() => footerChat && handleOpenDelete(footerChat)} />
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </Command>
                     </DialogContent>
                 </Dialog>
