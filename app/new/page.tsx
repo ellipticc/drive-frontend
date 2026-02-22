@@ -134,7 +134,7 @@ export default function AssistantPage() {
                     // Use scrollContainer as scroll boundary
                     const elementRect = element.getBoundingClientRect();
                     const containerRect = scrollContainerRef.current.getBoundingClientRect();
-                    
+
                     // Only scroll if element is not visible at top
                     if (elementRect.top > containerRect.top + 100) {
                         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -673,7 +673,7 @@ export default function AssistantPage() {
             let encryptedUserMessage;
             if (kyberPublicKey) {
                 try {
-                    const { encryptedContent, iv, encapsulatedKey } = await encryptMessage(value);
+                    const { encryptedContent, iv, encapsulatedKey } = await encryptMessage(finalContent);
                     encryptedUserMessage = { encryptedContent, iv, encapsulatedKey };
                 } catch (e) {
                     console.error("Failed to encrypt user message:", e);
@@ -687,14 +687,14 @@ export default function AssistantPage() {
             const trimmedMessages = trimHistoryByTokens(
                 cleanedMessages,
                 model,
-                value,
+                finalContent,
                 undefined,
                 25000 // Reserve 25k tokens for response generation
             );
             const historyPayload = trimmedMessages.map(m => ({ role: m.role, content: m.content }));
 
             // Add current user message
-            const fullPayload = [...historyPayload, { role: 'user' as const, content: value }];
+            const fullPayload = [...historyPayload, { role: 'user' as const, content: finalContent }];
 
             // We SEND user message as plaintext (for server inference) + Encrypted Blob (for storage)
             const controller = new AbortController();

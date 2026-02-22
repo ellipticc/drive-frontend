@@ -1,5 +1,6 @@
 
 import * as pdfjsLib from 'pdfjs-dist';
+import * as mammoth from 'mammoth';
 
 // Configure worker locally - we might need to copy the worker file to public/ or use a CDN
 // For Next.js/Webpack, it's often easier to use the CDN for the worker to avoid build config hell
@@ -17,6 +18,8 @@ export const parseFile = async (file: File): Promise<ParsedDocument> => {
     try {
         if (fileType === 'application/pdf') {
             return await parsePDF(file);
+        } else if (fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.docx')) {
+            return await parseDocx(file);
         } else if (
             fileType.startsWith('text/') ||
             file.name.endsWith('.md') ||
@@ -96,4 +99,19 @@ const parsePDF = async (file: File): Promise<ParsedDocument> => {
         content: fullText,
         type: 'pdf'
     };
+};
+
+const parseDocx = async (file: File): Promise<ParsedDocument> => {
+    const arrayBuffer = await file.arrayBuffer();
+    try {
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        return {
+            title: file.name,
+            content: result.value.trim(),
+            type: 'text' // Store as text since mammoth extracts raw text
+        };
+    } catch (e) {
+        console.error("Error extracting text from DOCX:", e);
+        throw new Error(`Failed to parse DOCX: ${file.name}`);
+    }
 };
