@@ -13,6 +13,7 @@ import {
   IconWritingSign,
   IconEdit,
 } from "@tabler/icons-react"
+import { cn } from "@/lib/utils"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
 import { NavSecondary } from "@/components/layout/navigation/nav-secondary"
@@ -68,6 +69,8 @@ export const AppSidebar = React.memo(function AppSidebar({
   const { chats, renameChat, pinChat, deleteChat, archiveChat } = useAICrypto();
   const chatActions = React.useMemo(() => ({ renameChat, pinChat, deleteChat, archiveChat }), [renameChat, pinChat, deleteChat, archiveChat]);
   const [searchOpen, setSearchOpen] = React.useState(false)
+  // filter applied when opening search via sidebar items ('pinned' or 'history')
+  const [searchFilter, setSearchFilter] = React.useState<'pinned' | 'history' | null>(null)
 
   // Keyboard shortcut for search (Cmd+K) and new chat (Ctrl+Shift+O)
   React.useEffect(() => {
@@ -297,7 +300,7 @@ export const AppSidebar = React.memo(function AppSidebar({
           {/* Search button */}
           <SidebarMenuItem>
             <SidebarMenuButton
-              onClick={() => setSearchOpen(true)}
+              onClick={() => { setSearchFilter(null); setSearchOpen(true); }}
               tooltip={{
                 children: (
                   <div className="flex items-center gap-1">
@@ -310,7 +313,13 @@ export const AppSidebar = React.memo(function AppSidebar({
                 side: "right",
                 hidden: state !== "collapsed"
               }}
-              className="relative group/menu-button text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-all justify-start h-8 px-2.5 rounded-md group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:justify-center"
+              className={cn(
+                "relative group/menu-button w-full text-sidebar-foreground/80 transition-all justify-start h-8 px-4 rounded-md",
+                searchOpen
+                  ? "bg-sidebar-accent/50 text-sidebar-accent-foreground"
+                  : "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                "group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:justify-center"
+              )}
             >
               <IconSearch className="size-4 shrink-0 opacity-50" />
               <span className="group-data-[collapsible=icon]:hidden text-muted-foreground/70 text-[13px]">Search</span>
@@ -352,8 +361,8 @@ export const AppSidebar = React.memo(function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              <NavPinned onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
-              <NavHistory onSearchOpen={() => setSearchOpen(true)} chats={chats} actions={chatActions} />
+              <NavPinned onSearchOpen={() => { setSearchFilter('pinned'); setSearchOpen(true); }} chats={chats} actions={chatActions} />
+              <NavHistory onSearchOpen={() => { setSearchFilter('history'); setSearchOpen(true); }} chats={chats} actions={chatActions} />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -361,38 +370,48 @@ export const AppSidebar = React.memo(function AppSidebar({
 
         <CommandDialog
           open={searchOpen}
-          onOpenChange={setSearchOpen}
+          onOpenChange={(open) => {
+            setSearchOpen(open);
+            if (!open) setSearchFilter(null);
+          }}
           className="max-w-[85vw] w-[980px] sm:max-w-[980px] border-border/50"
         >
           <CommandInput placeholder="Search chats..." className="h-12" />
           <CommandList className="h-[520px] overflow-y-auto">
             <CommandEmpty>No results found.</CommandEmpty>
-            <CommandGroup heading="Recent Chats">
-              {chats.map(chat => (
-                <CommandItem
-                  key={chat.id}
-                  onSelect={() => {
-                    router.push(`/new?conversationId=${chat.id}`);
-                    setSearchOpen(false);
-                  }}
-                  className="cursor-pointer py-3"
-                >
-                  <IconBubbleText className="mr-2 h-4 w-4" />
-                  <span>{chat.title}</span>
-                  <span className="ml-auto text-xs text-muted-foreground">{(() => {
-                    if (!chat.createdAt) return '';
-                    const d = new Date(chat.createdAt);
-                    const now = new Date();
-                    const diff = now.getTime() - d.getTime();
-                    const day = 24 * 60 * 60 * 1000;
-                    if (diff < day) return 'Today';
-                    if (diff < 7 * day) return 'Past week';
-                    if (diff < 30 * day) return 'Past month';
-                    if (diff < 365 * day) return 'Past year';
-                    return d.toLocaleDateString();
-                  })()}</span>
-                </CommandItem>
-              ))}
+            <CommandGroup heading={searchFilter === 'pinned' ? 'Pinned Chats' : 'Recent Chats'}>
+              {chats
+                .filter(chat => {
+                  if (searchFilter === 'pinned') return chat.pinned && !chat.archived;
+                  if (searchFilter === 'history') return !chat.pinned && !chat.archived;
+                  return !chat.archived;
+                })
+                .map(chat => (
+                  <CommandItem
+                    key={chat.id}
+                    onSelect={() => {
+                      router.push(`/new?conversationId=${chat.id}`);
+                      setSearchOpen(false);
+                      setSearchFilter(null);
+                    }}
+                    className="cursor-pointer py-3"
+                  >
+                    <IconBubbleText className="mr-2 h-4 w-4" />
+                    <span>{chat.title}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{(() => {
+                      if (!chat.createdAt) return '';
+                      const d = new Date(chat.createdAt);
+                      const now = new Date();
+                      const diff = now.getTime() - d.getTime();
+                      const day = 24 * 60 * 60 * 1000;
+                      if (diff < day) return 'Today';
+                      if (diff < 7 * day) return 'Past week';
+                      if (diff < 30 * day) return 'Past month';
+                      if (diff < 365 * day) return 'Past year';
+                      return d.toLocaleDateString();
+                    })()}</span>
+                  </CommandItem>
+                ))}
             </CommandGroup>
           </CommandList>
         </CommandDialog>

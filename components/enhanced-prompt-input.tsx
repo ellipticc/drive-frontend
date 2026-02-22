@@ -466,7 +466,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                     <TooltipTrigger asChild>
                                         <button
                                             onClick={() => fileInputRef.current?.click()}
-                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 transition-colors"
                                             type="button"
                                             aria-label="Attach file"
                                         >
@@ -495,7 +495,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                                     isThinkingSupported && thinkingMode
                                                         ? 'bg-primary/15 text-primary'
                                                         : isThinkingSupported
-                                                            ? 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                                                            ? 'text-muted-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 hover:text-foreground'
                                                             : 'text-muted-foreground/50 cursor-not-allowed opacity-50'
                                                 )}
                                                 type="button"
@@ -520,7 +520,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                                     'inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all',
                                                     searchMode
                                                         ? 'bg-primary/15 text-primary'
-                                                        : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                                                        : 'text-muted-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 hover:text-foreground'
                                                 )}
                                                 type="button"
                                             >
@@ -548,7 +548,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                             <TooltipTrigger asChild>
                                                 <button
                                                     onClick={handleRevert}
-                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all text-muted-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 hover:text-foreground"
                                                     type="button"
                                                 >
                                                     <IconArrowBackUp className="w-4 h-4" />
@@ -568,7 +568,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                                     className={cn(
                                                         'inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all',
                                                         message.trim()
-                                                            ? 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                                                            ? 'text-muted-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 hover:text-foreground'
                                                             : 'text-muted-foreground/50 cursor-not-allowed opacity-50'
                                                     )}
                                                     type="button"
@@ -588,7 +588,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                             {/* Mobile: More dropdown with Reasoning, Search, Files & Improve */}
                             {isMobile && (
                                 <DropdownMenu>
-                                    <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all">
+                                    <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 transition-all">
                                         <Icons.Plus className="w-4 h-4" />
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent side="top" align="start" className="w-max">
@@ -648,7 +648,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                             {/* Model Selector - Hidden on mobile to save space */}
                             {!isMobile && (
                                 <DropdownMenu>
-                                    <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 px-2.5 gap-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all outline-none focus:outline-none focus-visible:outline-none">
+                                    <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 px-2.5 gap-1 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 transition-all outline-none focus:outline-none focus-visible:outline-none">
                                         <span className="inline text-[12px] max-w-[80px] truncate">{currentModel.name}</span>
                                         <Icons.SelectArrow className="shrink-0 opacity-75 w-3 h-3" />
                                     </DropdownMenuTrigger>
@@ -680,7 +680,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                         <TooltipTrigger asChild>
                                             <button
                                                 onClick={onStop}
-                                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors pointer-events-auto opacity-100"
+                                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40 transition-colors pointer-events-auto opacity-100"
                                                 type="button"
                                                 aria-label="Stop generation"
                                             >
@@ -694,7 +694,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                 ) : (
                                     <button
                                         onClick={onStop}
-                                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors pointer-events-auto opacity-100"
+                                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40 transition-colors pointer-events-auto opacity-100"
                                         type="button"
                                         aria-label="Stop generation"
                                     >
@@ -745,7 +745,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                                 <button
                                                     onClick={cancelRecording}
                                                     disabled={audioState.includes('transcribing')}
-                                                    className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
+                                                    className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40 transition-colors disabled:opacity-50"
                                                     type="button"
                                                     aria-label="Cancel dictation"
                                                 >
@@ -760,7 +760,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                         <button
                                             onClick={cancelRecording}
                                             disabled={audioState.includes('transcribing')}
-                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
+                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40 transition-colors disabled:opacity-50"
                                             type="button"
                                             aria-label="Cancel dictation"
                                         >

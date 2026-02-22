@@ -42,7 +42,6 @@ export const Suggestion = ({
     className={cn(
       "group/item flex w-full items-center gap-3 px-1 py-4 cursor-pointer border-b border-border/60",
       "text-muted-foreground transition-colors duration-200",
-      "hover:text-foreground hover:bg-sidebar-accent/10 dark:hover:bg-sidebar-accent/20",
       className
     )}
     onClick={() => onClick?.(suggestion)}
@@ -59,6 +58,6 @@ export const Suggestion = ({
     <span className="shrink-0 text-muted-foreground/60 group-hover/item:text-foreground transition-colors duration-200">
       <IconArrowForward className="h-5 w-5" stroke={1.5} />
     </span>
-    <span className="text-base leading-snug break-words">{children || suggestion}</span>
+    <span className="text-base leading-snug break-words group-hover/item:text-foreground transition-colors duration-200">{children || suggestion}</span>
   </div>
 );

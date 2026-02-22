@@ -65,6 +65,7 @@ export interface Message {
     ttft?: number;
     tps?: number;
     total_time?: number;
+    model?: string;
 }
 
 interface ChatMessageProps {
@@ -166,6 +167,23 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
 
 
 export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint, availableModels = [], onRerunSystemWithModel, onAddToChat, onSuggestionClick }: ChatMessageProps) {
+    // Helper to display pretty model names
+    const formatModelName = (name?: string) => {
+        if (!name) return '';
+        return name.split('-').map(seg => {
+            let seenLetter = false;
+            return seg.split('').map(ch => {
+                if (/[a-zA-Z]/.test(ch)) {
+                    if (!seenLetter) {
+                        seenLetter = true;
+                        return ch.toUpperCase();
+                    }
+                    return ch.toLowerCase();
+                }
+                return ch;
+            }).join('');
+        }).join('-');
+    };
     // ... existing state ...
     const isUser = message.role === 'user';
     const isAssistant = message.role === 'assistant';
@@ -425,7 +443,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'like' ? "text-green-500" : "text-muted-foreground hover:text-green-500 hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30")}
+                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'like' ? "text-green-500" : "text-muted-foreground hover:text-green-500 hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
                                                 onClick={() => handleFeedback('like')}
                                             >
                                                 <IconThumbUp className="size-3.5" />
@@ -440,7 +458,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'dislike' ? "text-red-500" : "text-muted-foreground hover:text-red-500 hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30")}
+                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'dislike' ? "text-red-500" : "text-muted-foreground hover:text-red-500 hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
                                                 onClick={() => handleFeedback('dislike')}
                                             >
                                                 <IconThumbDown className="size-3.5" />
@@ -474,7 +492,23 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                             <IconHandStop className="size-3.5" />
                                             <span>Interrupted</span>
                                         </div>
-                                    ) : message.total_time !== undefined && Number(message.total_time) > 0 && (() => {
+                                    ) : null}
+
+                                    {/* display model badge on every assistant response */}
+                                    {message.model && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <span className="text-xs text-muted-foreground ml-1 px-1 py-0.5 rounded hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 transition-colors">
+                                                    {formatModelName(message.model)}
+                                                </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                <p>Model used: {formatModelName(message.model)}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
+
+                                    {message.total_time !== undefined && Number(message.total_time) > 0 && (() => {
                                         const totalTime = Number(message.total_time);
                                         const ttft = Number(message.ttft);
                                         const tps = Number(message.tps);

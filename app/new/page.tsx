@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useUser } from "@/components/user-context"
-import { IconPlus, IconChevronLeft, IconMessage, IconSettings, IconFolder, IconSearch, IconChevronRight, IconMenu, IconX, IconEdit, IconTrash, IconChevronDown, IconPin, IconPinFilled, IconDownload, IconPencil, IconArrowDown, IconRotateClockwise, IconBookmark } from "@tabler/icons-react";
+import { IconPlus, IconChevronLeft, IconMessage, IconSettings, IconFolder, IconSearch, IconChevronRight, IconMenu, IconX, IconEdit, IconTrash, IconChevronDown, IconPin, IconPinFilled, IconDownload, IconPencil, IconArrowDown, IconRotateClockwise, IconBookmark, IconCaretLeftRightFilled } from "@tabler/icons-react";
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
 
@@ -38,6 +38,21 @@ import { ChatMessage } from "@/components/ai-elements/chat-message"
 import { ChatScrollNavigation } from "@/components/ai-elements/chat-navigation"
 import { toast } from "sonner"
 
+// helper to prettify model names (capitalize segments)
+function formatModelName(name: string | null | undefined) {
+    if (!name) return '';
+    return name.split('-').map(seg => {
+        let seen = false;
+        return seg.split('').map(ch => {
+            if (/[a-zA-Z]/.test(ch)) {
+                if (!seen) { seen = true; return ch.toUpperCase(); }
+                return ch.toLowerCase();
+            }
+            return ch;
+        }).join('');
+    }).join('-');
+}
+
 interface MessageVersion {
     id: string;
     content: string;
@@ -66,6 +81,7 @@ interface Message {
     ttft?: number;
     tps?: number;
     total_time?: number;
+    model?: string;
 }
 
 
@@ -561,7 +577,7 @@ export default function AssistantPage() {
 
         // Add Thinking State & Reset auto-scroll
         const assistantMessageId = crypto.randomUUID();
-        setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '', isThinking: true, reasoning: '' }]);
+        setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '', isThinking: true, reasoning: '', model }]);
         setIsLoading(true);
 
         try {
@@ -663,7 +679,7 @@ export default function AssistantPage() {
                         lastMessage.content = display;
                         lastMessage.isThinking = false;
                     } else {
-                        newMessages.push({ role: 'assistant', content: display, isThinking: false });
+                        newMessages.push({ role: 'assistant', content: display, isThinking: false, model });
                     }
                     return newMessages;
                 });
@@ -902,7 +918,7 @@ export default function AssistantPage() {
                                                 isThinking: false
                                             };
                                         } else {
-                                            newMessages.push({ role: 'assistant', content: data.message, isThinking: false });
+                                            newMessages.push({ role: 'assistant', content: data.message, isThinking: false, model });
                                         }
                                         return newMessages;
                                     });
@@ -1843,7 +1859,7 @@ export default function AssistantPage() {
                         lines.push(`This conversation was generated with Ellipticc (https://ellipticc.com). AI chats may display inaccurate or offensive information (see https://ellipticc.com/privacy-policy for more info).`);
                         lines.push(`Exported: ${exportedAt.toLocaleString()}`);
                         if (conversationId) lines.push(`Conversation ID: ${conversationId}`);
-                        if (model) lines.push(`Model: ${model}`);
+                        if (model) lines.push(`Model: ${formatModelName(model)}`);
                         lines.push('---\n');
 
                         for (const m of messages) {
@@ -1873,19 +1889,7 @@ export default function AssistantPage() {
                 </TooltipContent>
             </Tooltip>
 
-            {/* Show LLM used */}
-            {model && (
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span className="text-xs text-muted-foreground px-2 py-1 rounded hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30">
-                            {model}
-                        </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                        <p>Generated using {model}</p>
-                    </TooltipContent>
-                </Tooltip>
-            )}
+
         </div>
     ) : null;
 
@@ -1924,12 +1928,10 @@ export default function AssistantPage() {
 
                             {/* Greeting / Brand */}
                             <div className="text-center space-y-2">
-                                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+                                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight flex items-center justify-center gap-2">
+                                    <IconCaretLeftRightFilled className="size-6" />
                                     How can I help you today?
                                 </h1>
-                                <p className="text-muted-foreground text-sm sm:text-base">
-                                    I can help you write code, analyze documents, or plan your next project.
-                                </p>
                             </div>
 
                             {/* Center Input Area */}
