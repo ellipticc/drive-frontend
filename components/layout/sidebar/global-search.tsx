@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation"
 import {
     IconBubbleText,
     IconLoader2,
+    IconExternalLink,
+    IconEdit,
+    IconTrash,
+    IconArrowsDiagonalMinimize2,
+    IconMaximize,
     IconMessageCircleOff,
 } from "@tabler/icons-react"
 import { useRelativeTime, cn } from "@/lib/utils"
@@ -29,19 +34,38 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAICrypto } from "@/hooks/use-ai-crypto"
 import { ChatMessage, Message } from "@/components/ai-elements/chat-message"
 import { toast } from "sonner"
 import { useWindowSize } from "usehooks-ts"
 
+// Helper to support tooltips on standard elements
+const ActionTooltip = ({ children, tooltip }: { children: React.ReactNode; tooltip: string }) => (
+    <TooltipProvider delayDuration={300}>
+        <Tooltip>
+            <TooltipTrigger asChild>{children}</TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+                {tooltip}
+            </TooltipContent>
+        </Tooltip>
+    </TooltipProvider>
+)
+
 const ChatCommandItem = ({
     chat,
     onSelect,
     isActive,
+    onEdit,
+    onDelete,
+    onOpenNewTab,
 }: {
     chat: ChatType
     onSelect: () => void
     isActive?: boolean
+    onEdit: (chat: ChatType) => void
+    onDelete: (chat: ChatType) => void
+    onOpenNewTab: (chat: ChatType) => void
 }) => {
     const timeText = useRelativeTime(chat.lastMessageAt || chat.createdAt)
 
@@ -56,9 +80,59 @@ const ChatCommandItem = ({
         >
             <IconBubbleText className="shrink-0 h-4 w-4" />
             <span className="truncate flex-1">{chat.title}</span>
-            <span className="ml-2 w-28 text-right text-xs text-muted-foreground whitespace-nowrap block">
+
+            {/* Timestamp (hidden on hover) */}
+            <span className="ml-2 w-[88px] text-right text-xs text-muted-foreground whitespace-nowrap group-hover:hidden group-focus:hidden block">
                 {timeText}
             </span>
+
+            {/* Hover Actions (visible on hover) */}
+            <div className="ml-2 w-[88px] flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 group-focus:opacity-100 hidden group-hover:flex group-focus:flex" onClick={(e) => e.stopPropagation()}>
+                <ActionTooltip tooltip="New Tab">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
+                        onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            onOpenNewTab(chat)
+                        }}
+                    >
+                        <IconExternalLink className="h-3.5 w-3.5" />
+                    </Button>
+                </ActionTooltip>
+
+                <ActionTooltip tooltip="Edit">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
+                        onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            onEdit(chat)
+                        }}
+                    >
+                        <IconEdit className="h-3.5 w-3.5" />
+                    </Button>
+                </ActionTooltip>
+
+                <ActionTooltip tooltip="Trash">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            onDelete(chat)
+                        }}
+                    >
+                        <IconTrash className="h-3.5 w-3.5" />
+                    </Button>
+                </ActionTooltip>
+            </div>
         </CommandItem>
     )
 }
@@ -75,6 +149,7 @@ export function GlobalSearch({
     const router = useRouter()
     const { width } = useWindowSize()
     const { chats, renameChat, deleteChat, decryptHistory } = useAICrypto()
+
     const [activeChatId, setActiveChatId] = React.useState<string | null>(null)
 
     // Modals state
@@ -82,7 +157,8 @@ export function GlobalSearch({
     const [deletingChat, setDeletingChat] = React.useState<ChatType | null>(null)
     const [renameTitle, setRenameTitle] = React.useState("")
 
-    // Preview state
+    // Expand state & Preview
+    const [isExpanded, setIsExpanded] = React.useState(false)
     const [previewMessages, setPreviewMessages] = React.useState<Message[]>([])
     const [previewLoading, setPreviewLoading] = React.useState(false)
     const scrollRef = React.useRef<HTMLDivElement>(null)
@@ -95,9 +171,9 @@ export function GlobalSearch({
         })
     }, [chats, filter])
 
-    // Real-time Preview Effect
+    // Real-time Preview Effect if expanded
     React.useEffect(() => {
-        if (!activeChatId || !open) {
+        if (!isExpanded || !activeChatId || !open) {
             setPreviewMessages([])
             return
         }
@@ -114,14 +190,14 @@ export function GlobalSearch({
             if (isMounted) setPreviewLoading(false)
         })
         return () => { isMounted = false }
-    }, [activeChatId, decryptHistory, open])
+    }, [activeChatId, decryptHistory, open, isExpanded])
 
     // Auto-scroll to bottom of preview when messages load
     React.useEffect(() => {
-        if (previewMessages.length > 0 && scrollRef.current) {
+        if (isExpanded && previewMessages.length > 0 && scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight
         }
-    }, [previewMessages, previewLoading])
+    }, [previewMessages, previewLoading, isExpanded])
 
     const handleOpenEdit = React.useCallback((chat: ChatType) => {
         setRenameTitle(chat.title)
@@ -132,6 +208,11 @@ export function GlobalSearch({
         setDeletingChat(chat)
     }, [])
 
+    const handleOpenNewTab = React.useCallback((chat: ChatType) => {
+        window.open(`/new?conversationId=${chat.id}`, '_blank')
+        onOpenChange(false)
+    }, [onOpenChange])
+
     // Keyboard Shortcuts (Ctrl+E, Ctrl+D, Enter for Open)
     React.useEffect(() => {
         if (!open) return
@@ -141,8 +222,8 @@ export function GlobalSearch({
             const chat = activeChatId ? filteredChats.find(c => c.id === activeChatId) : null
 
             if (e.key === "Enter" && chat && !(e.ctrlKey || e.metaKey)) {
-                // CmdK handles internal Enter, but if we wanted custom handling we could do it here
-                // We let CmdK trigger handleGo() via onSelect internally.
+                // CmdK handles internal Enter via onSelect natively, unless overridden.
+                // Doing nothing here lets CmdK process it naturally.
             } else if (e.ctrlKey || e.metaKey) {
                 if (e.key === "e" && chat) {
                     e.preventDefault()
@@ -199,12 +280,16 @@ export function GlobalSearch({
 
     const activeChat = React.useMemo(() => chats.find(c => c.id === activeChatId), [chats, activeChatId])
 
-    // Determine dialog dimensions based on screen size (Grok-like massive dialog)
+    // Dynamic Dialog Dimensions
     const isLargeScreen = width >= 1200
-    const dialogWidthClass = isLargeScreen ? "w-[1200px]" : "w-[95vw]"
-    const dialogHeightClass = "h-[85vh] max-h-[900px]"
+    const expandedWidthClass = isLargeScreen ? "w-[1200px] sm:max-w-[1200px]" : "w-[95vw] sm:max-w-[95vw]"
+    const expandedHeightClass = "h-[85vh] max-h-[900px]"
+    const collapsedWidthClass = "w-[800px] sm:max-w-[800px]"
+    const collapsedHeightClass = "h-[600px] max-h-[85vh]"
 
-    // If we are showing modals ON TOP of the CommandDialog, CommandDialog remains open.
+    const dialogWidthClass = isExpanded ? expandedWidthClass : collapsedWidthClass
+    const dialogHeightClass = isExpanded ? expandedHeightClass : collapsedHeightClass
+
     return (
         <>
             <Dialog
@@ -216,7 +301,7 @@ export function GlobalSearch({
             >
                 <DialogContent
                     className={cn(
-                        "p-0 overflow-hidden flex flex-col gap-0 border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl sm:rounded-2xl transition-all duration-300",
+                        "p-0 overflow-hidden flex flex-col gap-0 border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl sm:rounded-xl transition-all duration-300",
                         dialogWidthClass,
                         dialogHeightClass
                     )}
@@ -227,141 +312,163 @@ export function GlobalSearch({
                         shouldFilter={true}
                     >
                         {/* TOP HEADER: Full width search bar */}
-                        <div className="border-b border-border/50 bg-background/50 relative z-10 w-full shrink-0">
+                        <div className="border-b border-border/50 relative z-10 w-full shrink-0">
                             <CommandInput
-                                placeholder="Search..."
-                                className="h-16 text-lg border-none px-6"
+                                placeholder="Search chats..."
+                                className={cn("h-14 border-none px-4", isExpanded && "h-16 text-lg")}
                             />
                         </div>
 
-                        {/* BODY: Split Layout */}
+                        {/* BODY: Split Layout dynamically applied */}
                         <div className="flex flex-1 overflow-hidden">
 
                             {/* LEFT COLUMN: History List */}
-                            <div className="w-[350px] shrink-0 border-r border-border/50 bg-sidebar/50 backdrop-blur-sm flex flex-col h-full overflow-hidden">
+                            <div className={cn(
+                                "shrink-0 flex flex-col h-full overflow-hidden transition-all duration-300",
+                                isExpanded ? "w-[350px] border-r border-border/50 bg-sidebar/50 backdrop-blur-sm" : "w-full"
+                            )}>
                                 <CommandList className="flex-1 overflow-y-auto w-full max-h-none py-2 px-2">
                                     <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
                                         No results found.
                                     </CommandEmpty>
-                                    <CommandGroup heading={filter === "pinned" ? "Pinned Chats" : "Recent Chats"}>
+                                    <CommandGroup heading={filter === "pinned" ? "Pinned" : "History"}>
                                         {filteredChats.map((chat) => (
                                             <ChatCommandItem
                                                 key={chat.id}
                                                 chat={chat}
                                                 isActive={activeChatId === chat.id}
                                                 onSelect={() => {
-                                                    // Allow selection to just update preview if not clicking explicitly, 
-                                                    // but CmdK triggers onSelect for Enter. 
                                                     setActiveChatId(chat.id)
                                                     handleGo() // Navigate immediately on enter/click
                                                 }}
+                                                onEdit={handleOpenEdit}
+                                                onDelete={handleOpenDelete}
+                                                onOpenNewTab={handleOpenNewTab}
                                             />
                                         ))}
                                     </CommandGroup>
                                 </CommandList>
+
+                                {/* Sticky Footer */}
+                                <div className={cn(
+                                    "border-t border-border/50 flex items-center justify-between shrink-0",
+                                    isExpanded ? "p-3 bg-sidebar/50" : "p-2 bg-muted/40"
+                                )}>
+                                    {/* Left Side: Expand Toggle */}
+                                    <ActionTooltip tooltip={isExpanded ? "Collapse Preview" : "Expand Preview"}>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-muted-foreground hover:text-foreground h-8 px-2"
+                                            onClick={() => setIsExpanded(!isExpanded)}
+                                        >
+                                            {isExpanded ? <IconArrowsDiagonalMinimize2 className="h-4 w-4" /> : <IconMaximize className="h-4 w-4" />}
+                                        </Button>
+                                    </ActionTooltip>
+
+                                    {/* Right Side: Keyboard hints / Clickable Actions */}
+                                    <div className="flex items-center gap-1 sm:gap-2 mr-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 rounded-md flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted font-normal px-2"
+                                            onClick={handleGo}
+                                            disabled={!activeChatId}
+                                        >
+                                            <span className="text-xs">Open</span>
+                                            <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                                                Enter
+                                            </kbd>
+                                        </Button>
+
+                                        <div className="w-px h-3.5 bg-border/80 mx-0.5 hidden sm:block" />
+
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 rounded-md flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted font-normal px-2"
+                                            onClick={() => activeChat && handleOpenEdit(activeChat)}
+                                            disabled={!activeChatId}
+                                        >
+                                            <span className="text-xs">Edit</span>
+                                            <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                                                <span className="text-[10px]">Ctrl</span>E
+                                            </kbd>
+                                        </Button>
+
+                                        <div className="w-px h-3.5 bg-border/80 mx-0.5 hidden sm:block" />
+
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 rounded-md flex items-center gap-2 text-destructive/80 hover:text-destructive hover:bg-destructive/10 font-normal px-2"
+                                            onClick={() => activeChat && handleOpenDelete(activeChat)}
+                                            disabled={!activeChatId}
+                                        >
+                                            <span className="text-xs">Delete</span>
+                                            <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-destructive/20 bg-destructive/10 px-1.5 font-mono text-[10px] font-medium text-destructive">
+                                                <span className="text-[10px]">Ctrl</span>D
+                                            </kbd>
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* RIGHT COLUMN: Real-time Preview Area */}
-                            <div className="flex-1 flex flex-col h-full overflow-hidden bg-background relative relative">
-                                {activeChatId ? (
-                                    <div className="flex flex-col h-full">
-                                        {/* Preview Scrollable Content */}
-                                        <div
-                                            ref={scrollRef}
-                                            className="flex-1 overflow-y-auto px-8 py-8 space-y-6"
-                                        >
-                                            {previewLoading ? (
-                                                <div className="flex flex-col items-center justify-center h-[50vh] text-muted-foreground gap-3">
-                                                    <IconLoader2 className="w-6 h-6 animate-spin opacity-50" />
-                                                    <p className="text-sm">Decrypting...</p>
-                                                </div>
-                                            ) : previewMessages.length === 0 ? (
-                                                <div className="flex items-center justify-center h-[50vh] text-muted-foreground">
-                                                    Memory empty
-                                                </div>
-                                            ) : (
-                                                <div className="max-w-4xl mx-auto space-y-8 pb-32">
-                                                    <h2 className="text-2xl font-semibold mb-8 border-b pb-4 px-2">{activeChat?.title}</h2>
-                                                    {previewMessages.map((msg, i) => (
-                                                        <div key={msg.id || i} className={cn("pointer-events-none opacity-90", msg.role === 'user' ? "flex justify-end" : "flex justify-start px-2")}>
-                                                            {/* Read-only renderer */}
-                                                            <div className={cn(
-                                                                "py-2 leading-relaxed max-w-[90%] break-words w-full",
-                                                                msg.role === 'user' ? "bg-primary text-primary-foreground px-5 py-3 rounded-2xl max-w-[80%]" : ""
-                                                            )}>
-                                                                {msg.role === 'assistant' || msg.role === 'system' ? (
-                                                                    <div className="prose prose-base dark:prose-invert max-w-none">
-                                                                        <ChatMessage
-                                                                            message={{ ...msg, isThinking: false, reasoningDuration: undefined, reasoning: undefined, suggestions: undefined, feedback: undefined }}
-                                                                            isLast={false}
-                                                                            onCopy={() => { }}
-                                                                        />
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="whitespace-pre-wrap">{msg.content}</span>
-                                                                )}
+                            {/* RIGHT COLUMN: Real-time Preview Area (Only visible when expanded) */}
+                            {isExpanded && (
+                                <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
+                                    {activeChatId ? (
+                                        <div className="flex flex-col h-full">
+                                            {/* Preview Scrollable Content */}
+                                            <div
+                                                ref={scrollRef}
+                                                className="flex-1 overflow-y-auto px-8 py-8 space-y-6"
+                                            >
+                                                {previewLoading ? (
+                                                    <div className="flex flex-col items-center justify-center h-[50vh] text-muted-foreground gap-3">
+                                                        <IconLoader2 className="w-6 h-6 animate-spin opacity-50" />
+                                                        <p className="text-sm">Decrypting...</p>
+                                                    </div>
+                                                ) : previewMessages.length === 0 ? (
+                                                    <div className="flex items-center justify-center h-[50vh] text-muted-foreground">
+                                                        Memory empty
+                                                    </div>
+                                                ) : (
+                                                    <div className="max-w-4xl mx-auto space-y-8 pb-10">
+                                                        <h2 className="text-2xl font-semibold mb-8 border-b pb-4 px-2 tracking-tight">{activeChat?.title}</h2>
+                                                        {previewMessages.map((msg, i) => (
+                                                            <div key={msg.id || i} className={cn("pointer-events-none opacity-95", msg.role === 'user' ? "flex justify-end" : "flex justify-start px-2")}>
+                                                                {/* Read-only renderer */}
+                                                                <div className={cn(
+                                                                    "py-2 leading-relaxed max-w-[90%] break-words w-full",
+                                                                    msg.role === 'user' ? "bg-primary text-primary-foreground px-5 py-3 rounded-2xl max-w-[80%]" : ""
+                                                                )}>
+                                                                    {msg.role === 'assistant' || msg.role === 'system' ? (
+                                                                        <div className="prose prose-base dark:prose-invert max-w-none">
+                                                                            <ChatMessage
+                                                                                message={{ ...msg, isThinking: false, reasoningDuration: undefined, reasoning: undefined, suggestions: undefined, feedback: undefined }}
+                                                                                isLast={false}
+                                                                                onCopy={() => { }}
+                                                                            />
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="whitespace-pre-wrap">{msg.content}</span>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Preview Contextual Footer (Clickable Action Buttons overlaying the bottom) */}
-                                        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background/90 to-transparent pt-12 flex justify-end">
-                                            <div className="flex items-center gap-2 bg-muted/80 backdrop-blur-md rounded-full px-4 py-2 border shadow-sm">
-
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 rounded-full flex items-center gap-2 hover:bg-background/80"
-                                                    onClick={handleGo}
-                                                >
-                                                    <span className="font-medium">Go</span>
-                                                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground border">
-                                                        Enter
-                                                    </kbd>
-                                                </Button>
-
-                                                <div className="w-px h-4 bg-border mx-1" />
-
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 rounded-full flex items-center gap-2 hover:bg-background/80"
-                                                    onClick={() => activeChat && handleOpenEdit(activeChat)}
-                                                >
-                                                    <span className="font-medium">Edit</span>
-                                                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground border">
-                                                        <span className="text-[10px]">Ctrl</span>E
-                                                    </kbd>
-                                                </Button>
-
-                                                <div className="w-px h-4 bg-border mx-1" />
-
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 rounded-full flex items-center gap-2 hover:bg-destructive/10 text-destructive hover:text-destructive"
-                                                    onClick={() => activeChat && handleOpenDelete(activeChat)}
-                                                >
-                                                    <span className="font-medium">Delete</span>
-                                                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded bg-destructive/10 px-1.5 font-mono text-[10px] font-medium text-destructive border-destructive/20">
-                                                        <span className="text-[10px]">Ctrl</span>D
-                                                    </kbd>
-                                                </Button>
-
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
-
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 gap-4">
-                                        <IconMessageCircleOff className="w-12 h-12 opacity-20" />
-                                        <p className="text-base font-medium">Select a conversation to instantly preview</p>
-                                    </div>
-                                )}
-                            </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 gap-4">
+                                            <IconMessageCircleOff className="w-12 h-12 opacity-20" />
+                                            <p className="text-base font-medium">Select a conversation to instantly preview</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Hidden active value tracker for cmdk */}
