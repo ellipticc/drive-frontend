@@ -395,7 +395,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
               )}
             />
           ) : (
-            <IconPinFilled className="size-4 shrink-0 text-muted-foreground" />
+            <IconPinFilled className="size-4 shrink-0" />
           )}
         </div>
         <span className="font-medium group-data-[collapsible=icon]:hidden">
@@ -479,7 +479,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
               )}
             />
           ) : (
-            <IconHistory className="size-4 shrink-0 text-muted-foreground" />
+            <IconHistory className="size-4 shrink-0" />
           )}
         </div>
         <span className="font-medium group-data-[collapsible=icon]:hidden">

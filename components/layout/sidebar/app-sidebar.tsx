@@ -309,16 +309,16 @@ export const AppSidebar = React.memo(function AppSidebar({
                 hidden: state !== "collapsed"
               }}
               className={cn(
-                "relative group/menu-button w-full text-sidebar-foreground/80 transition-all justify-start h-8 px-4 rounded-md",
+                "relative group/menu-button w-full justify-start h-8 px-4 rounded-md transition-all",
                 searchOpen
-                  ? "bg-sidebar-accent/50 text-sidebar-accent-foreground"
-                  : "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
                 "group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:justify-center"
               )}
             >
-              <IconSearch className="size-4 shrink-0 opacity-50" />
-              <span className="group-data-[collapsible=icon]:hidden text-muted-foreground/70 text-[13px]">Search</span>
-              <kbd className="pointer-events-none ml-auto h-5 select-none items-center gap-0.5 rounded border bg-transparent px-1.5 font-mono text-[10px] font-medium text-muted-foreground/50 inline-flex group-data-[collapsible=icon]:hidden">
+              <IconSearch className="size-4 shrink-0" />
+              <span className="group-data-[collapsible=icon]:hidden text-[13px]">Search</span>
+              <kbd className="pointer-events-none ml-auto h-5 select-none items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground inline-flex group-data-[collapsible=icon]:hidden">
                 <span className="text-[10px]">Ctrl</span>K
               </kbd>
             </SidebarMenuButton>
