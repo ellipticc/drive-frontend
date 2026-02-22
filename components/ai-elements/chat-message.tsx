@@ -372,9 +372,12 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                                     </div>
                                                                 </SheetTrigger>
                                                                 <SheetContent side="right" className="w-[400px] sm:w-[540px] px-0 pb-0 flex flex-col" hideOverlay>
-                                                                    <SheetHeader className="px-6 pb-2">
-                                                                        <SheetTitle>Context Snippet</SheetTitle>
-                                                                        <SheetDescription>Manually added context via user interaction</SheetDescription>
+                                                                    <SheetHeader className="px-6 pb-2 text-left space-y-1">
+                                                                        <SheetTitle className="flex items-center gap-2">
+                                                                            <IconFileText className="w-5 h-5 text-primary/80 shrink-0" />
+                                                                            <span className="truncate" title="Context Snippet">Context Snippet</span>
+                                                                        </SheetTitle>
+                                                                        <SheetDescription className="pl-7">Manually added context via user interaction</SheetDescription>
                                                                     </SheetHeader>
                                                                     <ScrollArea className="flex-1 px-6 pb-6 mt-2">
                                                                         <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed bg-muted/30 p-4 rounded-xl border border-border/50">
@@ -393,9 +396,12 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                                     </div>
                                                                 </SheetTrigger>
                                                                 <SheetContent side="right" className="w-[400px] sm:w-[540px] px-0 pb-0 flex flex-col" hideOverlay>
-                                                                    <SheetHeader className="px-6 pb-2">
-                                                                        <SheetTitle className="truncate pr-4" title={file.name}>{file.name}</SheetTitle>
-                                                                        <SheetDescription>Extracted Document Text for LLM Context</SheetDescription>
+                                                                    <SheetHeader className="px-6 pb-2 text-left space-y-1">
+                                                                        <SheetTitle className="flex items-center gap-2">
+                                                                            <IconFileText className="w-5 h-5 text-primary/80 shrink-0" />
+                                                                            <span className="truncate" title={file.name}>{file.name}</span>
+                                                                        </SheetTitle>
+                                                                        <SheetDescription className="pl-7">Extracted Document Text for LLM Context</SheetDescription>
                                                                     </SheetHeader>
                                                                     <ScrollArea className="flex-1 px-6 pb-6 mt-2">
                                                                         <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed bg-muted/30 p-4 rounded-xl border border-border/50">

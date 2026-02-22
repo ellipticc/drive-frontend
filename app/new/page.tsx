@@ -2105,7 +2105,9 @@ export default function AssistantPage() {
                         </div>
 
                         {/* Sticky Input Footer - Centered with consistent max-width */}
-                        <div className="sticky bottom-0 z-40 w-full bg-background/95 pb-4 pt-0">
+                        <div
+                            className="sticky bottom-0 z-40 w-full bg-background/95 pb-4 pt-0 transition-all duration-300 ease-in-out"
+                        >
                             {/* Scroll to Bottom Button - Absolute to top of footer */}
                             {showScrollToBottom && (
                                 <div className="absolute top-[-3.5rem] left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
@@ -2232,6 +2234,6 @@ export default function AssistantPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div >
+        </div>
     );
 }

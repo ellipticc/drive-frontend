@@ -8,7 +8,27 @@ import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { cn } from "@/lib/utils"
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
-  return <SheetPrimitive.Root data-slot="sheet" {...props} />
+  // Pass open state changes to doc root to push app layout if modal is false
+  const handleOpenChange = (open: boolean) => {
+    if (props.onOpenChange) props.onOpenChange(open);
+    if (!props.modal) {
+      if (open) {
+        document.body.classList.add('document-sheet-open');
+      } else {
+        document.body.classList.remove('document-sheet-open');
+        document.body.style.removeProperty('--document-sheet-width');
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    return () => {
+      document.body.classList.remove('document-sheet-open');
+      document.body.style.removeProperty('--document-sheet-width');
+    };
+  }, []);
+
+  return <SheetPrimitive.Root data-slot="sheet" onOpenChange={handleOpenChange} {...props} />
 }
 
 function SheetTrigger({
@@ -50,7 +70,7 @@ function SheetContent({
   children,
   side = "right",
   resizable = false,
-  initialFraction = 0.45, // fraction of viewport width when opened
+  initialFraction = 0.35, // fraction of viewport width when opened (smaller default)
   minWidth = 320,
   maxWidth = null,
   hideOverlay = false,
@@ -68,10 +88,16 @@ function SheetContent({
 
   React.useEffect(() => {
     // initialize width on mount
-    if (resizable && typeof window !== 'undefined') {
+    if (typeof window !== 'undefined') {
       const w = Math.max(minWidth, Math.floor(window.innerWidth * initialFraction))
       setWidthPx(w)
-      window.dispatchEvent(new CustomEvent('sheet:resize', { detail: { width: w } }))
+      if (resizable) {
+        window.dispatchEvent(new CustomEvent('sheet:resize', { detail: { width: w } }))
+      }
+      // Update global CSS variable for layout pushing
+      if (document.body.classList.contains('document-sheet-open')) {
+        document.body.style.setProperty('--document-sheet-width', `${w}px`);
+      }
     }
     return () => {
       // clear on unmount
@@ -91,6 +117,11 @@ function SheetContent({
     setWidthPx(newWidth)
     // notify listeners
     window.dispatchEvent(new CustomEvent('sheet:resize', { detail: { width: newWidth } }))
+
+    // Update global CSS variable for layout pushing
+    if (document.body.classList.contains('document-sheet-open')) {
+      document.body.style.setProperty('--document-sheet-width', `${newWidth}px`);
+    }
   }
 
   const onDragEnd = () => {
@@ -138,6 +169,10 @@ function SheetContent({
                   const newWidth = Math.max(minWidth, Math.min((maxWidth || window.innerWidth - 120), Math.floor(window.innerWidth - clientX)));
                   setWidthPx(newWidth);
                   window.dispatchEvent(new CustomEvent('sheet:resize', { detail: { width: newWidth } }));
+
+                  if (document.body.classList.contains('document-sheet-open')) {
+                    document.body.style.setProperty('--document-sheet-width', `${newWidth}px`);
+                  }
                 };
 
                 const onUp = () => {
