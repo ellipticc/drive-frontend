@@ -1,12 +1,9 @@
 // Utility functions for chat sorting and timestamp formatting
 
-// Sort chats by pinned status and last activity (lastMessageAt) descending
+// Sort chats by last activity (lastMessageAt) descending only - no pinned prioritization
 export function sortChatsByLastMessage<T extends { pinned?: boolean; lastMessageAt?: string; createdAt?: string }>(chats: T[]): T[] {
     return [...chats].sort((a, b) => {
-        // pinned chats always come first
-        if (a.pinned && !b.pinned) return -1;
-        if (b.pinned && !a.pinned) return 1;
-
+        // Sort strictly by timestamp, newest first. Pinned status is irrelevant.
         const ta = new Date(b.lastMessageAt || b.createdAt || 0).getTime();
         const tb = new Date(a.lastMessageAt || a.createdAt || 0).getTime();
         return ta - tb;

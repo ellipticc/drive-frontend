@@ -119,7 +119,7 @@ function SmartTruncatedTooltip({ text, className }: { text: string; className?: 
           ref={textRef}
           onMouseEnter={checkTruncation}
           className={cn(
-            "block whitespace-nowrap overflow-hidden [mask-image:linear-gradient(to_right,#000_calc(100%-28px),transparent)] group-hover/chat-item:[mask-image:none]",
+            "block whitespace-nowrap overflow-hidden text-ellipsis max-w-full",
             className
           )}
         >
