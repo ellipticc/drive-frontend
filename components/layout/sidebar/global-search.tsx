@@ -40,7 +40,6 @@ import { ChatMessage, Message } from "@/components/ai-elements/chat-message"
 import { toast } from "sonner"
 import { useWindowSize } from "usehooks-ts"
 
-// Helper to support tooltips on standard elements
 const ActionTooltip = ({ children, tooltip }: { children: React.ReactNode; tooltip: string }) => (
     <TooltipProvider delayDuration={300}>
         <Tooltip>
@@ -55,14 +54,24 @@ const ActionTooltip = ({ children, tooltip }: { children: React.ReactNode; toolt
 const ChatCommandItem = ({
     chat,
     onSelect,
-    isActive,
+    onGo,
+    isSelected,
+    isHovered,
+    isCmdKFocused,
+    onHoverStart,
+    onHoverEnd,
     onEdit,
     onDelete,
     onOpenNewTab,
 }: {
     chat: ChatType
     onSelect: () => void
-    isActive?: boolean
+    onGo: () => void
+    isSelected: boolean
+    isHovered: boolean
+    isCmdKFocused: boolean
+    onHoverStart: () => void
+    onHoverEnd: () => void
     onEdit: (chat: ChatType) => void
     onDelete: (chat: ChatType) => void
     onOpenNewTab: (chat: ChatType) => void
@@ -71,67 +80,90 @@ const ChatCommandItem = ({
 
     return (
         <CommandItem
-            onSelect={onSelect}
+            onSelect={onGo} // Native CmdK "Enter" acts as Go (Open)
             className={cn(
-                "cursor-pointer py-3 group relative flex items-center gap-2 rounded-xl outline-none focus-visible:ring-0",
-                isActive && "bg-accent/80 text-accent-foreground"
+                "p-0 outline-none focus-visible:ring-0", // strip default padding
+                "data-[selected=true]:bg-transparent data-[selected=true]:text-foreground" // strip native cmdk styling so we can entirely control it
             )}
             value={chat.title + " " + chat.id} // value for CmdK filtering
         >
-            <IconBubbleText className="shrink-0 h-4 w-4" />
-            <span className="truncate flex-1 min-w-0 pr-[92px]">{chat.title}</span>
+            <div
+                className={cn(
+                    "w-full cursor-pointer py-2.5 px-3 group relative flex items-center gap-2 rounded-xl outline-none transition-colors",
+                    isSelected
+                        ? "bg-accent/80 text-accent-foreground shadow-sm ring-1 ring-border/50"
+                        : (!isSelected && (isHovered || isCmdKFocused) ? "bg-muted/50" : "")
+                )}
+                onPointerMove={(e) => { e.stopPropagation(); onHoverStart(); }}
+                onPointerEnter={(e) => { e.stopPropagation(); onHoverStart(); }}
+                onPointerLeave={(e) => { e.stopPropagation(); onHoverEnd(); }}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect();
+                }}
+                onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    onGo();
+                }}
+            >
+                <IconBubbleText className="shrink-0 h-4 w-4" />
+                <span className="truncate flex-1 min-w-0 pr-[92px]">{chat.title}</span>
 
-            {/* Timestamp (fades out on hover) */}
-            <span className="absolute right-3 w-[80px] text-right text-xs text-muted-foreground transition-opacity duration-200 opacity-100 group-hover:opacity-0 group-focus:opacity-0 bg-transparent pointer-events-none">
-                {timeText}
-            </span>
+                {/* Timestamp (fades out on hover) */}
+                <span className="absolute right-3 w-[80px] text-right text-xs text-muted-foreground transition-opacity duration-200 opacity-100 group-hover:opacity-0 bg-transparent pointer-events-none">
+                    {timeText}
+                </span>
 
-            {/* Hover Actions (fades in on hover) */}
-            <div className="absolute right-2 flex items-center justify-end gap-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus:opacity-100 group-focus:pointer-events-auto transition-opacity duration-200 bg-background/80 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none px-1 rounded-md" onClick={(e) => e.stopPropagation()}>
-                <ActionTooltip tooltip="New Tab">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
-                        onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            onOpenNewTab(chat)
-                        }}
-                    >
-                        <IconExternalLink className="h-3.5 w-3.5" />
-                    </Button>
-                </ActionTooltip>
+                {/* Hover Actions (fades in on hover) */}
+                <div
+                    className="absolute right-2 flex items-center justify-end gap-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-200 bg-background/80 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none px-1 rounded-md"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <ActionTooltip tooltip="New Tab">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                onOpenNewTab(chat)
+                            }}
+                        >
+                            <IconExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                    </ActionTooltip>
 
-                <ActionTooltip tooltip="Edit">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
-                        onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            onEdit(chat)
-                        }}
-                    >
-                        <IconEdit className="h-3.5 w-3.5" />
-                    </Button>
-                </ActionTooltip>
+                    <ActionTooltip tooltip="Edit">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                onEdit(chat)
+                            }}
+                        >
+                            <IconEdit className="h-3.5 w-3.5" />
+                        </Button>
+                    </ActionTooltip>
 
-                <ActionTooltip tooltip="Trash">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            onDelete(chat)
-                        }}
-                    >
-                        <IconTrash className="h-3.5 w-3.5" />
-                    </Button>
-                </ActionTooltip>
+                    <ActionTooltip tooltip="Trash">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                onDelete(chat)
+                            }}
+                        >
+                            <IconTrash className="h-3.5 w-3.5" />
+                        </Button>
+                    </ActionTooltip>
+                </div>
             </div>
         </CommandItem>
     )
@@ -150,15 +182,18 @@ export function GlobalSearch({
     const { width } = useWindowSize()
     const { chats, renameChat, deleteChat, decryptHistory } = useAICrypto()
 
-    const [activeChatId, setActiveChatId] = React.useState<string | null>(null)
-
     // Modals state
     const [editingChat, setEditingChat] = React.useState<ChatType | null>(null)
     const [deletingChat, setDeletingChat] = React.useState<ChatType | null>(null)
     const [renameTitle, setRenameTitle] = React.useState("")
 
-    // Expand state & Preview
+    // UX State
     const [isExpanded, setIsExpanded] = React.useState(false)
+    const [selectedChatId, setSelectedChatId] = React.useState<string | null>(null)
+    const [hoveredChatId, setHoveredChatId] = React.useState<string | null>(null)
+    const [cmdkValue, setCmdkValue] = React.useState("")
+
+    // Preview State
     const [previewMessages, setPreviewMessages] = React.useState<Message[]>([])
     const [previewLoading, setPreviewLoading] = React.useState(false)
     const scrollRef = React.useRef<HTMLDivElement>(null)
@@ -171,16 +206,30 @@ export function GlobalSearch({
         })
     }, [chats, filter])
 
+    // Derive target items
+    const cmdkChatId = React.useMemo(() => {
+        if (!cmdkValue) return null
+        return filteredChats.find(c => (c.title + " " + c.id).toLowerCase() === cmdkValue)?.id || null
+    }, [cmdkValue, filteredChats])
+
+    // Preview targets Hover > Cmdk > Selected
+    const activePreviewId = hoveredChatId || cmdkChatId || selectedChatId || null
+    // Footer/Keyboard Target targets Selected > Hover > Cmdk
+    const activeFooterId = selectedChatId || hoveredChatId || cmdkChatId || null
+
+    const previewChat = React.useMemo(() => chats.find(c => c.id === activePreviewId), [chats, activePreviewId])
+    const footerChat = React.useMemo(() => chats.find(c => c.id === activeFooterId), [chats, activeFooterId])
+
     // Real-time Preview Effect if expanded
     React.useEffect(() => {
-        if (!isExpanded || !activeChatId || !open) {
+        if (!isExpanded || !activePreviewId || !open) {
             setPreviewMessages([])
             return
         }
         let isMounted = true
         setPreviewLoading(true)
         setPreviewMessages([])
-        decryptHistory(activeChatId).then(msgs => {
+        decryptHistory(activePreviewId).then(msgs => {
             if (isMounted) {
                 setPreviewMessages(msgs)
                 setPreviewLoading(false)
@@ -190,7 +239,7 @@ export function GlobalSearch({
             if (isMounted) setPreviewLoading(false)
         })
         return () => { isMounted = false }
-    }, [activeChatId, decryptHistory, open, isExpanded])
+    }, [activePreviewId, decryptHistory, open, isExpanded])
 
     // Auto-scroll to bottom of preview when messages load
     React.useEffect(() => {
@@ -213,17 +262,24 @@ export function GlobalSearch({
         // DELIBERATELY DO NOT CLOSE THE DIALOG
     }, [])
 
+    const handleGo = React.useCallback((id?: string) => {
+        const target = id || footerChat?.id
+        if (target) {
+            router.push(`/new?conversationId=${target}`)
+            onOpenChange(false)
+        }
+    }, [footerChat, router, onOpenChange])
+
     // Keyboard Shortcuts (Ctrl+E, Ctrl+D, Enter for Open)
     React.useEffect(() => {
         if (!open) return
         const down = (e: KeyboardEvent) => {
             if (e.target instanceof HTMLInputElement && e.target.id === "rename-input") return
 
-            const chat = activeChatId ? filteredChats.find(c => c.id === activeChatId) : null
+            const chat = footerChat
 
             if (e.key === "Enter" && chat && !(e.ctrlKey || e.metaKey)) {
-                // CmdK handles internal Enter via onSelect natively, unless overridden.
-                // Doing nothing here lets CmdK process it naturally.
+                // We let CmdK native onSelect handle standard Enter, but just in case we catch it globally too if CmdK misses due to focus.
             } else if (e.ctrlKey || e.metaKey) {
                 if (e.key === "e" && chat) {
                     e.preventDefault()
@@ -237,14 +293,7 @@ export function GlobalSearch({
         }
         document.addEventListener("keydown", down)
         return () => document.removeEventListener("keydown", down)
-    }, [open, activeChatId, filteredChats, handleOpenEdit, handleOpenDelete])
-
-    const handleGo = () => {
-        if (activeChatId) {
-            router.push(`/new?conversationId=${activeChatId}`)
-            onOpenChange(false)
-        }
-    }
+    }, [open, footerChat, handleOpenEdit, handleOpenDelete])
 
     const handleRenameSave = async () => {
         if (!editingChat) return
@@ -272,20 +321,19 @@ export function GlobalSearch({
             await deleteChat(deletingChat.id)
             toast.success("Chat deleted")
             setDeletingChat(null)
-            if (activeChatId === deletingChat.id) setActiveChatId(null)
+            if (selectedChatId === deletingChat.id) setSelectedChatId(null)
+            if (hoveredChatId === deletingChat.id) setHoveredChatId(null)
+            // CmdkValue naturally resets via its own list syncing
         } catch {
             toast.error("Failed to delete chat")
         }
     }
 
-    const activeChat = React.useMemo(() => chats.find(c => c.id === activeChatId), [chats, activeChatId])
-
     // Dynamic Dialog Dimensions
-    const isLargeScreen = width >= 1200
-    const expandedWidthClass = isLargeScreen ? "w-[1200px] sm:max-w-[1200px]" : "w-[95vw] sm:max-w-[95vw]"
-    const expandedHeightClass = "h-[85vh] max-h-[900px]"
+    const expandedWidthClass = "w-[95vw] sm:max-w-[95vw] md:w-[94vw] md:max-w-[1400px]"
+    const expandedHeightClass = "h-[94vh] max-h-[94vh]"
     const collapsedWidthClass = "w-[800px] sm:max-w-[800px]"
-    const collapsedHeightClass = "h-[600px] max-h-[85vh]"
+    const collapsedHeightClass = "h-[650px] max-h-[85vh]"
 
     const dialogWidthClass = isExpanded ? expandedWidthClass : collapsedWidthClass
     const dialogHeightClass = isExpanded ? expandedHeightClass : collapsedHeightClass
@@ -296,7 +344,11 @@ export function GlobalSearch({
                 open={open}
                 onOpenChange={(val) => {
                     onOpenChange(val)
-                    if (!val) setActiveChatId(null)
+                    if (!val) {
+                        setSelectedChatId(null)
+                        setHoveredChatId(null)
+                        setCmdkValue("")
+                    }
                 }}
             >
                 <DialogContent
@@ -308,39 +360,47 @@ export function GlobalSearch({
                     showCloseButton={false}
                 >
                     <Command
-                        className="flex flex-col h-full w-full bg-transparent"
+                        className="flex flex-col h-full w-full bg-transparent overflow-hidden"
                         shouldFilter={true}
+                        value={cmdkValue}
+                        onValueChange={setCmdkValue}
+                        loop={false}
                     >
                         {/* TOP HEADER: Full width search bar */}
-                        <div className={cn("border-b border-border/50 bg-background/50 relative z-10 w-full shrink-0 transition-all duration-300", isExpanded ? "p-0" : "")}>
+                        <div className={cn("border-b border-border/50 bg-background/50 relative z-10 w-full shrink-0 transition-all duration-300", isExpanded ? "h-10 border-none opacity-80" : "h-14")}>
                             <CommandInput
                                 placeholder="Search chats..."
-                                className={cn("border-none px-6 transition-all duration-300", isExpanded ? "h-12 text-base" : "h-14 text-lg")}
+                                className={cn("border-none transition-all duration-300", isExpanded ? "h-10 text-sm px-4" : "h-14 text-lg px-6")}
                             />
                         </div>
 
                         {/* BODY: Split Layout dynamically applied */}
-                        <div className="flex flex-1 overflow-hidden">
+                        <div className="flex flex-1 overflow-hidden min-h-0">
 
                             {/* LEFT COLUMN: History List */}
                             <div className={cn(
-                                "shrink-0 flex flex-col h-full overflow-hidden transition-all duration-300",
+                                "shrink-0 flex flex-col h-full overflow-hidden transition-all duration-300 min-h-0",
                                 isExpanded ? "w-[40%] border-r border-border/50 bg-sidebar/50 backdrop-blur-sm" : "w-full"
                             )}>
-                                <CommandList className="flex-1 overflow-y-auto w-full max-h-none py-2 px-2">
+                                <CommandList className="flex-1 overflow-y-auto w-full max-h-none p-2 min-h-0">
                                     <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
                                         No results found.
                                     </CommandEmpty>
-                                    <CommandGroup heading={filter === "pinned" ? "Pinned" : "History"} className="[&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground">
+                                    <CommandGroup
+                                        heading={filter === "pinned" ? "Pinned" : "History"}
+                                        className={cn("p-0 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-sm [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted-foreground border-none outline-none")}
+                                    >
                                         {filteredChats.map((chat) => (
                                             <ChatCommandItem
                                                 key={chat.id}
                                                 chat={chat}
-                                                isActive={activeChatId === chat.id}
-                                                onSelect={() => {
-                                                    setActiveChatId(chat.id)
-                                                    handleGo() // Navigate immediately on enter/click
-                                                }}
+                                                isSelected={selectedChatId === chat.id}
+                                                isHovered={hoveredChatId === chat.id}
+                                                isCmdKFocused={cmdkChatId === chat.id}
+                                                onHoverStart={() => setHoveredChatId(chat.id)}
+                                                onHoverEnd={() => setHoveredChatId(null)}
+                                                onSelect={() => setSelectedChatId(chat.id)}
+                                                onGo={() => handleGo(chat.id)}
                                                 onEdit={handleOpenEdit}
                                                 onDelete={handleOpenDelete}
                                                 onOpenNewTab={handleOpenNewTab}
@@ -352,8 +412,8 @@ export function GlobalSearch({
 
                             {/* RIGHT COLUMN: Real-time Preview Area (Only visible when expanded) */}
                             {isExpanded && (
-                                <div className="w-[60%] flex flex-col h-full overflow-hidden bg-background">
-                                    {activeChatId ? (
+                                <div className="w-[60%] flex flex-col h-full overflow-hidden bg-background min-h-0">
+                                    {activePreviewId ? (
                                         <div className="flex flex-col h-full">
                                             {/* Preview Scrollable Content */}
                                             <div
@@ -370,8 +430,8 @@ export function GlobalSearch({
                                                         Memory empty
                                                     </div>
                                                 ) : (
-                                                    <div className="max-w-4xl mx-auto space-y-8 pb-10">
-                                                        <h2 className="text-2xl font-semibold mb-8 border-b pb-4 px-2 tracking-tight">{activeChat?.title}</h2>
+                                                    <div className="max-w-3xl mx-auto space-y-8 pb-10">
+                                                        <h2 className="text-2xl font-semibold mb-8 border-b pb-4 px-2 tracking-tight">{previewChat?.title}</h2>
                                                         {previewMessages.map((msg, i) => (
                                                             <div key={msg.id || i} className={cn("pointer-events-none opacity-95", msg.role === 'user' ? "flex justify-end" : "flex justify-start px-2")}>
                                                                 {/* Read-only renderer */}
@@ -398,9 +458,9 @@ export function GlobalSearch({
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 gap-4">
+                                        <div className="flex flex-col items-center justify-center h-[70vh] text-muted-foreground/40 gap-4">
                                             <IconMessageCircleOff className="w-12 h-12 opacity-20" />
-                                            <p className="text-base font-medium">Select a conversation to instantly preview</p>
+                                            <p className="text-base font-medium">Hover or select a conversation to preview</p>
                                         </div>
                                     )}
                                 </div>
@@ -430,8 +490,8 @@ export function GlobalSearch({
                                     variant="ghost"
                                     size="sm"
                                     className="h-8 rounded-lg flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted font-normal px-2"
-                                    onClick={handleGo}
-                                    disabled={!activeChatId}
+                                    onClick={() => handleGo()}
+                                    disabled={!footerChat}
                                 >
                                     <span className="text-xs">Open</span>
                                     <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded-[4px] border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
@@ -445,8 +505,8 @@ export function GlobalSearch({
                                     variant="ghost"
                                     size="sm"
                                     className="h-8 rounded-lg flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted font-normal px-2"
-                                    onClick={() => activeChat && handleOpenEdit(activeChat)}
-                                    disabled={!activeChatId}
+                                    onClick={() => footerChat && handleOpenEdit(footerChat)}
+                                    disabled={!footerChat}
                                 >
                                     <span className="text-xs">Edit</span>
                                     <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded-[4px] border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
@@ -460,8 +520,8 @@ export function GlobalSearch({
                                     variant="ghost"
                                     size="sm"
                                     className="h-8 rounded-lg flex items-center gap-2 text-destructive/80 hover:text-destructive hover:bg-destructive/10 font-normal px-2"
-                                    onClick={() => activeChat && handleOpenDelete(activeChat)}
-                                    disabled={!activeChatId}
+                                    onClick={() => footerChat && handleOpenDelete(footerChat)}
+                                    disabled={!footerChat}
                                 >
                                     <span className="text-xs">Delete</span>
                                     <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded-[4px] border border-destructive/20 bg-destructive/10 px-1.5 font-mono text-[10px] font-medium text-destructive">
@@ -470,13 +530,6 @@ export function GlobalSearch({
                                 </Button>
                             </div>
                         </div>
-
-                        {/* Hidden active value tracker for cmdk */}
-                        <KeyboardNavigator
-                            filteredChats={filteredChats}
-                            activeChatId={activeChatId}
-                            setActiveChatId={setActiveChatId}
-                        />
                     </Command>
                 </DialogContent>
             </Dialog>
@@ -539,51 +592,4 @@ export function GlobalSearch({
             </Dialog>
         </>
     )
-}
-
-// Invisible helper to hook onto CmdK active item changes via native DOM
-function KeyboardNavigator({
-    filteredChats,
-    activeChatId,
-    setActiveChatId
-}: {
-    filteredChats: ChatType[],
-    activeChatId: string | null,
-    setActiveChatId: (id: string | null) => void
-}) {
-    React.useEffect(() => {
-        // CMD+K sets 'aria-selected' on items. We can watch the list via MutationObserver.
-        const list = document.querySelector('[cmdk-list]')
-        if (!list) return
-
-        const observer = new MutationObserver((mutations) => {
-            for (const mutation of mutations) {
-                if (mutation.attributeName === 'aria-selected') {
-                    const el = mutation.target as HTMLElement
-                    if (el.getAttribute('aria-selected') === 'true') {
-                        const val = el.getAttribute('data-value')
-                        if (val) {
-                            const matchedChat = filteredChats.find(c =>
-                                (c.title + " " + c.id).toLowerCase() === val
-                            )
-                            if (matchedChat && matchedChat.id !== activeChatId) {
-                                setActiveChatId(matchedChat.id)
-                            }
-                        }
-                    }
-                }
-            }
-        })
-
-        observer.observe(list, { attributes: true, subtree: true, attributeFilter: ['aria-selected'] })
-
-        // Initial select (first item) if none selected
-        if (!activeChatId && filteredChats.length > 0) {
-            setActiveChatId(filteredChats[0].id)
-        }
-
-        return () => observer.disconnect()
-    }, [filteredChats, activeChatId, setActiveChatId])
-
-    return null
 }
