@@ -553,7 +553,7 @@ export function GlobalSearch({
                                     )}
                                 >
                                     <CommandList
-                                        className="flex-1 overflow-y-auto min-h-0 px-1.5 pt-0.5 pb-2"
+                                        className="flex-1 overflow-y-auto min-h-0 px-1.5 pt-0.5 pb-8"
                                         style={{ overscrollBehavior: "contain" }}
                                     >
                                         <CommandEmpty className="py-10 text-center text-sm text-muted-foreground/60">
