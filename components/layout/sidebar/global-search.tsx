@@ -89,10 +89,10 @@ const ChatCommandItem = ({
         >
             <div
                 className={cn(
-                    "w-full cursor-pointer py-2.5 px-3 group relative flex items-center gap-2 rounded-xl outline-none transition-colors",
+                    "w-full cursor-pointer py-2 px-3 group relative flex items-center gap-2 rounded-md outline-none transition-all duration-150",
                     isSelected
-                        ? "bg-accent/80 text-accent-foreground shadow-sm ring-1 ring-border/50"
-                        : (!isSelected && (isHovered || isCmdKFocused) ? "bg-muted/50" : "")
+                        ? "bg-accent/85 text-accent-foreground shadow-sm ring-1 ring-accent/40"
+                        : (isHovered && !isSelected ? "bg-muted/40" : "hover:bg-muted/25")
                 )}
                 onPointerMove={(e) => { e.stopPropagation(); onHoverStart(); }}
                 onPointerEnter={(e) => { e.stopPropagation(); onHoverStart(); }}
@@ -329,11 +329,11 @@ export function GlobalSearch({
         }
     }
 
-    // Dynamic Dialog Dimensions
-    const expandedWidthClass = "w-[95vw] sm:max-w-[95vw] md:w-[94vw] md:max-w-[1400px]"
-    const expandedHeightClass = "h-[94vh] max-h-[94vh]"
+    // Dynamic Dialog Dimensions - Immersive expanded mode
+    const expandedWidthClass = "w-[96vw] sm:max-w-[96vw] md:w-[95vw] md:max-w-[1600px]"
+    const expandedHeightClass = "h-[95vh] max-h-[95vh]"
     const collapsedWidthClass = "w-[800px] sm:max-w-[800px]"
-    const collapsedHeightClass = "h-[650px] max-h-[85vh]"
+    const collapsedHeightClass = "h-[600px] max-h-[85vh]"
 
     const dialogWidthClass = isExpanded ? expandedWidthClass : collapsedWidthClass
     const dialogHeightClass = isExpanded ? expandedHeightClass : collapsedHeightClass
@@ -366,11 +366,11 @@ export function GlobalSearch({
                         onValueChange={setCmdkValue}
                         loop={false}
                     >
-                        {/* TOP HEADER: Full width search bar */}
-                        <div className={cn("border-b border-border/50 bg-background/50 relative z-10 w-full shrink-0 transition-all duration-300", isExpanded ? "h-10 border-none opacity-80" : "h-14")}>
+                        {/* TOP HEADER: Full width search bar - MUCH smaller when expanded */}
+                        <div className={cn("border-b bg-background/40 relative z-10 w-full shrink-0 transition-all duration-300", isExpanded ? "h-9 border-border/20 opacity-50" : "h-12 border-border/40")}>
                             <CommandInput
-                                placeholder="Search chats..."
-                                className={cn("border-none transition-all duration-300", isExpanded ? "h-10 text-sm px-4" : "h-14 text-lg px-6")}
+                                placeholder={isExpanded ? "Filter..." : "Search chats..."}
+                                className={cn("border-none transition-all duration-300 focus:ring-0 focus-visible:ring-0", isExpanded ? "h-9 text-xs px-3" : "h-12 text-base px-4")}
                             />
                         </div>
 
@@ -380,15 +380,15 @@ export function GlobalSearch({
                             {/* LEFT COLUMN: History List */}
                             <div className={cn(
                                 "shrink-0 flex flex-col h-full overflow-hidden transition-all duration-300 min-h-0",
-                                isExpanded ? "w-[40%] border-r border-border/50 bg-sidebar/50 backdrop-blur-sm" : "w-full"
+                                isExpanded ? "w-[40%] border-r border-border/40 bg-sidebar/40 backdrop-blur-sm" : "w-full"
                             )}>
-                                <CommandList className="flex-1 overflow-y-auto w-full max-h-none p-2 min-h-0">
+                                <CommandList className="flex-1 overflow-y-auto w-full min-h-0 scroll-smooth scrollbar-thin scrollbar-thumb-muted/40 scrollbar-track-transparent p-1.5">
                                     <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
                                         No results found.
                                     </CommandEmpty>
                                     <CommandGroup
                                         heading={filter === "pinned" ? "Pinned" : "History"}
-                                        className={cn("p-0 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-sm [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted-foreground border-none outline-none")}
+                                        className={cn("p-0 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground/50 [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:border-none [&_[cmdk-group-heading]]:outline-none [&_[cmdk-group-heading]]:bg-transparent [&_[cmdk-group-heading]]:shadow-none border-none outline-none")}
                                     >
                                         {filteredChats.map((chat) => (
                                             <ChatCommandItem
@@ -412,13 +412,13 @@ export function GlobalSearch({
 
                             {/* RIGHT COLUMN: Real-time Preview Area (Only visible when expanded) */}
                             {isExpanded && (
-                                <div className="w-[60%] flex flex-col h-full overflow-hidden bg-background min-h-0">
+                                <div className="w-[60%] flex flex-col h-full overflow-hidden bg-background min-h-0 border-l border-border/40">
                                     {activePreviewId ? (
-                                        <div className="flex flex-col h-full">
-                                            {/* Preview Scrollable Content */}
+                                        <div className="flex flex-col h-full min-h-0">
+                                            {/* Preview Scrollable Content - Full height with proper scroll */}
                                             <div
                                                 ref={scrollRef}
-                                                className="flex-1 overflow-y-auto px-8 py-8 space-y-6"
+                                                className="flex-1 overflow-y-auto min-h-0 px-6 py-6 space-y-5 scroll-smooth scrollbar-thin scrollbar-thumb-muted/30 scrollbar-track-transparent"
                                             >
                                                 {previewLoading ? (
                                                     <div className="flex flex-col items-center justify-center h-[50vh] text-muted-foreground gap-3">
@@ -430,14 +430,14 @@ export function GlobalSearch({
                                                         Memory empty
                                                     </div>
                                                 ) : (
-                                                    <div className="max-w-3xl mx-auto space-y-8 pb-10">
-                                                        <h2 className="text-2xl font-semibold mb-8 border-b pb-4 px-2 tracking-tight">{previewChat?.title}</h2>
+                                    <div className="max-w-2xl mx-auto space-y-4 pb-8">
+                                                        <h2 className="text-lg font-semibold tracking-tight text-muted-foreground/80 sticky top-0 bg-background/80 backdrop-blur-sm py-2 z-5">{previewChat?.title}</h2>
                                                         {previewMessages.map((msg, i) => (
-                                                            <div key={msg.id || i} className={cn("pointer-events-none opacity-95", msg.role === 'user' ? "flex justify-end" : "flex justify-start px-2")}>
+                                                            <div key={msg.id || i} className={cn("pointer-events-none animate-in fade-in duration-200", msg.role === 'user' ? "flex justify-end" : "flex justify-start")}>
                                                                 {/* Read-only renderer */}
                                                                 <div className={cn(
-                                                                    "py-2 leading-relaxed max-w-[90%] break-words w-full",
-                                                                    msg.role === 'user' ? "bg-primary text-primary-foreground px-5 py-3 rounded-xl max-w-[80%]" : ""
+                                                                    "leading-relaxed break-words",
+                                                                    msg.role === 'user' ? "bg-primary text-primary-foreground px-4 py-2 rounded-lg max-w-[75%]" : "max-w-[90%]"
                                                                 )}>
                                                                     {msg.role === 'assistant' || msg.role === 'system' ? (
                                                                         <div className="prose prose-base dark:prose-invert max-w-none">
@@ -458,9 +458,9 @@ export function GlobalSearch({
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center h-[70vh] text-muted-foreground/40 gap-4">
-                                            <IconMessageCircleOff className="w-12 h-12 opacity-20" />
-                                            <p className="text-base font-medium">Hover or select a conversation to preview</p>
+                                        <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground/40 gap-3">
+                                            <IconMessageCircleOff className="w-10 h-10 opacity-15" />
+                                            <p className="text-sm font-medium text-muted-foreground/50">Select a conversation to preview</p>
                                         </div>
                                     )}
                                 </div>
@@ -469,8 +469,8 @@ export function GlobalSearch({
 
                         {/* Sticky Footer attached to the whole Dialog container */}
                         <div className={cn(
-                            "border-t border-border/50 flex items-center justify-between shrink-0 transition-colors duration-300 w-full",
-                            isExpanded ? "p-3 bg-sidebar/50" : "p-2 bg-muted/40"
+                            "border-t border-border/40 flex items-center justify-between shrink-0 transition-colors duration-200 w-full",
+                            isExpanded ? "px-3 py-2 bg-sidebar/30" : "px-2 py-1.5 bg-muted/30"
                         )}>
                             {/* Left Side: Expand Toggle */}
                             <ActionTooltip tooltip={isExpanded ? "Collapse Preview" : "Expand Preview"}>
@@ -489,43 +489,43 @@ export function GlobalSearch({
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 rounded-lg flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted font-normal px-2"
+                                    className="h-7 rounded-md flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-muted font-normal px-2 text-xs"
                                     onClick={() => handleGo()}
                                     disabled={!footerChat}
                                 >
-                                    <span className="text-xs">Open</span>
-                                    <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded-[4px] border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                                        Enter
+                                    <span>Open</span>
+                                    <kbd className="pointer-events-none hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded-[3px] border text-[9px] font-semibold text-muted-foreground bg-background px-1">
+                                        ↵
                                     </kbd>
                                 </Button>
 
-                                <div className="w-px h-3.5 bg-border/80 mx-0.5 hidden sm:block" />
+                                <div className="w-px h-3 bg-border/40 mx-0.5 hidden sm:block" />
 
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 rounded-lg flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted font-normal px-2"
+                                    className="h-7 rounded-md flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-muted font-normal px-2 text-xs"
                                     onClick={() => footerChat && handleOpenEdit(footerChat)}
                                     disabled={!footerChat}
                                 >
-                                    <span className="text-xs">Edit</span>
-                                    <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded-[4px] border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                                        <span className="text-[10px]">Ctrl</span>E
+                                    <span>Edit</span>
+                                    <kbd className="pointer-events-none hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded-[3px] border text-[9px] font-semibold text-muted-foreground bg-background px-1">
+                                        ⌘E
                                     </kbd>
                                 </Button>
 
-                                <div className="w-px h-3.5 bg-border/80 mx-0.5 hidden sm:block" />
+                                <div className="w-px h-3 bg-border/40 mx-0.5 hidden sm:block" />
 
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 rounded-lg flex items-center gap-2 text-destructive/80 hover:text-destructive hover:bg-destructive/10 font-normal px-2"
+                                    className="h-7 rounded-md flex items-center gap-1.5 text-destructive/70 hover:text-destructive hover:bg-destructive/10 font-normal px-2 text-xs"
                                     onClick={() => footerChat && handleOpenDelete(footerChat)}
                                     disabled={!footerChat}
                                 >
-                                    <span className="text-xs">Delete</span>
-                                    <kbd className="pointer-events-none hidden sm:inline-flex h-5 select-none items-center gap-1 rounded-[4px] border border-destructive/20 bg-destructive/10 px-1.5 font-mono text-[10px] font-medium text-destructive">
-                                        <span className="text-[10px]">Ctrl</span>D
+                                    <span>Delete</span>
+                                    <kbd className="pointer-events-none hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded-[3px] border border-destructive/20 text-[9px] font-semibold text-destructive bg-destructive/5 px-1">
+                                        ⌘D
                                     </kbd>
                                 </Button>
                             </div>
