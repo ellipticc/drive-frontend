@@ -165,6 +165,7 @@ const ChatCommandItem = React.memo(function ChatCommandItem({
     chat,
     isSelected,
     isHovered,
+    isVisuallyActive,
     isCurrent,
     onSelect,
     onGo,
@@ -176,7 +177,8 @@ const ChatCommandItem = React.memo(function ChatCommandItem({
 }: {
     chat: ChatType
     isSelected: boolean
-    isHovered: boolean
+    isHovered: boolean        // pointer is physically over this item right now
+    isVisuallyActive: boolean // persistent highlight: last hovered/selected
     isCurrent: boolean
     onSelect: () => void
     onGo: () => void
@@ -200,8 +202,8 @@ const ChatCommandItem = React.memo(function ChatCommandItem({
                     "transition-colors duration-100",
                     isSelected
                         ? "bg-accent text-accent-foreground"
-                        : isHovered
-                            ? "bg-muted/70"
+                        : isVisuallyActive
+                            ? "bg-muted/60"
                             : "hover:bg-muted/40"
                 )}
                 onPointerEnter={(e) => { e.stopPropagation(); onHoverStart() }}
@@ -230,7 +232,7 @@ const ChatCommandItem = React.memo(function ChatCommandItem({
                         ) : timeText}
                     </span>
 
-                    {/* Icons layer  absolutely overlaid, same slot */}
+                    {/* Icons layer — absolutely overlaid, same slot. Show when physically hovering. */}
                     <div
                         className={cn(
                             "absolute inset-0 flex items-center justify-end gap-0.5",
@@ -471,10 +473,11 @@ export function GlobalSearch({
         } catch { toast.error("Failed to delete chat") }
     }
 
-    //  Dialog dimensions 
+    //  Dialog dimensions
+    // Use ! (important) to override DialogContent's built-in sm:max-w-lg, grid, gap-4, p-6
     const dialogSizeClass = isExpanded
-        ? "w-[92vw] max-w-[1600px] h-[92vh] max-h-[92vh]"
-        : "w-[min(780px,94vw)] h-[min(580px,88vh)]"
+        ? "!w-[92vw] !max-w-[1600px] !h-[92vh]"
+        : "!w-[680px] !max-w-[calc(100vw-2rem)] !h-[560px] !max-h-[88vh]"
 
     //  Render 
     return (
@@ -490,9 +493,10 @@ export function GlobalSearch({
                 >
                     <DialogContent
                         className={cn(
-                            "p-0 overflow-hidden flex flex-col gap-0",
-                            "border border-border/40 bg-background shadow-2xl",
-                            "sm:rounded-xl transition-[width,height] duration-300 ease-in-out",
+                            // Override base: grid → flex, p-6 → p-0, gap-4 → gap-0, sm:max-w-lg → our size
+                            "!flex !flex-col !p-0 !gap-0 !overflow-hidden",
+                            "!rounded-xl border border-border/40 bg-background shadow-2xl",
+                            "transition-[width,height] duration-300 ease-in-out",
                             dialogSizeClass
                         )}
                         showCloseButton={false}
@@ -509,7 +513,7 @@ export function GlobalSearch({
                         </DialogHeader>
 
                         <Command
-                            className="flex flex-col h-full w-full bg-transparent overflow-hidden"
+                            className="flex flex-col flex-1 min-h-0 w-full bg-transparent overflow-hidden"
                             shouldFilter={true}
                             value={cmdkValue}
                             onValueChange={setCmdkValue}
@@ -549,12 +553,8 @@ export function GlobalSearch({
                                             : "w-full"
                                     )}
                                 >
-                                    {/*
-                                      pb-12: padding so the absolute footer never clips
-                                      the last conversation item.
-                                    */}
                                     <CommandList
-                                        className="flex-1 overflow-y-auto min-h-0 px-1.5 pt-0.5 pb-12"
+                                        className="flex-1 overflow-y-auto min-h-0 px-1.5 pt-0.5 pb-2"
                                         style={{ overscrollBehavior: "contain" }}
                                     >
                                         <CommandEmpty className="py-10 text-center text-sm text-muted-foreground/60">
@@ -588,6 +588,7 @@ export function GlobalSearch({
                                                         chat={chat}
                                                         isSelected={selectedConversationId === chat.id}
                                                         isHovered={hoveredConversationId === chat.id}
+                                                        isVisuallyActive={previewConversationId === chat.id && selectedConversationId !== chat.id}
                                                         isCurrent={chat.id === currentConversationId}
                                                         onHoverStart={() => handleHoverStart(chat.id)}
                                                         onHoverEnd={handleHoverEnd}
@@ -684,17 +685,10 @@ export function GlobalSearch({
                                 )}
                             </div>
 
-                            {/*  Footer 
-                                Absolutely pinned to dialog bottom; CommandList has
-                                pb-12 so the last item is never hidden beneath it.
-                             */}
+                            {/* Footer — shrink-0 natural flex child, NOT absolute.
+                                This ensures it never overlaps the scroll area. */}
                             <div
-                                className={cn(
-                                    "absolute bottom-0 left-0 right-0 z-20",
-                                    "flex items-center justify-between",
-                                    "px-3 py-2",
-                                    "bg-background border-t border-border/25"
-                                )}
+                                className="shrink-0 flex items-center justify-between px-3 py-2 bg-background border-t border-border/25 z-10"
                             >
                                 {/* Expand / collapse */}
                                 <ActionTooltip tooltip={isExpanded ? "Collapse" : "Expand preview"}>
