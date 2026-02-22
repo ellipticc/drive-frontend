@@ -2,13 +2,15 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconThumbUp, IconCheck, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowsMinimize, IconBrain, IconArrowRight, IconHandStop } from "@tabler/icons-react"
+import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconFileText, IconThumbUp, IconCheck, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowsMinimize, IconBrain, IconArrowRight, IconHandStop } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Reasoning, ReasoningTrigger, ReasoningContent, detectThinkingTagType } from "@/components/ai-elements/reasoning"
 import {
     InlineCitation,
@@ -82,6 +84,38 @@ interface ChatMessageProps {
     onRerunSystemWithModel?: (messageId: string, modelId: string) => void;
     onAddToChat?: (text: string) => void;
     onSuggestionClick?: (text: string) => void;
+}
+
+interface ParsedUserMessage {
+    text: string;
+    files: { name: string, content: string }[];
+    contexts: { type: string, content: string }[];
+}
+
+function parseUserContent(rawContent: string): ParsedUserMessage {
+    let text = rawContent;
+    const files: { name: string, content: string }[] = [];
+    const contexts: { type: string, content: string }[] = [];
+
+    // Parse files (non-greedy match)
+    const fileRegex = /--- START FILE: ([\s\S]*?) ---\n([\s\S]*?)\n--- END FILE ---\n?/g;
+    text = text.replace(fileRegex, (match, name, content) => {
+        files.push({ name: name.trim(), content: content.trim() });
+        return '';
+    });
+
+    // Parse contexts (non-greedy match)
+    const contextRegex = /\[CONTEXT \(([\s\S]*?)\)\]\n([\s\S]*?)\n\[\/CONTEXT\]\n?/g;
+    text = text.replace(contextRegex, (match, type, content) => {
+        contexts.push({ type: type.trim(), content: content.trim() });
+        return '';
+    });
+
+    return {
+        text: text.trim(),
+        files,
+        contexts
+    };
 }
 
 // Helper component to render content with inline citations using ai-elements
@@ -310,13 +344,71 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                 </div>
                             ) : (
                                 <>
-                                    {/* Message bubble */}
-                                    <div className={cn(
-                                        "px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm font-medium w-fit selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap",
-                                        "bg-primary text-primary-foreground"
-                                    )}>
-                                        {message.content}
-                                    </div>
+                                    {/* Parse content for file and context pills */}
+                                    {(() => {
+                                        const parsed = parseUserContent(message.content);
+                                        return (
+                                            <div className="flex flex-col gap-2 w-full items-end">
+                                                {/* Message bubble */}
+                                                {parsed.text && (
+                                                    <div className={cn(
+                                                        "px-4 py-3 rounded-2xl text-[15px] leading-relaxed shadow-sm font-medium w-fit selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap",
+                                                        "bg-primary text-primary-foreground"
+                                                    )}>
+                                                        {parsed.text}
+                                                    </div>
+                                                )}
+
+                                                {/* File & Context Pills Area */}
+                                                {(parsed.files.length > 0 || parsed.contexts.length > 0) && (
+                                                    <div className="flex flex-wrap gap-2 justify-end mt-1.5">
+                                                        {parsed.contexts.map((ctx, i) => (
+                                                            <Sheet key={`ctx-${i}`}>
+                                                                <SheetTrigger asChild>
+                                                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border/50 rounded-lg text-xs font-medium cursor-pointer hover:bg-muted/90 transition-colors shadow-sm select-none data-[state=open]:bg-muted">
+                                                                        <IconFileText className="w-3.5 h-3.5 text-primary/70" />
+                                                                        <span className="truncate max-w-[150px] text-foreground/80">Context Reference</span>
+                                                                    </div>
+                                                                </SheetTrigger>
+                                                                <SheetContent side="right" className="w-[400px] sm:w-[540px] px-0 pb-0 flex flex-col">
+                                                                    <SheetHeader className="px-6 pb-2">
+                                                                        <SheetTitle>Context Snippet</SheetTitle>
+                                                                        <SheetDescription>Manually added context via user interaction</SheetDescription>
+                                                                    </SheetHeader>
+                                                                    <ScrollArea className="flex-1 px-6 pb-6 mt-2">
+                                                                        <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed bg-muted/30 p-4 rounded-xl border border-border/50">
+                                                                            {ctx.content}
+                                                                        </div>
+                                                                    </ScrollArea>
+                                                                </SheetContent>
+                                                            </Sheet>
+                                                        ))}
+                                                        {parsed.files.map((file, i) => (
+                                                            <Sheet key={`file-${i}`}>
+                                                                <SheetTrigger asChild>
+                                                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border/50 rounded-xl text-xs font-medium cursor-pointer hover:bg-muted/90 transition-colors shadow-sm select-none data-[state=open]:bg-muted">
+                                                                        <IconFileText className="w-3.5 h-3.5 text-primary/70" />
+                                                                        <span className="truncate max-w-[200px] text-foreground/80">{file.name}</span>
+                                                                    </div>
+                                                                </SheetTrigger>
+                                                                <SheetContent side="right" className="w-[400px] sm:w-[540px] px-0 pb-0 flex flex-col">
+                                                                    <SheetHeader className="px-6 pb-2">
+                                                                        <SheetTitle className="truncate pr-4" title={file.name}>{file.name}</SheetTitle>
+                                                                        <SheetDescription>Extracted Document Text for LLM Context</SheetDescription>
+                                                                    </SheetHeader>
+                                                                    <ScrollArea className="flex-1 px-6 pb-6 mt-2">
+                                                                        <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed bg-muted/30 p-4 rounded-xl border border-border/50">
+                                                                            {file.content}
+                                                                        </div>
+                                                                    </ScrollArea>
+                                                                </SheetContent>
+                                                            </Sheet>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Actions Row - Below message */}
                                     <div className="flex items-center gap-3 mt-1 mr-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -342,7 +434,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                 icon={IconEdit}
                                                 label="Edit"
                                                 onClick={() => {
-                                                    setEditContent(message.content);
+                                                    setEditContent(parseUserContent(message.content).text);
                                                     setIsEditingPrompt(true);
                                                 }}
                                             />
