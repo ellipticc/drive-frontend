@@ -502,7 +502,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                     {formatModelName(message.model)}
                                                 </span>
                                             </TooltipTrigger>
-                                            <TooltipContent side="top">
+                                            <TooltipContent side="bottom">
                                                 <p>Model used: {formatModelName(message.model)}</p>
                                             </TooltipContent>
                                         </Tooltip>

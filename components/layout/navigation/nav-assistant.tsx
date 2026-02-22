@@ -12,6 +12,7 @@ import {
   IconArchive,
   IconTrash,
 } from "@tabler/icons-react"
+import { useRelativeTime } from "@/lib/utils"
 import {
   SidebarMenuButton,
   SidebarMenuItem,
@@ -43,9 +44,9 @@ import { cn } from "@/lib/utils"
 
 // --- Types ---
 
-type ChatType = { id: string; title: string; pinned: boolean; archived: boolean; createdAt: string }
+export type ChatType = { id: string; title: string; pinned: boolean; archived: boolean; createdAt: string; lastMessageAt?: string }
 
-type ChatActions = {
+export type ChatActions = {
   renameChat: (conversationId: string, newTitle: string) => Promise<void>
   pinChat: (conversationId: string, pinned: boolean) => Promise<void>
   archiveChat: (conversationId: string, archived: boolean) => Promise<void>
@@ -64,7 +65,11 @@ function groupChatsByTimeline(chats: ChatType[]) {
 
   const sorted = [...chats]
     .filter(c => !c.archived && !c.pinned)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .sort((a, b) => {
+        const ta = new Date(b.lastMessageAt || b.createdAt).getTime();
+        const tb = new Date(a.lastMessageAt || a.createdAt).getTime();
+        return ta - tb;
+    })
 
   for (const chat of sorted) {
     const d = new Date(chat.createdAt)
@@ -199,6 +204,9 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
         >
           <div className="flex items-center w-full relative">
             <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight group-hover/chat-item:[mask-image:linear-gradient(to_right,black_70%,transparent_90%)]" />
+            <span className="text-xs text-muted-foreground ml-2">
+              {useRelativeTime(chat.lastMessageAt || chat.createdAt)}
+            </span>
 
             {/* Actions dropdown on hover */}
             <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 focus-within:opacity-100 transition-opacity flex items-center bg-transparent">
@@ -344,7 +352,11 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
   const pinnedChats = React.useMemo(() =>
     [...chats]
       .filter(c => !!c.pinned && !c.archived)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+      .sort((a, b) => {
+          const ta = new Date(b.lastMessageAt || b.createdAt).getTime();
+          const tb = new Date(a.lastMessageAt || a.createdAt).getTime();
+          return ta - tb;
+      }),
     [chats]
   )
 

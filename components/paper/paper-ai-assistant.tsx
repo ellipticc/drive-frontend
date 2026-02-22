@@ -424,7 +424,11 @@ export function PaperAIAssistant({
     // ── Chat History (sorted recent first, limit 20) ─────────
     const recentChats = useMemo(() => {
         return [...chats]
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .sort((a, b) => {
+                const ta = new Date(b.lastMessageAt || b.createdAt).getTime();
+                const tb = new Date(a.lastMessageAt || a.createdAt).getTime();
+                return ta - tb;
+            })
             .slice(0, 20);
     }, [chats]);
 

@@ -12,6 +12,7 @@ export interface IndexedChat {
   id: string;
   title: string;
   createdAt: string;
+  lastMessageAt?: string;
   pinned: boolean;
   messages: Array<{
     id: string;
@@ -208,8 +209,12 @@ export async function getAllIndexedChats(): Promise<IndexedChat[]> {
 export async function getIndexedChatsPaginated(limit = 50, offset = 0): Promise<IndexedChat[]> {
   try {
     const all = await getAllIndexedChats();
-    // Sort by createdAt desc
-    const sorted = all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Sort by lastMessageAt (fallback to createdAt) desc
+    const sorted = all.sort((a, b) => {
+        const ta = new Date(b.lastMessageAt || b.createdAt).getTime();
+        const tb = new Date(a.lastMessageAt || a.createdAt).getTime();
+        return ta - tb;
+    });
     return sorted.slice(offset, offset + limit);
   } catch (e) {
     console.error('Failed to get paginated chats:', e);

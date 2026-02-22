@@ -3,6 +3,7 @@ import { masterKeyManager } from '@/lib/master-key';
 import { keyManager } from '@/lib/key-manager';
 import type { UserKeypairs } from '@/lib/key-manager';
 import apiClient from '@/lib/api';
+import { sortChatsByLastMessage } from '@/lib/chat-utils';
 
 export interface DecryptedMessage {
     role: 'user' | 'assistant' | 'system';
@@ -18,8 +19,9 @@ export interface UseAICryptoReturn {
     isReady: boolean;
     kyberPublicKey: string | null;
     userKeys: { keypairs: UserKeypairs } | null;
-    chats: { id: string, title: string, pinned: boolean, archived: boolean, createdAt: string }[];
-    loadChats: () => Promise<void>;
+    chats: { id: string, title: string, pinned: boolean, archived: boolean, createdAt: string, lastMessageAt?: string }[];
+    loadChats: (forceRefresh?: boolean) => Promise<void>;
+    updateChatTimestamp: (chatId: string, timestamp: string) => void;
     renameChat: (conversationId: string, newTitle: string) => Promise<void>;
     pinChat: (conversationId: string, pinned: boolean) => Promise<void>;
     archiveChat: (conversationId: string, archived: boolean) => Promise<void>;
@@ -40,7 +42,7 @@ export function useAICrypto(): UseAICryptoReturn {
     const [userKeys, setUserKeys] = useState<{ keypairs: UserKeypairs } | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    const [chats, setChats] = useState<{ id: string, title: string, pinned: boolean, archived: boolean, createdAt: string }[]>([]);
+    const [chats, setChats] = useState<{ id: string, title: string, pinned: boolean, archived: boolean, createdAt: string, lastMessageAt?: string }[]>([]);
 
     // Cross-instance sync: dispatch and listen for chat mutations via custom events
     const instanceId = useRef(Math.random().toString(36));
@@ -146,16 +148,28 @@ export function useAICrypto(): UseAICryptoReturn {
                     title,
                     pinned: chat.pinned,
                     archived: !!chat.archived,
-                    createdAt: chat.created_at
+                    createdAt: chat.created_at,
+                    lastMessageAt: chat.last_message_at || undefined
                 };
             }));
 
-            setChats(processed);
+            // sort by last message timestamp before storing
+            setChats(sortChatsByLastMessage(processed));
             hasLoadedChats.current = true;
         } catch (e) {
             console.error("Failed to load chats:", e);
         }
     }, [userKeys, decryptTitle]);
+
+    // helper to update a chat's lastMessageAt and reorder
+    const updateChatTimestamp = useCallback((chatId: string, timestamp: string) => {
+        setChats(prev => {
+            const updated = prev.map(c => c.id === chatId ? { ...c, lastMessageAt: timestamp } : c);
+            const sorted = sortChatsByLastMessage(updated);
+            broadcastChats(sorted);
+            return sorted;
+        });
+    }, [broadcastChats]);
 
     // Load chats once ready
     useEffect(() => {
@@ -180,7 +194,7 @@ export function useAICrypto(): UseAICryptoReturn {
 
             // Optimistic Update
             const updated = chats.map(c => c.id === conversationId ? { ...c, title: newTitle } : c);
-            setChats(updated);
+            setChats(sortChatsByLastMessage(updated));
             broadcastChats(updated);
         } catch (e) {
             console.error("Failed to rename chat:", e);
@@ -191,7 +205,7 @@ export function useAICrypto(): UseAICryptoReturn {
     const pinChat = useCallback(async (conversationId: string, pinned: boolean) => {
         // Optimistic update
         const updated = chats.map(c => c.id === conversationId ? { ...c, pinned } : c);
-        setChats(updated);
+        setChats(sortChatsByLastMessage(updated));
         broadcastChats(updated);
         try {
             await apiClient.updateChat(conversationId, { pinned });
@@ -199,28 +213,28 @@ export function useAICrypto(): UseAICryptoReturn {
             console.error("Failed to pin chat:", e);
             // Revert on failure
             const reverted = chats.map(c => c.id === conversationId ? { ...c, pinned: !pinned } : c);
-            setChats(reverted);
+            setChats(sortChatsByLastMessage(reverted));
             broadcastChats(reverted);
         }
     }, [chats, broadcastChats]);
 
     const archiveChat = useCallback(async (conversationId: string, archived: boolean) => {
         const updated = chats.map(c => c.id === conversationId ? { ...c, archived } : c);
-        setChats(updated);
+        setChats(sortChatsByLastMessage(updated));
         broadcastChats(updated);
         try {
             await apiClient.updateChat(conversationId, { archived });
         } catch (err) {
             console.error("Failed to archive chat", err);
             const reverted = chats.map(c => c.id === conversationId ? { ...c, archived: !archived } : c);
-            setChats(reverted);
+            setChats(sortChatsByLastMessage(reverted));
             broadcastChats(reverted);
         }
     }, [chats, broadcastChats]);
 
     const deleteChat = useCallback(async (conversationId: string) => {
         const updated = chats.filter(c => c.id !== conversationId);
-        setChats(updated);
+        setChats(sortChatsByLastMessage(updated));
         broadcastChats(updated);
 
         if (typeof window !== "undefined") {
@@ -477,6 +491,7 @@ export function useAICrypto(): UseAICryptoReturn {
         userKeys,
         chats,
         loadChats, // Expose for manual refresh
+        updateChatTimestamp,
         renameChat,
         pinChat,
         archiveChat,

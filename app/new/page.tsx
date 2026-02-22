@@ -111,7 +111,7 @@ export default function AssistantPage() {
     const hasScrolledRef = React.useRef(false);
     const shouldAutoScrollRef = React.useRef(true);
 
-    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, encryptWithSessionKey, loadChats, chats, renameChat, pinChat, deleteChat } = useAICrypto();
+    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, encryptWithSessionKey, loadChats, updateChatTimestamp, chats, renameChat, pinChat, deleteChat } = useAICrypto();
 
     // Available models for system rerun popovers
     const availableModels = [
@@ -566,6 +566,10 @@ export default function AssistantPage() {
         };
 
         setMessages(prev => [...prev, optimisticUserMessage]);
+        // optimistic chat timestamp for ordering
+        if (conversationId) {
+            updateChatTimestamp(conversationId, new Date().toISOString());
+        }
 
         // Disable auto-scroll-to-bottom so user message stays at top of viewport
         shouldAutoScrollRef.current = false;
@@ -1231,6 +1235,8 @@ export default function AssistantPage() {
             setIsLoading(false);
             setIsCancelling(false);
             abortControllerRef.current = null;
+            // reconcile chats ordering/timestamps with server after every attempt
+            loadChats(true);
             // If we just finished a new chat response, we might want to ensure the sidebar title is updated (since backend updates title after first msg)
             if (!conversationId) {
                 setTimeout(() => loadChats(), 2000);

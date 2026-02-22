@@ -13,7 +13,9 @@ import {
   IconWritingSign,
   IconEdit,
 } from "@tabler/icons-react"
-import { cn } from "@/lib/utils"
+import { cn, useRelativeTime } from "@/lib/utils"
+import { sortChatsByLastMessage } from "@/lib/chat-utils"
+import type { ChatType } from "@/components/layout/navigation/nav-assistant"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
 import { NavSecondary } from "@/components/layout/navigation/nav-secondary"
@@ -71,6 +73,21 @@ export const AppSidebar = React.memo(function AppSidebar({
   const [searchOpen, setSearchOpen] = React.useState(false)
   // filter applied when opening search via sidebar items ('pinned' or 'history')
   const [searchFilter, setSearchFilter] = React.useState<'pinned' | 'history' | null>(null)
+
+  // helper for rendering command dialog items with reactive timestamp
+  const ChatCommandItem = ({ chat, onSelect }: { chat: ChatType; onSelect: () => void }) => {
+    const timeText = useRelativeTime(chat.lastMessageAt || chat.createdAt);
+    return (
+      <CommandItem
+        onSelect={onSelect}
+        className="cursor-pointer py-3"
+      >
+        <IconBubbleText className="mr-2 h-4 w-4" />
+        <span>{chat.title}</span>
+        <span className="ml-auto text-xs text-muted-foreground">{timeText}</span>
+      </CommandItem>
+    );
+  };
 
   // Keyboard shortcut for search (Cmd+K) and new chat (Ctrl+Shift+O)
   React.useEffect(() => {
@@ -380,37 +397,22 @@ export const AppSidebar = React.memo(function AppSidebar({
           <CommandList className="h-[520px] overflow-y-auto">
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup heading={searchFilter === 'pinned' ? 'Pinned Chats' : 'Recent Chats'}>
-              {chats
-                .filter(chat => {
+              {sortChatsByLastMessage(chats)
+                .filter((chat: ChatType) => {
                   if (searchFilter === 'pinned') return chat.pinned && !chat.archived;
                   if (searchFilter === 'history') return !chat.pinned && !chat.archived;
                   return !chat.archived;
                 })
-                .map(chat => (
-                  <CommandItem
+                .map((chat: ChatType) => (
+                  <ChatCommandItem
                     key={chat.id}
+                    chat={chat}
                     onSelect={() => {
                       router.push(`/new?conversationId=${chat.id}`);
                       setSearchOpen(false);
                       setSearchFilter(null);
                     }}
-                    className="cursor-pointer py-3"
-                  >
-                    <IconBubbleText className="mr-2 h-4 w-4" />
-                    <span>{chat.title}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">{(() => {
-                      if (!chat.createdAt) return '';
-                      const d = new Date(chat.createdAt);
-                      const now = new Date();
-                      const diff = now.getTime() - d.getTime();
-                      const day = 24 * 60 * 60 * 1000;
-                      if (diff < day) return 'Today';
-                      if (diff < 7 * day) return 'Past week';
-                      if (diff < 30 * day) return 'Past month';
-                      if (diff < 365 * day) return 'Past year';
-                      return d.toLocaleDateString();
-                    })()}</span>
-                  </CommandItem>
+                  />
                 ))}
             </CommandGroup>
           </CommandList>
