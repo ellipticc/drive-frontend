@@ -553,7 +553,7 @@ export function GlobalSearch({
                                     )}
                                 >
                                     <CommandList
-                                        className="flex-1 overflow-y-auto min-h-0 px-1.5 pt-0.5 pb-8"
+                                        className="flex-1 overflow-y-auto min-h-0 px-1.5 pt-0.5 pb-12"
                                         style={{ overscrollBehavior: "contain" }}
                                     >
                                         <CommandEmpty className="py-10 text-center text-sm text-muted-foreground/60">
@@ -673,8 +673,8 @@ export function GlobalSearch({
                                 )}
                             </div>
 
-                            {/* Footer — full-width at bottom */}
-                            <div className="shrink-0 flex items-center justify-between px-3 py-2 bg-background border-t border-border/25 z-10">
+                            {/* Footer — full-width at bottom, sticky */}
+                            <div className="sticky bottom-0 shrink-0 flex items-center justify-between px-3 py-2 bg-background border-t border-border/25 z-10">
                                 <ActionTooltip tooltip={isExpanded ? "Collapse" : "Expand preview"} side={isExpanded ? "top" : "bottom"}>
                                     <Button
                                         variant="ghost"
