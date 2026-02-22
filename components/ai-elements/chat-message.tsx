@@ -242,6 +242,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
         const header = [
             `# Message export`,
             `This message was downloaded from Ellipticc (https://ellipticc.com). AI chats may display inaccurate or offensive information (see https://ellipticc.com/privacy-policy for more info).`,
+            `Message ID: ${message.id || 'N/A'}`,
             `Exported: ${exportedAt.toLocaleString()}`,
             `Message timestamp: ${ts.toLocaleString()}`,
             '---',
@@ -363,14 +364,14 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                 {(parsed.files.length > 0 || parsed.contexts.length > 0) && (
                                                     <div className="flex flex-wrap gap-2 justify-end mt-1.5">
                                                         {parsed.contexts.map((ctx, i) => (
-                                                            <Sheet key={`ctx-${i}`}>
+                                                            <Sheet key={`ctx-${i}`} modal={false}>
                                                                 <SheetTrigger asChild>
                                                                     <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border/50 rounded-lg text-xs font-medium cursor-pointer hover:bg-muted/90 transition-colors shadow-sm select-none data-[state=open]:bg-muted">
                                                                         <IconFileText className="w-3.5 h-3.5 text-primary/70" />
                                                                         <span className="truncate max-w-[150px] text-foreground/80">Context Reference</span>
                                                                     </div>
                                                                 </SheetTrigger>
-                                                                <SheetContent side="right" className="w-[400px] sm:w-[540px] px-0 pb-0 flex flex-col">
+                                                                <SheetContent side="right" className="w-[400px] sm:w-[540px] px-0 pb-0 flex flex-col" hideOverlay>
                                                                     <SheetHeader className="px-6 pb-2">
                                                                         <SheetTitle>Context Snippet</SheetTitle>
                                                                         <SheetDescription>Manually added context via user interaction</SheetDescription>
@@ -384,14 +385,14 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                             </Sheet>
                                                         ))}
                                                         {parsed.files.map((file, i) => (
-                                                            <Sheet key={`file-${i}`}>
+                                                            <Sheet key={`file-${i}`} modal={false}>
                                                                 <SheetTrigger asChild>
                                                                     <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border/50 rounded-xl text-xs font-medium cursor-pointer hover:bg-muted/90 transition-colors shadow-sm select-none data-[state=open]:bg-muted">
                                                                         <IconFileText className="w-3.5 h-3.5 text-primary/70" />
                                                                         <span className="truncate max-w-[200px] text-foreground/80">{file.name}</span>
                                                                     </div>
                                                                 </SheetTrigger>
-                                                                <SheetContent side="right" className="w-[400px] sm:w-[540px] px-0 pb-0 flex flex-col">
+                                                                <SheetContent side="right" className="w-[400px] sm:w-[540px] px-0 pb-0 flex flex-col" hideOverlay>
                                                                     <SheetHeader className="px-6 pb-2">
                                                                         <SheetTitle className="truncate pr-4" title={file.name}>{file.name}</SheetTitle>
                                                                         <SheetDescription>Extracted Document Text for LLM Context</SheetDescription>

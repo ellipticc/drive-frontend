@@ -53,6 +53,7 @@ function SheetContent({
   initialFraction = 0.45, // fraction of viewport width when opened
   minWidth = 320,
   maxWidth = null,
+  hideOverlay = false,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
@@ -60,6 +61,7 @@ function SheetContent({
   initialFraction?: number
   minWidth?: number
   maxWidth?: number | null
+  hideOverlay?: boolean
 }) {
   const sensors = useSensors(useSensor(PointerSensor))
   const [widthPx, setWidthPx] = React.useState<number | null>(null)
@@ -99,7 +101,7 @@ function SheetContent({
 
   return (
     <SheetPortal>
-      <SheetOverlay />
+      {!hideOverlay && <SheetOverlay />}
       <DndContext sensors={sensors} onDragMove={handleDragMove} onDragEnd={onDragEnd}>
         <SheetPrimitive.Content
           data-slot="sheet-content"
@@ -141,7 +143,7 @@ function SheetContent({
                 const onUp = () => {
                   window.removeEventListener('pointermove', onMove);
                   window.removeEventListener('pointerup', onUp);
-                  try { (e.target as Element).releasePointerCapture?.((e as any).pointerId); } catch (err) {}
+                  try { (e.target as Element).releasePointerCapture?.((e as any).pointerId); } catch (err) { }
                 };
 
                 window.addEventListener('pointermove', onMove);
