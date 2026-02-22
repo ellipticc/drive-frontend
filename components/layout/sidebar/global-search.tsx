@@ -55,40 +55,29 @@ type ChatGroup = {
 
 function groupChatsByDate(chats: ChatType[]): ChatGroup[] {
     const now = new Date()
-    const sod = (offset = 0) => {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-        d.setDate(d.getDate() + offset)
-        return d
-    }
-    const startOfToday     = sod(0)
-    const startOfYesterday = sod(-1)
-    const startOfThisWeek  = (() => { const d = sod(0); d.setDate(d.getDate() - d.getDay()); return d })()
-    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const startOfThisYear  = new Date(now.getFullYear(), 0, 1)
-    const startOfLastYear  = new Date(now.getFullYear() - 1, 0, 1)
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const startOfYesterday = new Date(startOfToday)
+    startOfYesterday.setDate(startOfYesterday.getDate() - 1)
+    const sevenDaysAgo = new Date(now)
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    const thirtyDaysAgo = new Date(now)
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
     const buckets: [string, ChatType[]][] = [
-        ["Today",      []],
-        ["Yesterday",  []],
-        ["This Week",  []],
-        ["This Month", []],
-        ["Last Month", []],
-        ["This Year",  []],
-        ["Last Year",  []],
-        ["Older",      []],
+        ["Today", []],
+        ["Yesterday", []],
+        ["Last 7 days", []],
+        ["Last 30 days", []],
+        ["Earlier", []],
     ]
 
     for (const chat of chats) {
         const d = new Date(chat.lastMessageAt || chat.createdAt)
-        if      (d >= startOfToday)     buckets[0][1].push(chat)
+        if (d >= startOfToday) buckets[0][1].push(chat)
         else if (d >= startOfYesterday) buckets[1][1].push(chat)
-        else if (d >= startOfThisWeek)  buckets[2][1].push(chat)
-        else if (d >= startOfThisMonth) buckets[3][1].push(chat)
-        else if (d >= startOfLastMonth) buckets[4][1].push(chat)
-        else if (d >= startOfThisYear)  buckets[5][1].push(chat)
-        else if (d >= startOfLastYear)  buckets[6][1].push(chat)
-        else                            buckets[7][1].push(chat)
+        else if (d >= sevenDaysAgo) buckets[2][1].push(chat)
+        else if (d >= thirtyDaysAgo) buckets[3][1].push(chat)
+        else buckets[4][1].push(chat)
     }
 
     return buckets
@@ -101,14 +90,16 @@ function groupChatsByDate(chats: ChatType[]): ChatGroup[] {
 const ActionTooltip = React.memo(function ActionTooltip({
     children,
     tooltip,
+    side = "top",
 }: {
     children: React.ReactNode
     tooltip: string
+    side?: "top" | "bottom" | "left" | "right"
 }) {
     return (
         <Tooltip>
             <TooltipTrigger asChild>{children}</TooltipTrigger>
-            <TooltipContent side="top" sideOffset={4} className="text-xs">
+            <TooltipContent side={side} sideOffset={4} className="text-xs">
                 {tooltip}
             </TooltipContent>
         </Tooltip>
@@ -136,7 +127,7 @@ function FooterAction({
             disabled={disabled}
             onClick={onClick}
             className={cn(
-                "inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-normal",
+                "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-normal",
                 "transition-colors duration-100 outline-none",
                 "disabled:opacity-30 disabled:pointer-events-none",
                 destructive
@@ -213,7 +204,7 @@ const ChatCommandItem = React.memo(function ChatCommandItem({
                 <IconBubbleText className="shrink-0 h-[15px] w-[15px] text-muted-foreground/60" />
 
                 {/* Title  always pr-[88px] so the right zone never shifts layout */}
-                <span className="truncate flex-1 min-w-0 text-sm pr-[88px]">{chat.title}</span>
+                <span className="truncate flex-1 min-w-0 text-base pr-[88px]">{chat.title}</span>
 
                 {/* Fixed 80px right-side zone: timestamp  icons, no layout shift */}
                 <div className="absolute right-2 w-[80px] flex items-center justify-end">
@@ -325,8 +316,8 @@ export function GlobalSearch({
     //  Hover handlers (persistence logic) 
     const handleHoverStart = React.useCallback((chatId: string) => {
         setHoveredConversationId(chatId)
-        setPreviewConversationId(chatId) // anchors the preview persistently
-    }, [])
+        if (isExpanded) setPreviewConversationId(chatId) // only fetch when preview visible
+    }, [isExpanded])
 
     const handleHoverEnd = React.useCallback(() => {
         setHoveredConversationId(null)
@@ -335,8 +326,8 @@ export function GlobalSearch({
 
     const handleSelect = React.useCallback((chatId: string) => {
         setSelectedConversationId(prev => (prev === chatId ? null : chatId))
-        setPreviewConversationId(chatId) // selecting also anchors preview
-    }, [])
+        if (isExpanded) setPreviewConversationId(chatId)
+    }, [isExpanded])
 
     //  Filtered + grouped chats 
     const filteredChats = React.useMemo(() => {
@@ -358,7 +349,7 @@ export function GlobalSearch({
     // KEY RULE: depends on previewConversationId ONLY, NOT isExpanded.
     // Toggling expanded never triggers a re-fetch; cached data is always reused.
     React.useEffect(() => {
-        if (!previewConversationId || !open) {
+        if (!previewConversationId || !open || !isExpanded) {
             if (!previewConversationId) {
                 setPreviewMessages([])
                 setPreviewLoading(false)
@@ -420,6 +411,15 @@ export function GlobalSearch({
             setPreviewLoading(false)
         }
     }, [open])
+
+    // when collapsing preview clear anchor and messages
+    React.useEffect(() => {
+        if (!isExpanded) {
+            setPreviewConversationId(null)
+            setPreviewMessages([])
+            setPreviewLoading(false)
+        }
+    }, [isExpanded])
 
     //  Action handlers 
     const handleOpenEdit   = React.useCallback((chat: ChatType) => { setRenameTitle(chat.title); setEditingChat(chat) }, [])
@@ -545,7 +545,7 @@ export function GlobalSearch({
                                 {/*  LEFT: Conversation list  */}
                                 <div
                                     className={cn(
-                                        "flex flex-col min-h-0 overflow-hidden",
+                                        "flex flex-col h-full justify-start bg-background overflow-hidden",
                                         "transition-[width] duration-300",
                                         isExpanded
                                             ? "w-[40%] border-r border-border/25"
@@ -553,7 +553,7 @@ export function GlobalSearch({
                                     )}
                                 >
                                     <CommandList
-                                        className="flex-1 overflow-y-auto min-h-0 px-1.5 pt-0.5 pb-2"
+                                        className="flex-1 overflow-y-auto min-h-0 px-1.5 pt-0.5 pb-12"
                                         style={{ overscrollBehavior: "contain" }}
                                     >
                                         <CommandEmpty className="py-10 text-center text-sm text-muted-foreground/60">
@@ -623,7 +623,7 @@ export function GlobalSearch({
                                                             No messages
                                                         </div>
                                                     ) : (
-                                                        <div className="max-w-2xl mx-auto space-y-3 pb-4">
+                                                        <div className="max-w-3xl prose-lg mx-auto space-y-4 pb-4">
                                                             {previewMessages.map((msg, i) => (
                                                                 <div
                                                                     key={msg.id || i}
@@ -640,13 +640,10 @@ export function GlobalSearch({
                                                                         )}
                                                                     >
                                                                         {msg.role === "assistant" || msg.role === "system" ? (
-                                                                            <div className="prose prose-sm dark:prose-invert max-w-none [&_.action-buttons]:hidden [&_.suggestions]:hidden [&_.regenerate-button]:hidden">
+                                                                            <div className="prose prose-lg dark:prose-invert max-w-none [&_.action-buttons]:hidden [&_.suggestions]:hidden [&_.regenerate-button]:hidden">
                                                                                 <ChatMessage
                                                                                     message={{
                                                                                         ...msg,
-                                                                                        isThinking: false,
-                                                                                        reasoningDuration: undefined,
-                                                                                        reasoning: undefined,
                                                                                         suggestions: undefined,
                                                                                         feedback: undefined,
                                                                                     }}
@@ -676,7 +673,7 @@ export function GlobalSearch({
 
                             {/* Footer — sticky at bottom, always visible */}
                             <div className="sticky bottom-0 left-0 right-0 z-20 shrink-0 flex items-center justify-between px-3 py-2 bg-background border-t border-border/25">
-                                <ActionTooltip tooltip={isExpanded ? "Collapse" : "Expand preview"}>
+                                <ActionTooltip tooltip={isExpanded ? "Collapse" : "Expand preview"} side={isExpanded ? "top" : "bottom"}>
                                     <Button
                                         variant="ghost"
                                         size="sm"
