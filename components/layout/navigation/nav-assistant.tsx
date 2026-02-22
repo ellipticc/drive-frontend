@@ -12,7 +12,6 @@ import {
   IconArchive,
   IconTrash,
 } from "@tabler/icons-react"
-import { useRelativeTime } from "@/lib/utils"
 import {
   SidebarMenuButton,
   SidebarMenuItem,
@@ -204,9 +203,6 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
         >
           <div className="flex items-center w-full relative">
             <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight group-hover/chat-item:[mask-image:linear-gradient(to_right,black_70%,transparent_90%)]" />
-            <span className="text-xs text-muted-foreground ml-2">
-              {useRelativeTime(chat.lastMessageAt || chat.createdAt)}
-            </span>
 
             {/* Actions dropdown on hover */}
             <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 focus-within:opacity-100 transition-opacity flex items-center bg-transparent">

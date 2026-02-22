@@ -110,6 +110,31 @@ export default function AssistantPage() {
     const isLoadingOlderRef = React.useRef(false)
     const hasScrolledRef = React.useRef(false);
     const shouldAutoScrollRef = React.useRef(true);
+    const [isMobile, setIsMobile] = React.useState(false);
+    const scrollToMessageIdRef = React.useRef<string | null>(null);
+
+    // Detect mobile on mount
+    React.useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.matchMedia('(max-width: 768px)').matches);
+        };
+        checkMobile();
+        const mediaQuery = window.matchMedia('(max-width: 768px)');
+        mediaQuery.addEventListener('change', checkMobile);
+        return () => mediaQuery.removeEventListener('change', checkMobile);
+    }, []);
+
+    // Watch for scroll-to target message and scroll when it appears in DOM
+    React.useEffect(() => {
+        if (scrollToMessageIdRef.current) {
+            const messageId = scrollToMessageIdRef.current;
+            const element = document.getElementById(`message-${messageId}`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                scrollToMessageIdRef.current = null;
+            }
+        }
+    }, [messages]);
 
     const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, encryptWithSessionKey, loadChats, updateChatTimestamp, chats, renameChat, pinChat, deleteChat } = useAICrypto();
 
@@ -230,11 +255,13 @@ export default function AssistantPage() {
     }, []);
 
     // Auto-scroll to bottom when messages update (if authorized by ref)
+    // On mobile, disable auto-scroll during streaming to prevent scroll fighting
     React.useEffect(() => {
-        if (shouldAutoScrollRef.current && isLoading) {
+        // Only auto-scroll if: (1) allowed by ref, (2) loading, (3) not on mobile
+        if (shouldAutoScrollRef.current && isLoading && !isMobile) {
             scrollToBottom('auto');
         }
-    }, [messages, isLoading, scrollToBottom]);
+    }, [messages, isLoading, isMobile, scrollToBottom]);
 
     const handleVersionChange = (messageId: string, direction: 'prev' | 'next') => {
         setMessages(prev => {
@@ -574,12 +601,10 @@ export default function AssistantPage() {
         // Disable auto-scroll-to-bottom so user message stays at top of viewport
         shouldAutoScrollRef.current = false;
 
-        // Scroll user message to top of viewport AFTER React renders the DOM element
-        requestAnimationFrame(() => {
-            scrollToMessage(tempId, 'smooth');
-        });
+        // Mark this message for scrolling (will scroll when messages array updates and DOM renders)
+        scrollToMessageIdRef.current = tempId;
 
-        // Add Thinking State & Reset auto-scroll
+        // Add Thinking State
         const assistantMessageId = crypto.randomUUID();
         setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '', isThinking: true, reasoning: '', model }]);
         setIsLoading(true);
