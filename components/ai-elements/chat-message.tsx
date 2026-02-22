@@ -620,7 +620,7 @@ function RegeneratePanel({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean, 
                         <Button
                             variant="ghost"
                             size="icon"
-                            className={cn("h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors", isOpen && "text-foreground bg-muted")}
+                            className={cn("h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors", isOpen && "text-foreground bg-muted")}
                         >
                             <IconRefresh className="size-3.5" />
                         </Button>
@@ -710,7 +710,7 @@ function ActionButton({ icon: Icon, label, onClick, className, delayDuration }: 
         <TooltipProvider>
             <Tooltip delayDuration={delayDuration}>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className={cn("h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/50 rounded-md transition-colors", className)} onClick={onClick}>
+                    <Button variant="ghost" size="icon" className={cn("h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors", className)} onClick={onClick}>
                         <Icon className="size-3.5" />
                     </Button>
                 </TooltipTrigger>

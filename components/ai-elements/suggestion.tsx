@@ -42,7 +42,7 @@ export const Suggestion = ({
     className={cn(
       "group/item flex w-full items-center gap-3 px-1 py-4 cursor-pointer border-b border-border/60",
       "text-muted-foreground transition-colors duration-200",
-      "hover:text-foreground hover:bg-muted/10 dark:hover:bg-muted/5",
+      "hover:text-foreground hover:bg-sidebar-accent/10 dark:hover:bg-sidebar-accent/20",
       className
     )}
     onClick={() => onClick?.(suggestion)}

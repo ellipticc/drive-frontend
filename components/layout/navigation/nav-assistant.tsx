@@ -193,8 +193,8 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
           isActive={isActive}
           onClick={handleNavigate}
           className={cn(
-            "group/chat-item relative cursor-pointer ml-5 px-3 h-8 rounded-md transition-none w-40",
-            isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:text-sidebar-accent-foreground"
+            "group/chat-item relative cursor-pointer ml-0 pl-8 pr-3 h-8 rounded-md transition-none w-full",
+            isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
           )}
         >
           <div className="flex items-center w-full relative">
@@ -403,10 +403,10 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
           ))}
 
           {hasMore && (
-            <SidebarMenuSubItem>
+            <SidebarMenuSubItem className="w-full">
               <SidebarMenuSubButton
                 asChild
-                className="text-muted-foreground/60 hover:text-muted-foreground cursor-pointer ml-5 px-3 h-8 rounded-md min-w-0"
+                className="text-muted-foreground/60 hover:text-sidebar-foreground hover:bg-transparent cursor-pointer ml-0 pl-8 pr-3 h-8 rounded-md min-w-0 w-full"
                 onClick={onSearchOpen}
               >
                 <span>See all</span>
@@ -505,10 +505,10 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
           })}
 
           {hasMore && (
-            <SidebarMenuSubItem>
+            <SidebarMenuSubItem className="w-full">
               <SidebarMenuSubButton
                 asChild
-                className="text-muted-foreground/60 hover:text-muted-foreground cursor-pointer ml-5 px-3 h-8 rounded-md min-w-0"
+                className="text-muted-foreground/60 hover:text-sidebar-foreground hover:bg-transparent cursor-pointer ml-0 pl-8 pr-3 h-8 rounded-md min-w-0 w-full"
                 onClick={onSearchOpen}
               >
                 <span>See all</span>

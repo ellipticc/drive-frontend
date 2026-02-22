@@ -95,7 +95,7 @@ export default function AssistantPage() {
     const hasScrolledRef = React.useRef(false);
     const shouldAutoScrollRef = React.useRef(true);
 
-    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, loadChats, chats, renameChat, pinChat, deleteChat } = useAICrypto();
+    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, encryptWithSessionKey, loadChats, chats, renameChat, pinChat, deleteChat } = useAICrypto();
 
     // Available models for system rerun popovers
     const availableModels = [
@@ -162,6 +162,9 @@ export default function AssistantPage() {
     const [tempTitle, setTempTitle] = React.useState("");
     const [isStarred, setIsStarred] = React.useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+
+    // Track active session key for cancel action
+    const latestSessionKeyRef = React.useRef<Uint8Array | null>(null);
 
     // Typing effect state
     const [displayedTitle, setDisplayedTitle] = React.useState("");
@@ -744,7 +747,7 @@ export default function AssistantPage() {
                                         currentSessionKey
                                     );
                                     chunkReasoning = decrypted;
-                                    currentSessionKey = sessionKey;
+                                    currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
                                 } else if (data.reasoning) {
                                     chunkReasoning = data.reasoning;
                                 }
@@ -800,7 +803,7 @@ export default function AssistantPage() {
                                         data.encapsulated_key,
                                         currentSessionKey
                                     );
-                                    currentSessionKey = sessionKey;
+                                    currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
                                     sourcesData = JSON.parse(decrypted);
                                 } else if (data.sources) {
                                     sourcesData = data.sources || data;
@@ -931,7 +934,7 @@ export default function AssistantPage() {
                                         currentSessionKey
                                     );
                                     contentToAppend = decrypted;
-                                    currentSessionKey = sessionKey;
+                                    currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
                                 } else if (data.encrypted_suggestions && data.suggestions_iv) {
                                     // Decrypt suggestions if they come encrypted
                                     const { decrypted, sessionKey } = await decryptStreamChunk(
@@ -940,7 +943,7 @@ export default function AssistantPage() {
                                         data.encapsulated_key,
                                         currentSessionKey
                                     );
-                                    currentSessionKey = sessionKey;
+                                    currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
                                     currentSuggestions = JSON.parse(decrypted);
                                     setMessages(prev => {
                                         const newMessages = [...prev];
@@ -1080,7 +1083,7 @@ export default function AssistantPage() {
                                     currentSessionKey
                                 );
                                 contentToAppend = decrypted;
-                                currentSessionKey = sessionKey;
+                                currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
                             } else if (data.encrypted_suggestions && data.suggestions_iv) {
                                 // Decrypt suggestions if they come encrypted in final buffer
                                 const { decrypted, sessionKey } = await decryptStreamChunk(
@@ -1089,7 +1092,7 @@ export default function AssistantPage() {
                                     data.encapsulated_key,
                                     currentSessionKey
                                 );
-                                currentSessionKey = sessionKey;
+                                currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
                                 currentSuggestions = JSON.parse(decrypted);
                                 console.log('[Stream] Found encrypted suggestions in final buffer');
                             } else if (data.suggestions) {
@@ -1415,7 +1418,7 @@ export default function AssistantPage() {
                                     currentSessionKey
                                 );
                                 decryptedContent = decrypted;
-                                currentSessionKey = sessionKey;
+                                currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
                             }
 
                             setMessages(prev => {
@@ -1545,6 +1548,38 @@ export default function AssistantPage() {
                 });
 
                 console.log('[Cancel] User stopped generation, truncated content shown');
+
+                // Send PATCH request to backend to trim the saved message
+                if (lastMessage.id && latestSessionKeyRef.current && isReady) {
+                    const sessionKey = latestSessionKeyRef.current;
+                    const messageId = lastMessage.id;
+                    const reasoning = lastMessage.reasoning || "";
+
+                    (async () => {
+                        try {
+                            const updates: any = {};
+
+                            if (newContent) {
+                                const encContent = await encryptWithSessionKey(newContent, sessionKey);
+                                updates.encrypted_content = encContent.encryptedContent;
+                                updates.iv = encContent.iv;
+                            }
+
+                            if (reasoning) {
+                                const encReasoning = await encryptWithSessionKey(reasoning, sessionKey);
+                                updates.reasoning = encReasoning.encryptedContent;
+                                updates.reasoning_iv = encReasoning.iv;
+                            }
+
+                            if (Object.keys(updates).length > 0) {
+                                await apiClient.updateAIChatMessage(messageId, updates);
+                                console.log('[Cancel] Successfully updated trimmed message on backend');
+                            }
+                        } catch (err) {
+                            console.error('[Cancel] Failed to update trimmed message on backend', err);
+                        }
+                    })();
+                }
             }
         }
     };
@@ -2012,7 +2047,7 @@ export default function AssistantPage() {
                                             <Button
                                                 variant="outline"
                                                 size="icon"
-                                                className="rounded-full shadow-md bg-background border-border/50 size-8 dark:bg-muted dark:border-border/60 text-foreground ring-1 ring-border/10 hover:bg-background hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground transition-none"
+                                                className="rounded-full shadow-md bg-background border-border/50 size-8 dark:bg-muted dark:border-border/60 text-foreground ring-1 ring-border/10 hover:bg-sidebar-accent/20 hover:text-foreground dark:hover:bg-sidebar-accent/30 dark:hover:text-foreground transition-none"
                                                 onClick={() => scrollToBottom()}
                                             >
                                                 <IconArrowDown className="size-4 text-foreground" />

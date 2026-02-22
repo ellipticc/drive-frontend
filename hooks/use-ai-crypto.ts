@@ -27,6 +27,7 @@ export interface UseAICryptoReturn {
     decryptHistory: (conversationId: string) => Promise<DecryptedMessage[]>;
     decryptStreamChunk: (encryptedContent: string, iv: string, encapsulatedKey?: string, existingSessionKey?: Uint8Array) => Promise<{ decrypted: string, sessionKey: Uint8Array }>;
     encryptMessage: (content: string) => Promise<{ encryptedContent: string, iv: string, encapsulatedKey: string }>;
+    encryptWithSessionKey: (content: string, sessionKey: Uint8Array) => Promise<{ encryptedContent: string, iv: string }>;
     error: string | null;
 }
 
@@ -381,6 +382,7 @@ export function useAICrypto(): UseAICryptoReturn {
                             reasoningDuration: msg.reasoning_duration,
                             suggestions,
                             feedback: msg.feedback as 'like' | 'dislike' | undefined,
+                            createdAt: msg.created_at || msg.createdAt,
                         };
                     }
 
@@ -390,14 +392,18 @@ export function useAICrypto(): UseAICryptoReturn {
                         return {
                             ...msg,
                             content: cleanContent,
-                            reasoning: parsedReasoning
+                            reasoning: parsedReasoning,
+                            createdAt: msg.created_at || msg.createdAt,
                         };
                     }
 
-                    return msg; // Return as-is if no parseable content
+                    return {
+                        ...msg,
+                        createdAt: msg.created_at || msg.createdAt,
+                    }; // Return as-is if no parseable content
                 } catch (e) {
                     console.error("Failed to decrypt message:", msg.id, e);
-                    return { ...msg, content: "[Decryption Failed]" };
+                    return { ...msg, content: "[Decryption Failed]", createdAt: msg.created_at || msg.createdAt };
                 }
             }));
 
@@ -455,6 +461,16 @@ export function useAICrypto(): UseAICryptoReturn {
         return encryptForUser(content, kyberPublicKey);
     }, [userKeys, kyberPublicKey]);
 
+    const encryptWithSessionKey = useCallback(async (content: string, sessionKey: Uint8Array) => {
+        const { encryptData } = await import('@/lib/crypto');
+        const { encryptedData, nonce } = encryptData(new TextEncoder().encode(content), sessionKey);
+
+        return {
+            encryptedContent: encryptedData,
+            iv: nonce
+        };
+    }, []);
+
     return {
         isReady,
         kyberPublicKey,
@@ -468,6 +484,7 @@ export function useAICrypto(): UseAICryptoReturn {
         decryptHistory,
         decryptStreamChunk,
         encryptMessage,
+        encryptWithSessionKey,
         error
     };
 }
