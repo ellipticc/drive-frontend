@@ -128,11 +128,24 @@ export default function AssistantPage() {
     React.useEffect(() => {
         if (scrollToMessageIdRef.current) {
             const messageId = scrollToMessageIdRef.current;
-            const element = document.getElementById(`message-${messageId}`);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                scrollToMessageIdRef.current = null;
-            }
+            const attemptScroll = () => {
+                const element = document.getElementById(`message-${messageId}`);
+                if (element && scrollContainerRef.current) {
+                    // Use scrollContainer as scroll boundary
+                    const elementRect = element.getBoundingClientRect();
+                    const containerRect = scrollContainerRef.current.getBoundingClientRect();
+                    
+                    // Only scroll if element is not visible at top
+                    if (elementRect.top > containerRect.top + 100) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    scrollToMessageIdRef.current = null;
+                } else if (!element) {
+                    // Element not in DOM yet, retry after a short delay
+                    setTimeout(attemptScroll, 50);
+                }
+            };
+            attemptScroll();
         }
     }, [messages]);
 
@@ -196,6 +209,13 @@ export default function AssistantPage() {
         setShowScrollToBottom(!isNearBottom);
         setIsAtBottom(isNearBottom);
     };
+
+    // Track metrics during streaming so they persist in final message
+    const currentMetricsRef = React.useRef<{
+        ttft?: number;
+        tps?: number;
+        total_time?: number;
+    }>({});
 
     // Chat Title State
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
@@ -604,6 +624,9 @@ export default function AssistantPage() {
         // Mark this message for scrolling (will scroll when messages array updates and DOM renders)
         scrollToMessageIdRef.current = tempId;
 
+        // Reset metrics for new stream
+        currentMetricsRef.current = {};
+
         // Add Thinking State
         const assistantMessageId = crypto.randomUUID();
         setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '', isThinking: true, reasoning: '', model }]);
@@ -904,6 +927,12 @@ export default function AssistantPage() {
                         if (eventType === 'metrics' && dataStr) {
                             try {
                                 const metricsData = JSON.parse(dataStr);
+                                // Track in ref so they persist after stream ends
+                                currentMetricsRef.current = {
+                                    ttft: metricsData.ttft,
+                                    tps: metricsData.tps,
+                                    total_time: metricsData.total_time
+                                };
                                 setMessages(prev => {
                                     const newMessages = [...prev];
                                     const lastIdx = newMessages.length - 1;
@@ -1199,8 +1228,13 @@ export default function AssistantPage() {
                             currentVersionIndex: lastMessage.currentVersionIndex,
                             reasoningDuration: lastMessage.reasoningDuration,
                             suggestions: currentSuggestions.length > 0 ? currentSuggestions : lastMessage.suggestions,
+                            // Include metrics from ref so they persist after streaming ends
+                            ttft: currentMetricsRef.current.ttft,
+                            tps: currentMetricsRef.current.tps,
+                            total_time: currentMetricsRef.current.total_time,
+                            model: model,
                         };
-                        console.log('[Stream Final] Updated lastMessage, new content.length:', newMessages[lastIdx].content.length, 'sources:', messageSources.length);
+                        console.log('[Stream Final] Updated lastMessage, new content.length:', newMessages[lastIdx].content.length, 'sources:', messageSources.length, 'metrics:', currentMetricsRef.current);
                     }
                     return newMessages;
                 });
