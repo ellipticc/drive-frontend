@@ -215,7 +215,7 @@ export function NavMain({
             // Handle "Vault" with folder expansion
             if (item.id === 'my-files') {
               return (
-                <SidebarMenuItem key={item.id || item.title} className="space-y-1 pr-2">
+                <SidebarMenuItem key={item.id || item.title} className="space-y-1">
                   <SidebarMenuButton
                     onMouseEnter={() => setIsVaultHovered(true)}
                     onMouseLeave={() => setIsVaultHovered(false)}
@@ -281,7 +281,7 @@ export function NavMain({
 
                   {/* Always render submenu container for Folders */}
                   {isMyFilesExpanded && (
-                    <SidebarMenuSub className="-mr-2 pr-0 ml-3.5 border-l border-border/50">
+                    <SidebarMenuSub className="ml-3.5 border-l border-border/50">
                       {/* Dynamic Folders - Collapsible */}
                       <>
                         {isLoadingFolders ? (
@@ -310,7 +310,7 @@ export function NavMain({
 
             if (item.id === 'trash') {
               return (
-                <SidebarMenuItem key={item.id || item.title} className="pr-2">
+                <SidebarMenuItem key={item.id || item.title}>
                   <SidebarMenuButton
                     tooltip={item.shortcut ? {
                       children: (
@@ -343,7 +343,7 @@ export function NavMain({
 
             if (item.id === "settings") {
               return (
-                <SidebarMenuItem key={item.id || item.title} className="pr-2">
+                <SidebarMenuItem key={item.id || item.title}>
                   <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'}>
                     {(() => {
                       const IconComponent = getIcon(item, false) as any
@@ -357,7 +357,7 @@ export function NavMain({
 
             // Default item rendering
             return (
-              <SidebarMenuItem key={item.id || item.title} className="pr-2">
+              <SidebarMenuItem key={item.id || item.title}>
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={pathname === item.url}

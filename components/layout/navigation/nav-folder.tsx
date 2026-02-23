@@ -125,7 +125,7 @@ export function NavFolder({ folder, level = 0 }: NavFolderProps) {
 
             {
                 isOpen && !isLeaf && (
-                    <SidebarMenuSub className="mr-0 pr-0 ml-3.5 border-l border-border/50">
+                    <SidebarMenuSub className="ml-3.5 border-l border-border/50">
                         {isLoading ? (
                             <div className="flex items-center gap-2 px-2 py-1 text-[10px] text-muted-foreground italic">
                                 <IconLoader2 className="size-3 animate-spin" />

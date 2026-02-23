@@ -120,7 +120,7 @@ export function NavDrafts({ item }: { item: any }) {
     }
 
     return (
-        <SidebarMenuItem className="pr-2">
+        <SidebarMenuItem>
             <SidebarMenuButton
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
@@ -164,7 +164,7 @@ export function NavDrafts({ item }: { item: any }) {
             </SidebarMenuButton>
 
             {isOpen && state !== 'collapsed' && (
-                <SidebarMenuSub className="relative -mr-2 pr-0 ml-3.5 border-l border-border/50">
+                <SidebarMenuSub className="ml-3.5 border-l border-border/50">
                     {isLoading ? (
                         <div className="flex items-center gap-2 px-2 py-1 text-[10px] text-muted-foreground italic">
                             <IconLoader2 className="size-3 animate-spin" />
