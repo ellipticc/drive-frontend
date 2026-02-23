@@ -147,8 +147,8 @@ export function NavDrafts({ item }: { item: any }) {
                           }
                         }}
                         className={cn(
-                          "flex items-center justify-center rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors",
-                          state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'cursor-pointer'
+                          "flex items-center justify-center rounded-sm transition-colors",
+                          state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer'
                         )}
                     >
                         {isHovered && state !== 'collapsed' ? (

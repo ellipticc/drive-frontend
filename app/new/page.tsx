@@ -1931,7 +1931,7 @@ export default function AssistantPage() {
 
                         for (const m of messages) {
                             const ts = m.createdAt ? new Date(m.createdAt).toLocaleString() : '';
-                            lines.push(`**${m.role.toUpperCase()}**${ts ? ` — ${ts}` : ''}`);
+                            lines.push(`**${m.role.toUpperCase()}**${ts ? ` — ${ts}` : ''}${m.id ? ` [Message ID: ${m.id}]` : ''}`);
                             lines.push('');
                             lines.push(m.content || '');
                             lines.push('\n---\n');

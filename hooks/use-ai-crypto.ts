@@ -5,6 +5,12 @@ import type { UserKeypairs } from '@/lib/key-manager';
 import apiClient from '@/lib/api';
 import { sortChatsByLastMessage } from '@/lib/chat-utils';
 
+// Module-level singletons shared across all useAICrypto instances.
+// Ensures only one in-flight fetch for /ai/chats regardless of how many
+// components mount and call loadChats() concurrently.
+let _chatsLoadedOnce = false;
+let _inflightFetch: Promise<void> | null = null;
+
 export interface DecryptedMessage {
     role: 'user' | 'assistant' | 'system';
     content: string;
@@ -64,7 +70,9 @@ export function useAICrypto(): UseAICryptoReturn {
         return () => window.removeEventListener('chat-mutation', handler);
     }, []);
 
-    // Cache guard: prevent re-fetching chats on every re-render
+    // Per-instance ref used only to avoid double-calling within the same instance
+    // across StrictMode double-invocations. Cross-instance deduplication is handled
+    // by the module-level _inflightFetch promise and _chatsLoadedOnce flag.
     const hasLoadedChats = useRef(false);
 
     useEffect(() => {
@@ -119,7 +127,21 @@ export function useAICrypto(): UseAICryptoReturn {
 
     const loadChats = useCallback(async (forceRefresh = false) => {
         if (!userKeys) return;
-        if (hasLoadedChats.current && !forceRefresh) return; // Skip if already cached
+
+        // Use module-level cache: if loaded and not forcing, skip entirely
+        if (_chatsLoadedOnce && !forceRefresh) return;
+
+        // If another instance already has a fetch in-flight, wait for it instead
+        // of firing a duplicate request. This coalesces all concurrent callers.
+        if (_inflightFetch) {
+            await _inflightFetch;
+            return;
+        }
+
+        // Own the in-flight slot
+        let resolveFlight!: () => void;
+        _inflightFetch = new Promise(r => { resolveFlight = r; });
+
         try {
             const res = await apiClient.getChats();
             const responseData = res as any;
@@ -154,12 +176,18 @@ export function useAICrypto(): UseAICryptoReturn {
             }));
 
             // sort by last message timestamp before storing
-            setChats(sortChatsByLastMessage(processed));
+            const sorted = sortChatsByLastMessage(processed);
+            setChats(sorted);
+            broadcastChats(sorted);
+            _chatsLoadedOnce = true;
             hasLoadedChats.current = true;
         } catch (e) {
             console.error("Failed to load chats:", e);
+        } finally {
+            _inflightFetch = null;
+            resolveFlight();
         }
-    }, [userKeys, decryptTitle]);
+    }, [userKeys, decryptTitle, broadcastChats]);
 
     // helper to update a chat's lastMessageAt and reorder
     const updateChatTimestamp = useCallback((chatId: string, timestamp: string) => {

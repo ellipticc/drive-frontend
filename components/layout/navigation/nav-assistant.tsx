@@ -390,8 +390,8 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
             }
           }}
           className={cn(
-            "flex items-center justify-center rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors",
-            state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'cursor-pointer'
+            "flex items-center justify-center rounded-sm transition-colors",
+            state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer'
           )}
         >
           {isHovered && state !== "collapsed" ? (
@@ -480,8 +480,8 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
             }
           }}
           className={cn(
-            "flex items-center justify-center rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors",
-            state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'cursor-pointer'
+            "flex items-center justify-center rounded-sm transition-colors",
+            state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer'
           )}
         >
           {isHovered && state !== "collapsed" ? (
