@@ -12,40 +12,20 @@ if (typeof window !== 'undefined') {
   const style = document.createElement('style')
   style.textContent = `
     @keyframes sheet-slide-in-from-right {
-      from {
-        transform: translateX(100%);
-        opacity: 0;
-      }
-      to {
-        transform: translateX(0);
-        opacity: 1;
-      }
+      from { transform: translate3d(100%, 0, 0); }
+      to { transform: translate3d(0, 0, 0); }
     }
     @keyframes sheet-slide-out-to-right {
-      from {
-        transform: translateX(0);
-        opacity: 1;
-      }
-      to {
-        transform: translateX(100%);
-        opacity: 0;
-      }
+      from { transform: translate3d(0, 0, 0); }
+      to { transform: translate3d(100%, 0, 0); }
     }
     @keyframes page-shift-left {
-      from {
-        transform: translateX(0);
-      }
-      to {
-        transform: translateX(-var(--document-sheet-width, 0px));
-      }
+      from { transform: translate3d(0, 0, 0); }
+      to { transform: translate3d(calc(-1 * var(--document-sheet-width, 0px)), 0, 0); }
     }
     @keyframes page-shift-right {
-      from {
-        transform: translateX(-var(--document-sheet-width, 0px));
-      }
-      to {
-        transform: translateX(0);
-      }
+      from { transform: translate3d(calc(-1 * var(--document-sheet-width, 0px)), 0, 0); }
+      to { transform: translate3d(0, 0, 0); }
     }
     [data-slot="sheet-content"][data-state="open"] {
       animation: sheet-slide-in-from-right 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
@@ -54,11 +34,11 @@ if (typeof window !== 'undefined') {
       animation: sheet-slide-out-to-right 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
     body.document-sheet-open [data-shift-layout] {
-      transform: translateX(calc(-1 * var(--document-sheet-width, 0px)));
+      transform: translate3d(calc(-1 * var(--document-sheet-width, 0px)), 0, 0);
       transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
     }
     body:not(.document-sheet-open) [data-shift-layout] {
-      transform: translateX(0);
+      transform: translate3d(0, 0, 0);
       transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
     }
   `
@@ -73,10 +53,6 @@ function Sheet({ modal = true, ...props }: React.ComponentProps<typeof SheetPrim
         document.body.classList.add('document-sheet-open');
       } else {
         document.body.classList.remove('document-sheet-open');
-        // Use requestAnimationFrame to ensure transition completes before resetting
-        requestAnimationFrame(() => {
-          document.body.style.setProperty('--document-sheet-width', '0px');
-        });
       }
     }
   };
@@ -84,7 +60,6 @@ function Sheet({ modal = true, ...props }: React.ComponentProps<typeof SheetPrim
   React.useEffect(() => {
     return () => {
       document.body.classList.remove('document-sheet-open');
-      document.body.style.setProperty('--document-sheet-width', '0px');
     };
   }, []);
 
@@ -130,8 +105,8 @@ function SheetContent({
   children,
   side = "right",
   resizable = false,
-  initialFraction = 0.35,
-  minWidth = 380,
+  initialFraction = 0.40, // Increased to provide a better reading width
+  minWidth = 400, // Widened default bound as requested
   maxWidth = null,
   hideOverlay = false,
   ...props
@@ -145,30 +120,8 @@ function SheetContent({
 }) {
   const sensors = useSensors(useSensor(PointerSensor))
   const [widthPx, setWidthPx] = React.useState<number | null>(null)
-  const [isOpen, setIsOpen] = React.useState(false)
-
-  // Track sheet open state from parent
-  React.useEffect(() => {
-    const parent = document.querySelector('[data-slot="sheet"]')
-    if (!parent) return
-    
-    const observer = new MutationObserver(() => {
-      const state = parent.getAttribute('data-state')
-      setIsOpen(state === 'open')
-    })
-    
-    observer.observe(parent, { attributes: true, attributeFilter: ['data-state'] })
-    return () => observer.disconnect()
-  }, [])
 
   React.useEffect(() => {
-    // only initialize and manage width when sheet is actually open
-    if (!isOpen) {
-      setWidthPx(null)
-      document.body.style.setProperty('--document-sheet-width', '0px')
-      return
-    }
-
     if (typeof window !== 'undefined') {
       const w = Math.max(minWidth, Math.floor(window.innerWidth * initialFraction))
       setWidthPx(w)
@@ -179,12 +132,13 @@ function SheetContent({
     }
 
     return () => {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('sheet:resize', { detail: { width: 0 } }))
+      // Clean up variable when fully unmounted (animation finished)
+      // Only set to 0px if document is no longer open
+      if (!document.body.classList.contains('document-sheet-open')) {
+        document.body.style.setProperty('--document-sheet-width', '0px');
       }
-      document.body.style.setProperty('--document-sheet-width', '0px')
     }
-  }, [isOpen, resizable, minWidth, initialFraction])
+  }, [resizable, minWidth, initialFraction])
 
   const handleDragMove = (event: any) => {
     if (!resizable) return
