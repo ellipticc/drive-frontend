@@ -383,6 +383,7 @@ export default function AssistantPage() {
                 .finally(() => setIsInitialLoading(false));
         } else {
             // New Chat
+            lastCreatedConversationId.current = null;
             setChatTitle('New Chat');
             setMessages([]);
             setPagination({ offset: 0, limit: 50, total: 0, hasMore: false });
@@ -745,8 +746,9 @@ export default function AssistantPage() {
                 // Track this ID so we don't wipe state when the URL updates
                 lastCreatedConversationId.current = newConversationId;
 
-                // It's a new chat! Update URL without reloading
-                window.history.replaceState(null, '', `/new?conversationId=${newConversationId}`);
+                // It's a new chat! Update URL with router so Next.js syncs state
+                router.replace(`/new?conversationId=${newConversationId}`, { scroll: false });
+
                 // Refresh sidebar list
                 loadChats();
             }
