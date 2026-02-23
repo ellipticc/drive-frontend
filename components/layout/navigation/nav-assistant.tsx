@@ -370,7 +370,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
   const hasMore = pinnedChats.length > MAX_VISIBLE_CHATS_PINNED
 
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem className="pr-2">
       <SidebarMenuButton
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -404,7 +404,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
       </SidebarMenuButton>
 
       {isExpanded && state !== "collapsed" && (
-        <SidebarMenuSub className="relative mr-0 pr-0 ml-3.5 border-l border-border/50 min-w-0">
+        <SidebarMenuSub className="relative -mr-2 pr-0 ml-3.5 border-l border-border/50 min-w-0">
           {visibleChats.map((chat) => (
             <ChatItem key={chat.id} chat={chat} actions={actions} />
           ))}
@@ -453,7 +453,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
   const hasMore = historyChatsCount > MAX_VISIBLE_CHATS_HISTORY
 
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem className="pr-2">
       <SidebarMenuButton
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -487,7 +487,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
       </SidebarMenuButton>
 
       {isExpanded && state !== "collapsed" && (
-        <SidebarMenuSub className="relative mr-0 pr-0 ml-3.5 border-l border-border/50 min-w-0">
+        <SidebarMenuSub className="relative -mr-2 pr-0 ml-3.5 border-l border-border/50 min-w-0">
           {groups.map((group, groupIdx) => {
             const hasGroupMore = hasMore && groupIdx === groups.length - 1;
             const limit = hasGroupMore

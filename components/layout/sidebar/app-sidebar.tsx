@@ -327,7 +327,7 @@ export const AppSidebar = React.memo(function AppSidebar({
           <SidebarGroupContent>
             <SidebarMenu className="mt-1">
               {/* Chat (new chat) button */}
-              <SidebarMenuItem>
+              <SidebarMenuItem className="pr-2">
                 <SidebarMenuButton
                   onClick={() => router.push('/new')}
                   tooltip={{
