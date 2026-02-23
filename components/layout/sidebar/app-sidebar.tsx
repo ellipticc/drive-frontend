@@ -270,9 +270,9 @@ export const AppSidebar = React.memo(function AppSidebar({
               }} />
             </div>
 
-            <div className="hidden w-full items-center justify-center group-data-[collapsible=icon]:flex">
+            <SidebarMenuItem className="hidden group-data-[collapsible=icon]:block">
               <SidebarMenuButton
-                className="size-8 p-0 flex items-center justify-center relative group/toggle-icon hover:bg-transparent"
+                className="relative group/toggle-icon hover:bg-transparent"
                 onClick={toggleSidebar}
                 tooltip={{
                   children: (
@@ -288,7 +288,7 @@ export const AppSidebar = React.memo(function AppSidebar({
                 <IconCaretLeftRightFilled className="size-4 shrink-0 transition-opacity group-hover/toggle-icon:opacity-0" />
                 <IconLayoutSidebar className="size-4 shrink-0 absolute inset-0 m-auto opacity-0 transition-opacity group-hover/toggle-icon:opacity-100" />
               </SidebarMenuButton>
-            </div>
+            </SidebarMenuItem>
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu className="mt-3 mb-1">
@@ -308,16 +308,13 @@ export const AppSidebar = React.memo(function AppSidebar({
                 side: "right",
                 hidden: state !== "collapsed"
               }}
+              isActive={true}
               className={cn(
-                "relative group/menu-button w-full justify-start h-8 px-4 rounded-md transition-all",
-                searchOpen
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-                "group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:justify-center"
+                "relative group/menu-button font-medium transition-all"
               )}
             >
-              <IconSearch className="size-4 shrink-0" />
-              <span className="group-data-[collapsible=icon]:hidden text-[13px]">Search</span>
+              <IconSearch />
+              <span className="group-data-[collapsible=icon]:hidden">Search</span>
               <kbd className="pointer-events-none ml-auto h-5 select-none items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground inline-flex group-data-[collapsible=icon]:hidden">
                 <span className="text-[10px]">Ctrl</span>K
               </kbd>

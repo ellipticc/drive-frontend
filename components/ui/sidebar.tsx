@@ -250,7 +250,7 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
+          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear shrink-0",
           "group-data-[collapsible=offcanvas]:w-0",
           "group-data-[side=right]:rotate-180",
           "group-data-[side=left]:in-rtl:rotate-180",
@@ -372,7 +372,8 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
       data-slot="sidebar-inset"
       className={cn(
         "bg-background relative flex w-full flex-1 flex-col",
-        "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:rounded-2xl md:peer-data-[variant=floating]:m-2 md:peer-data-[variant=floating]:rounded-2xl md:peer-data-[variant=floating]:border md:peer-data-[variant=floating]:border-sidebar-border md:peer-data-[variant=floating]:shadow-sm",
+        "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:rounded-2xl md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:border-sidebar-border md:peer-data-[variant=inset]:shadow-sm",
+        "md:peer-data-[variant=floating]:m-2 md:peer-data-[variant=floating]:rounded-2xl md:peer-data-[variant=floating]:border md:peer-data-[variant=floating]:border-sidebar-border md:peer-data-[variant=floating]:shadow-sm",
         "dark:md:peer-data-[variant=floating]:ring-1 dark:md:peer-data-[variant=floating]:ring-white/10",
         "overflow-hidden",
         className

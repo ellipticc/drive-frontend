@@ -285,21 +285,21 @@ export function GlobalSearch({
     const { chats, renameChat, deleteChat, decryptHistory } = useAICrypto()
 
     //  Modal state 
-    const [editingChat,  setEditingChat]  = React.useState<ChatType | null>(null)
+    const [editingChat, setEditingChat] = React.useState<ChatType | null>(null)
     const [deletingChat, setDeletingChat] = React.useState<ChatType | null>(null)
-    const [renameTitle,  setRenameTitle]  = React.useState("")
+    const [renameTitle, setRenameTitle] = React.useState("")
 
     //  UX state 
-    const [isExpanded,   setIsExpanded]   = React.useState(false)
-    const [cmdkValue,    setCmdkValue]    = React.useState("")
+    const [isExpanded, setIsExpanded] = React.useState(false)
+    const [cmdkValue, setCmdkValue] = React.useState("")
 
     // Explicit 3-way state separation per spec:
     //   selectedConversationId   set by click ONLY
     //   hoveredConversationId    set by pointer enter/leave
     //   previewConversationId    persistent: follows hover, stays when leaving
     const [selectedConversationId, setSelectedConversationId] = React.useState<string | null>(null)
-    const [hoveredConversationId,  setHoveredConversationId]  = React.useState<string | null>(null)
-    const [previewConversationId,  setPreviewConversationId]  = React.useState<string | null>(null)
+    const [hoveredConversationId, setHoveredConversationId] = React.useState<string | null>(null)
+    const [previewConversationId, setPreviewConversationId] = React.useState<string | null>(null)
 
     //  Preview cache (Map<id, {messages, fetchedAt}>) 
     // Prevents ALL duplicate fetches: on hover, on expand toggle, on re-render.
@@ -310,7 +310,7 @@ export function GlobalSearch({
 
     //  Preview messages 
     const [previewMessages, setPreviewMessages] = React.useState<Message[]>([])
-    const [previewLoading,  setPreviewLoading]  = React.useState(false)
+    const [previewLoading, setPreviewLoading] = React.useState(false)
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
     //  Hover handlers (persistence logic) 
@@ -332,8 +332,8 @@ export function GlobalSearch({
     //  Filtered + grouped chats 
     const filteredChats = React.useMemo(() => {
         return sortChatsByLastMessage(chats).filter((chat: ChatType) => {
-            if (filter === "pinned")   return  chat.pinned  && !chat.archived
-            if (filter === "history")  return !chat.pinned  && !chat.archived
+            if (filter === "pinned") return chat.pinned && !chat.archived
+            if (filter === "history") return !chat.pinned && !chat.archived
             return !chat.archived
         })
     }, [chats, filter])
@@ -342,7 +342,7 @@ export function GlobalSearch({
 
     //  Footer / keyboard target: Selected > Preview 
     const activeFooterId = selectedConversationId || previewConversationId || null
-    const footerChat  = React.useMemo(() => chats.find(c => c.id === activeFooterId) ?? null, [chats, activeFooterId])
+    const footerChat = React.useMemo(() => chats.find(c => c.id === activeFooterId) ?? null, [chats, activeFooterId])
     const previewChat = React.useMemo(() => chats.find(c => c.id === previewConversationId) ?? null, [chats, previewConversationId])
 
     //  Preview load effect 
@@ -422,7 +422,7 @@ export function GlobalSearch({
     }, [isExpanded])
 
     //  Action handlers 
-    const handleOpenEdit   = React.useCallback((chat: ChatType) => { setRenameTitle(chat.title); setEditingChat(chat) }, [])
+    const handleOpenEdit = React.useCallback((chat: ChatType) => { setRenameTitle(chat.title); setEditingChat(chat) }, [])
     const handleOpenDelete = React.useCallback((chat: ChatType) => { setDeletingChat(chat) }, [])
     const handleOpenNewTab = React.useCallback((chat: ChatType) => { window.open(`/new?conversationId=${chat.id}`, "_blank") }, [])
 
@@ -468,7 +468,7 @@ export function GlobalSearch({
             toast.success("Chat deleted")
             setDeletingChat(null)
             if (selectedConversationId === deletingChat.id) setSelectedConversationId(null)
-            if (previewConversationId  === deletingChat.id) setPreviewConversationId(null)
+            if (previewConversationId === deletingChat.id) setPreviewConversationId(null)
         } catch { toast.error("Failed to delete chat") }
     }
 
@@ -553,7 +553,7 @@ export function GlobalSearch({
                                     )}
                                 >
                                     <CommandList
-                                        className="flex-1 overflow-y-auto min-h-0 px-1.5 pt-0.5 pb-12"
+                                        className="flex-1 overflow-y-auto min-h-0 px-1.5 pt-0.5"
                                         style={{ overscrollBehavior: "contain" }}
                                     >
                                         <CommandEmpty className="py-10 text-center text-sm text-muted-foreground/60">
@@ -648,9 +648,9 @@ export function GlobalSearch({
                                                                                         feedback: undefined,
                                                                                     }}
                                                                                     isLast={false}
-                                                                                    onCopy={() => {}}
-                                                                                    onFeedback={() => {}}
-                                                                                    onRegenerate={() => {}}
+                                                                                    onCopy={() => { }}
+                                                                                    onFeedback={() => { }}
+                                                                                    onRegenerate={() => { }}
                                                                                 />
                                                                             </div>
                                                                         ) : (
@@ -673,8 +673,8 @@ export function GlobalSearch({
                                 )}
                             </div>
 
-                            {/* Footer — full-width at bottom, sticky */}
-                            <div className="sticky bottom-0 shrink-0 flex items-center justify-between px-3 py-2 bg-background border-t border-border/25 z-10">
+                            {/* Footer — full-width at bottom natively via flex sibling rules */}
+                            <div className="shrink-0 flex items-center justify-between px-3 py-2 bg-background border-t border-border/25">
                                 <ActionTooltip tooltip={isExpanded ? "Collapse" : "Expand preview"} side={isExpanded ? "top" : "bottom"}>
                                     <Button
                                         variant="ghost"
@@ -689,9 +689,9 @@ export function GlobalSearch({
                                     </Button>
                                 </ActionTooltip>
                                 <div className="flex items-center">
-                                    <FooterAction label="Open"   kbd="Enter" disabled={!footerChat} onClick={() => handleGo()} />
+                                    <FooterAction label="Open" kbd="Enter" disabled={!footerChat} onClick={() => handleGo()} />
                                     <span className="w-px h-3 bg-border/40 mx-1" />
-                                    <FooterAction label="Edit"   kbd="E" disabled={!footerChat} onClick={() => footerChat && handleOpenEdit(footerChat)} />
+                                    <FooterAction label="Edit" kbd="E" disabled={!footerChat} onClick={() => footerChat && handleOpenEdit(footerChat)} />
                                     <span className="w-px h-3 bg-border/40 mx-1" />
                                     <FooterAction label="Delete" kbd="D" disabled={!footerChat} destructive onClick={() => footerChat && handleOpenDelete(footerChat)} />
                                 </div>
