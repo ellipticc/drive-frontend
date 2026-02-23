@@ -365,19 +365,38 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                     <div className="flex flex-wrap gap-2 justify-end mt-1.5">
                                                         {parsed.contexts.map((ctx, i) => (
                                                             <Sheet key={`ctx-${i}`} modal={false}>
-                                                                <SheetTrigger asChild>
-                                                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border/50 rounded-lg text-xs font-medium cursor-pointer hover:bg-muted/90 transition-colors shadow-sm select-none data-[state=open]:bg-muted">
-                                                                        <IconFileText className="w-3.5 h-3.5 text-primary/70" />
-                                                                        <span className="truncate max-w-[150px] text-foreground/80">Context Reference</span>
-                                                                    </div>
-                                                                </SheetTrigger>
-                                                                <SheetContent side="right" className="w-[400px] sm:w-[540px] px-0 pb-0 flex flex-col" hideOverlay>
+                                                                <TooltipProvider delayDuration={300}>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <SheetTrigger asChild>
+                                                                                <button className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border/50 rounded-lg text-xs font-medium cursor-pointer hover:bg-muted/90 transition-colors shadow-sm select-none data-[state=open]:bg-muted">
+                                                                                    <IconFileText className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                                                                                    <span className="truncate max-w-[150px] text-foreground/80">Context Reference</span>
+                                                                                </button>
+                                                                            </SheetTrigger>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent side="bottom" className="max-w-[300px] break-words">
+                                                                            <p>Context Snippet</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+
+                                                                <SheetContent side="right" className="w-[320px] sm:w-[400px] px-0 pb-0 flex flex-col" hideOverlay>
                                                                     <SheetHeader className="px-6 py-4 text-left space-y-1.5 border-b border-border/40 shrink-0">
                                                                         <SheetTitle className="flex items-center gap-3 pr-8">
                                                                             <IconFileText className="w-5 h-5 text-primary/80 shrink-0" />
-                                                                            <span className="truncate text-base" title="Context Snippet">Context Snippet</span>
+                                                                            <TooltipProvider delayDuration={300}>
+                                                                                <Tooltip>
+                                                                                    <TooltipTrigger asChild>
+                                                                                        <span className="truncate text-base">Context Snippet</span>
+                                                                                    </TooltipTrigger>
+                                                                                    <TooltipContent side="bottom">
+                                                                                        <p>Context Snippet</p>
+                                                                                    </TooltipContent>
+                                                                                </Tooltip>
+                                                                            </TooltipProvider>
                                                                         </SheetTitle>
-                                                                        <SheetDescription className="pl-7">Manually added context via user interaction</SheetDescription>
+                                                                        <SheetDescription className="pl-8">Manually added context via user interaction</SheetDescription>
                                                                     </SheetHeader>
                                                                     <ScrollArea className="flex-1 w-full min-h-0">
                                                                         <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed bg-muted/30 p-4 m-6 rounded-xl border border-border/50">
@@ -389,19 +408,38 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                         ))}
                                                         {parsed.files.map((file, i) => (
                                                             <Sheet key={`file-${i}`} modal={false}>
-                                                                <SheetTrigger asChild>
-                                                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border/50 rounded-xl text-xs font-medium cursor-pointer hover:bg-muted/90 transition-colors shadow-sm select-none data-[state=open]:bg-muted">
-                                                                        <IconFileText className="w-3.5 h-3.5 text-primary/70" />
-                                                                        <span className="truncate max-w-[200px] text-foreground/80">{file.name}</span>
-                                                                    </div>
-                                                                </SheetTrigger>
-                                                                <SheetContent side="right" className="w-[400px] sm:w-[540px] px-0 pb-0 flex flex-col" hideOverlay>
+                                                                <TooltipProvider delayDuration={300}>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <SheetTrigger asChild>
+                                                                                <button className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border/50 rounded-xl text-xs font-medium cursor-pointer hover:bg-muted/90 transition-colors shadow-sm select-none data-[state=open]:bg-muted">
+                                                                                    <IconFileText className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                                                                                    <span className="truncate max-w-[200px] text-foreground/80">{file.name}</span>
+                                                                                </button>
+                                                                            </SheetTrigger>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent side="bottom" className="max-w-[300px] break-words">
+                                                                            <p>{file.name}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+
+                                                                <SheetContent side="right" className="w-[320px] sm:w-[400px] px-0 pb-0 flex flex-col" hideOverlay>
                                                                     <SheetHeader className="px-6 py-4 text-left space-y-1.5 border-b border-border/40 shrink-0">
                                                                         <SheetTitle className="flex items-center gap-3 pr-8">
                                                                             <IconFileText className="w-5 h-5 text-primary/80 shrink-0" />
-                                                                            <span className="truncate text-base" title={file.name}>{file.name}</span>
+                                                                            <TooltipProvider delayDuration={300}>
+                                                                                <Tooltip>
+                                                                                    <TooltipTrigger asChild>
+                                                                                        <span className="truncate text-base">{file.name}</span>
+                                                                                    </TooltipTrigger>
+                                                                                    <TooltipContent side="bottom" className="max-w-[300px] break-words">
+                                                                                        <p>{file.name}</p>
+                                                                                    </TooltipContent>
+                                                                                </Tooltip>
+                                                                            </TooltipProvider>
                                                                         </SheetTitle>
-                                                                        <SheetDescription className="pl-7">Extracted Document Text for LLM Context</SheetDescription>
+                                                                        <SheetDescription className="pl-8">Extracted Document Text for LLM Context</SheetDescription>
                                                                     </SheetHeader>
                                                                     <ScrollArea className="flex-1 w-full min-h-0">
                                                                         <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed bg-muted/30 p-4 m-6 rounded-xl border border-border/50">

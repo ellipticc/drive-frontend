@@ -1959,7 +1959,10 @@ export default function AssistantPage() {
     ) : null;
 
     return (
-        <div className="flex flex-col h-full bg-background relative overflow-x-hidden">
+        <div
+            className="flex flex-col h-full bg-background relative overflow-x-hidden transition-all duration-500 ease-in-out chat-container-layout"
+            style={{ marginRight: 'var(--document-sheet-width, 0px)' }}
+        >
 
 
             {/* Header */}

@@ -16,7 +16,7 @@ function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
         document.body.classList.add('document-sheet-open');
       } else {
         document.body.classList.remove('document-sheet-open');
-        document.body.style.removeProperty('--document-sheet-width');
+        document.body.style.setProperty('--document-sheet-width', '0px');
       }
     }
   };
@@ -24,7 +24,7 @@ function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   React.useEffect(() => {
     return () => {
       document.body.classList.remove('document-sheet-open');
-      document.body.style.removeProperty('--document-sheet-width');
+      document.body.style.setProperty('--document-sheet-width', '0px');
     };
   }, []);
 
@@ -70,7 +70,7 @@ function SheetContent({
   children,
   side = "right",
   resizable = false,
-  initialFraction = 0.35, // fraction of viewport width when opened (smaller default)
+  initialFraction = 0.25, // even smaller default fraction to reduce width
   minWidth = 320,
   maxWidth = null,
   hideOverlay = false,
@@ -94,16 +94,15 @@ function SheetContent({
       if (resizable) {
         window.dispatchEvent(new CustomEvent('sheet:resize', { detail: { width: w } }))
       }
-      // Update global CSS variable for layout pushing
-      if (document.body.classList.contains('document-sheet-open')) {
-        document.body.style.setProperty('--document-sheet-width', `${w}px`);
-      }
+      // Update global CSS variable for layout pushing always (even if not resizable, to capture initial width)
+      document.body.style.setProperty('--document-sheet-width', `${w}px`);
     }
     return () => {
       // clear on unmount
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('sheet:resize', { detail: { width: 0 } }))
       }
+      document.body.style.setProperty('--document-sheet-width', `0px`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resizable])
