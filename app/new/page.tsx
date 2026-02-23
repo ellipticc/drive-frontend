@@ -231,35 +231,43 @@ export default function AssistantPage() {
     const [displayedTitle, setDisplayedTitle] = React.useState("");
     const [isTypingTitle, setIsTypingTitle] = React.useState(false);
 
-    // Fetch Chat Title/Status from already-loaded chats (avoids redundant API call)
+    // Unified effect
     React.useEffect(() => {
         if (!conversationId) {
             setChatTitle("New Chat");
             setDisplayedTitle("New Chat");
+            setIsTypingTitle(false);
+            setIsStarred(false);
+            document.title = "New Chat | Ellipticc";
             return;
         }
 
-        // Use the chats array from useAICrypto() which is already loaded
         const currentChat = chats.find((c) => c.id === conversationId);
-        if (currentChat) {
-            const newTitle = currentChat.title || "New Chat";
-            setChatTitle(newTitle);
-            setIsStarred(!!currentChat.pinned);
-
-            // Typing effect for title
-            setIsTypingTitle(true);
-            let i = 0;
+        if (!currentChat) {
+            // Chat not in list yet (still loading) — immediately clear stale header state
+            setIsTypingTitle(false);
             setDisplayedTitle("");
-            const interval = setInterval(() => {
-                setDisplayedTitle(newTitle.substring(0, i + 1));
-                i++;
-                if (i >= newTitle.length) {
-                    clearInterval(interval);
-                    setIsTypingTitle(false);
-                }
-            }, 30);
-            return () => clearInterval(interval);
+            return;
         }
+
+        const newTitle = currentChat.title || "New Chat";
+        setChatTitle(newTitle);
+        setIsStarred(!!currentChat.pinned);
+        document.title = `${newTitle} | Ellipticc`;
+
+        // Typing animation for the header title
+        setIsTypingTitle(true);
+        let i = 0;
+        setDisplayedTitle("");
+        const interval = setInterval(() => {
+            setDisplayedTitle(newTitle.substring(0, i + 1));
+            i++;
+            if (i >= newTitle.length) {
+                clearInterval(interval);
+                setIsTypingTitle(false);
+            }
+        }, 30);
+        return () => clearInterval(interval);
     }, [conversationId, chats]);
 
     const scrollToMessage = (messageId: string, behavior: ScrollBehavior = 'smooth') => {
@@ -307,40 +315,6 @@ export default function AssistantPage() {
             return newMessages;
         });
     };
-
-    // Update page title based on chat
-    React.useEffect(() => {
-        if (typeof window !== 'undefined') {
-            let title = 'New Chat | Ellipticc';
-            let chatTitleToSet: string | null = null;
-
-            if (conversationId) {
-                const currentChat = chats.find(chat => chat.id === conversationId);
-                if (currentChat) {
-                    title = `${currentChat.title} | Ellipticc`;
-                    chatTitleToSet = currentChat.title;
-                }
-                // Don't default to 'Chat' - let the API fetch handle it
-            } else {
-                title = 'New Chat | Ellipticc';
-                chatTitleToSet = 'New Chat';
-            }
-
-            document.title = title;
-
-            // Only update chatTitle if we have a new value from chats array
-            // Otherwise keep what was set by the API fetch
-            document.title = title;
-            setChatTitle(chatTitleToSet || 'New Chat'); // Ensure chatTitle is always set
-
-            // Force update displayed title if we found a valid chat title that differs
-            if (chatTitleToSet && chatTitleToSet !== 'Chat' && chatTitleToSet !== 'New Chat' && displayedTitle !== chatTitleToSet) {
-                setDisplayedTitle(chatTitleToSet);
-            } else if (!displayedTitle || displayedTitle === "") {
-                setDisplayedTitle(chatTitleToSet || 'New Chat');
-            }
-        }
-    }, [conversationId, chats, displayedTitle]);
 
     // Load History when conversationId changes
     React.useEffect(() => {

@@ -197,7 +197,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
           isActive={isActive}
           onClick={handleNavigate}
           className={cn(
-            "group/chat-item relative cursor-pointer ml-0 pl-4 pr-3 h-8 rounded-md transition-none w-full",
+            "group/chat-item relative cursor-pointer ml-0 pl-3 pr-2 h-8 rounded-md transition-none w-full",
             isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
           )}
         >

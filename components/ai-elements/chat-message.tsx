@@ -306,15 +306,16 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                     // ... User Message Render ...
                     <>
                         {/* Edit Mode Overlay */}
-                        <div className="group relative flex flex-col items-end">
+                        <div className={cn("group relative flex flex-col items-end", isEditingPrompt && "w-full")}>
                             {isEditingPrompt ? (
                                 <div className="w-full space-y-2">
                                     <div className="bg-muted rounded-2xl p-4">
-                                        <Input
+                                        <Textarea
                                             value={editContent}
                                             onChange={(e) => setEditContent(e.target.value)}
-                                            className="bg-background border"
+                                            className="bg-background border resize-none text-[15px] leading-relaxed w-full"
                                             placeholder="Edit your message..."
+                                            rows={Math.max(3, Math.min(10, (editContent.match(/\n/g) || []).length + 2))}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter' && !e.shiftKey) {
                                                     e.preventDefault();
@@ -633,7 +634,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                     {message.model && (
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <span className="text-xs text-muted-foreground ml-1 px-1 py-0.5 rounded hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 transition-colors">
+                                                <span className="text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 transition-colors">
                                                     {formatModelName(message.model)}
                                                 </span>
                                             </TooltipTrigger>
