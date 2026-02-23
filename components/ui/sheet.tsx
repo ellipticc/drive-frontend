@@ -85,27 +85,46 @@ function SheetContent({
 }) {
   const sensors = useSensors(useSensor(PointerSensor))
   const [widthPx, setWidthPx] = React.useState<number | null>(null)
+  const [isOpen, setIsOpen] = React.useState(false)
+
+  // Track sheet open state from parent
+  React.useEffect(() => {
+    const parent = document.querySelector('[data-slot="sheet"]')
+    if (!parent) return
+    
+    const observer = new MutationObserver(() => {
+      const state = parent.getAttribute('data-state')
+      setIsOpen(state === 'open')
+    })
+    
+    observer.observe(parent, { attributes: true, attributeFilter: ['data-state'] })
+    return () => observer.disconnect()
+  }, [])
 
   React.useEffect(() => {
-    // initialize width on mount
+    // only initialize and manage width when sheet is actually open
+    if (!isOpen) {
+      setWidthPx(null)
+      document.body.style.setProperty('--document-sheet-width', '0px')
+      return
+    }
+
     if (typeof window !== 'undefined') {
       const w = Math.max(minWidth, Math.floor(window.innerWidth * initialFraction))
       setWidthPx(w)
       if (resizable) {
         window.dispatchEvent(new CustomEvent('sheet:resize', { detail: { width: w } }))
       }
-      // Update global CSS variable for layout pushing always (even if not resizable, to capture initial width)
-      document.body.style.setProperty('--document-sheet-width', `${w}px`);
+      document.body.style.setProperty('--document-sheet-width', `${w}px`)
     }
+
     return () => {
-      // clear on unmount
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('sheet:resize', { detail: { width: 0 } }))
       }
-      document.body.style.setProperty('--document-sheet-width', `0px`);
+      document.body.style.setProperty('--document-sheet-width', '0px')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resizable])
+  }, [isOpen, resizable, minWidth, initialFraction])
 
   const handleDragMove = (event: any) => {
     if (!resizable) return
