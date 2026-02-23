@@ -163,6 +163,7 @@ function SidebarProvider({
     <SidebarContext.Provider value={contextValue}>
       <div
         data-slot="sidebar-wrapper"
+        data-shift-layout
         style={
           {
             "--sidebar-width": SIDEBAR_WIDTH,

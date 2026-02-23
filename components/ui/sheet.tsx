@@ -7,16 +7,76 @@ import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 
 import { cn } from "@/lib/utils"
 
-function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
-  // Pass open state changes to doc root to push app layout if modal is false
+// Inject CSS for symmetric animations
+if (typeof window !== 'undefined') {
+  const style = document.createElement('style')
+  style.textContent = `
+    @keyframes sheet-slide-in-from-right {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    @keyframes sheet-slide-out-to-right {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+    @keyframes page-shift-left {
+      from {
+        transform: translateX(0);
+      }
+      to {
+        transform: translateX(-var(--document-sheet-width, 0px));
+      }
+    }
+    @keyframes page-shift-right {
+      from {
+        transform: translateX(-var(--document-sheet-width, 0px));
+      }
+      to {
+        transform: translateX(0);
+      }
+    }
+    [data-slot="sheet-content"][data-state="open"] {
+      animation: sheet-slide-in-from-right 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    [data-slot="sheet-content"][data-state="closed"] {
+      animation: sheet-slide-out-to-right 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    body.document-sheet-open [data-shift-layout] {
+      transform: translateX(calc(-1 * var(--document-sheet-width, 0px)));
+      transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    body:not(.document-sheet-open) [data-shift-layout] {
+      transform: translateX(0);
+      transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  `
+  document.head.appendChild(style)
+}
+
+function Sheet({ modal = true, ...props }: React.ComponentProps<typeof SheetPrimitive.Root> & { modal?: boolean }) {
   const handleOpenChange = (open: boolean) => {
     if (props.onOpenChange) props.onOpenChange(open);
-    if (!props.modal) {
+    if (!modal) {
       if (open) {
         document.body.classList.add('document-sheet-open');
       } else {
         document.body.classList.remove('document-sheet-open');
-        document.body.style.setProperty('--document-sheet-width', '0px');
+        // Use requestAnimationFrame to ensure transition completes before resetting
+        requestAnimationFrame(() => {
+          document.body.style.setProperty('--document-sheet-width', '0px');
+        });
       }
     }
   };
@@ -28,7 +88,7 @@ function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
     };
   }, []);
 
-  return <SheetPrimitive.Root data-slot="sheet" onOpenChange={handleOpenChange} {...props} />
+  return <SheetPrimitive.Root data-slot="sheet" onOpenChange={handleOpenChange} modal={modal} {...props} />
 }
 
 function SheetTrigger({
@@ -70,8 +130,8 @@ function SheetContent({
   children,
   side = "right",
   resizable = false,
-  initialFraction = 0.25, // even smaller default fraction to reduce width
-  minWidth = 320,
+  initialFraction = 0.35,
+  minWidth = 380,
   maxWidth = null,
   hideOverlay = false,
   ...props
@@ -155,14 +215,11 @@ function SheetContent({
         <SheetPrimitive.Content
           data-slot="sheet-content"
           className={cn(
-            "bg-background fixed z-50 flex flex-col shadow-lg transition ease-in-out data-[state=closed]:duration-500 data-[state=open]:duration-500",
-            "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
+            "bg-background fixed z-50 flex flex-col shadow-lg",
             side === "right" && "inset-y-0 right-0 h-full border-l",
             side === "left" && "inset-y-0 left-0 h-full border-r",
-            side === "top" &&
-            "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b",
-            side === "bottom" &&
-            "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t",
+            side === "top" && "inset-x-0 top-0 h-auto border-b",
+            side === "bottom" && "inset-x-0 bottom-0 h-auto border-t",
             "overflow-x-auto",
             className
           )}
