@@ -208,7 +208,7 @@ export function NavMain({
   }
 
   return (
-    <SidebarGroup className="mt-1">
+    <SidebarGroup className="py-0 px-2">
       <SidebarGroupContent className="flex flex-col gap-[3px]">
         <SidebarMenu>
           {items.map((item, index) => {
@@ -281,7 +281,7 @@ export function NavMain({
 
                   {/* Always render submenu container for Folders */}
                   {isMyFilesExpanded && (
-                    <SidebarMenuSub className="ml-3.5 border-l border-border/50">
+                    <SidebarMenuSub className="mr-0 pr-0 ml-3.5 border-l border-border/50">
                       {/* Dynamic Folders - Collapsible */}
                       <>
                         {isLoadingFolders ? (

@@ -404,7 +404,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
       </SidebarMenuButton>
 
       {isExpanded && state !== "collapsed" && (
-        <SidebarMenuSub className="relative ml-3.5 border-l border-border/50 min-w-0">
+        <SidebarMenuSub className="relative mr-0 pr-0 ml-3.5 border-l border-border/50 min-w-0">
           {visibleChats.map((chat) => (
             <ChatItem key={chat.id} chat={chat} actions={actions} />
           ))}
@@ -487,7 +487,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
       </SidebarMenuButton>
 
       {isExpanded && state !== "collapsed" && (
-        <SidebarMenuSub className="relative ml-3.5 border-l border-border/50 min-w-0">
+        <SidebarMenuSub className="relative mr-0 pr-0 ml-3.5 border-l border-border/50 min-w-0">
           {groups.map((group, groupIdx) => {
             const hasGroupMore = hasMore && groupIdx === groups.length - 1;
             const limit = hasGroupMore
