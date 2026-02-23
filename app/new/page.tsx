@@ -124,21 +124,19 @@ export default function AssistantPage() {
         return () => mediaQuery.removeEventListener('change', checkMobile);
     }, []);
 
-    // Watch for scroll-to target message and scroll when it appears in DOM
+    // Watch for scroll-to target message and scroll it to top of viewport (manual calculation, not scrollIntoView)
     React.useEffect(() => {
-        if (scrollToMessageIdRef.current) {
+        if (scrollToMessageIdRef.current && scrollContainerRef.current) {
             const messageId = scrollToMessageIdRef.current;
             const attemptScroll = () => {
                 const element = document.getElementById(`message-${messageId}`);
-                if (element && scrollContainerRef.current) {
-                    // Use scrollContainer as scroll boundary
-                    const elementRect = element.getBoundingClientRect();
-                    const containerRect = scrollContainerRef.current.getBoundingClientRect();
-
-                    // Only scroll if element is not visible at top
-                    if (elementRect.top > containerRect.top + 100) {
-                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
+                const container = scrollContainerRef.current;
+                if (element && container) {
+                    // Calculate element position relative to container's scroll view
+                    const elementOffsetTop = (element as HTMLElement).offsetTop;
+                    // Scroll so element appears at roughly 80px from top of container (below header)
+                    const targetScroll = Math.max(0, elementOffsetTop - 80);
+                    container.scrollTop = targetScroll;
                     scrollToMessageIdRef.current = null;
                 } else if (!element) {
                     // Element not in DOM yet, retry after a short delay
@@ -281,15 +279,6 @@ export default function AssistantPage() {
     const scrollToBottom = React.useCallback((behavior: ScrollBehavior = 'smooth') => {
         scrollEndRef.current?.scrollIntoView({ behavior, block: 'end' });
     }, []);
-
-    // Auto-scroll to bottom when messages update (if authorized by ref)
-    // On mobile, disable auto-scroll during streaming to prevent scroll fighting
-    React.useEffect(() => {
-        // Only auto-scroll if: (1) allowed by ref, (2) loading, (3) not on mobile
-        if (shouldAutoScrollRef.current && isLoading && !isMobile) {
-            scrollToBottom('auto');
-        }
-    }, [messages, isLoading, isMobile, scrollToBottom]);
 
     const handleVersionChange = (messageId: string, direction: 'prev' | 'next') => {
         setMessages(prev => {
@@ -1554,19 +1543,20 @@ export default function AssistantPage() {
         }
     };
     const handleEditMessage = (messageId: string, newContent: string) => {
-        // Update the user message content
-        setMessages(prev => prev.map(m =>
-            m.id === messageId ? { ...m, content: newContent } : m
-        ));
+        const trimmed = newContent.trim();
+        if (!trimmed) return;
 
-        // Remove all messages after this one (including assistant response)
-        const messageIndex = messages.findIndex(m => m.id === messageId);
-        if (messageIndex !== -1) {
-            setMessages(prev => prev.slice(0, messageIndex + 1));
-        }
+        // Enforce: only the last user message can be edited
+        const lastUserIdx = messages.reduce((last, m, i) => (m.role === 'user' ? i : last), -1);
+        const targetIdx = messages.findIndex(m => m.id === messageId);
+        if (targetIdx === -1 || targetIdx !== lastUserIdx) return;
 
-        // Re-submit with edited content
-        handleSubmit(newContent, []);
+        // Remove the edited message and everything after it (will re-add optimistic message via handleSubmit)
+        // This avoids duplicate user messages in the thread
+        setMessages(prev => prev.slice(0, targetIdx));
+
+        // Re-submit with edited content (this will add a new optimistic user message)
+        handleSubmit(trimmed, []);
     };
 
     const handleCopy = (content: string) => {
@@ -2050,7 +2040,14 @@ export default function AssistantPage() {
                                                         onFeedback={handleFeedback}
                                                         onRetry={() => handleRetry(message.id || '')}
                                                         onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
-                                                        onEdit={(content) => handleEditMessage(message.id || '', content)}
+                                                        onEdit={(() => {
+                                                        // Only the last user message can be edited
+                                                        if (message.role !== 'user') return undefined;
+                                                        const lastUserIdx = messages.reduce((last, m, i) => (m.role === 'user' ? i : last), -1);
+                                                        return index === lastUserIdx && message.id
+                                                            ? (content: string) => handleEditMessage(message.id || '', content)
+                                                            : undefined;
+                                                    })()}
                                                         onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
                                                         onCheckpoint={() => handleAddCheckpoint()}
                                                         availableModels={availableModels}

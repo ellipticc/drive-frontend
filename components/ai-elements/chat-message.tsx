@@ -474,14 +474,17 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                 label="Retry"
                                                 onClick={onRetry}
                                             />
-                                            <ActionButton
-                                                icon={IconEdit}
-                                                label="Edit"
-                                                onClick={() => {
-                                                    setEditContent(parseUserContent(message.content).text);
-                                                    setIsEditingPrompt(true);
-                                                }}
-                                            />
+                                            {/* Only rendered when parent passes onEdit — enforced at the last user message level */}
+                                            {onEdit && (
+                                                <ActionButton
+                                                    icon={IconEdit}
+                                                    label="Edit"
+                                                    onClick={() => {
+                                                        setEditContent(parseUserContent(message.content).text);
+                                                        setIsEditingPrompt(true);
+                                                    }}
+                                                />
+                                            )}
                                             <ActionButton
                                                 icon={copied ? IconCheck : IconCopy}
                                                 label="Copy"
