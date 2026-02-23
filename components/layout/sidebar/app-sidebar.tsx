@@ -310,7 +310,7 @@ export const AppSidebar = React.memo(function AppSidebar({
               }}
               isActive={true}
               className={cn(
-                "relative group/menu-button font-medium transition-all group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
+                "relative group/menu-button font-medium transition-all group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 pl-2"
               )}
             >
               <IconSearch />
@@ -343,7 +343,7 @@ export const AppSidebar = React.memo(function AppSidebar({
                     hidden: state !== "collapsed"
                   }}
                   isActive={pathname === '/new' && !searchParams.get('conversationId')}
-                  className="relative group/menu-button group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
+                  className="relative group/menu-button group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 pl-2"
                 >
                   <IconEdit className="size-4 shrink-0" />
                   <span className="group-data-[collapsible=icon]:hidden">Chat</span>

@@ -375,7 +375,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={onSearchOpen}
-        className="cursor-pointer group/nav-item transition-all group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
+        className="cursor-pointer group/nav-item transition-all group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 pl-2"
         tooltip={{
           children: "Pinned",
           side: "right",
@@ -385,7 +385,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
         <div
           role="button"
           onClick={toggleExpanded}
-          className="flex items-center justify-center p-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+          className="flex items-center justify-center rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer group-data-[collapsible=icon]:-mx-1"
         >
           {isHovered && state !== "collapsed" ? (
             <IconChevronDown
@@ -458,7 +458,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={onSearchOpen}
-        className="cursor-pointer group/nav-item transition-all group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
+        className="cursor-pointer group/nav-item transition-all group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 pl-2"
         tooltip={{
           children: "History",
           side: "right",
@@ -468,7 +468,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
         <div
           role="button"
           onClick={toggleExpanded}
-          className="flex items-center justify-center p-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+          className="flex items-center justify-center rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer group-data-[collapsible=icon]:-mx-1"
         >
           {isHovered && state !== "collapsed" ? (
             <IconChevronDown
