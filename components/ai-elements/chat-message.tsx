@@ -369,7 +369,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
                                                                             <SheetTrigger asChild>
-                                                                                <button className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border/50 rounded-lg text-xs font-medium cursor-pointer hover:bg-muted/90 transition-colors shadow-sm select-none data-[state=open]:bg-muted">
+                                                                                <button className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border/50 rounded-xl text-xs font-medium cursor-pointer hover:bg-muted/90 transition-colors shadow-sm select-none data-[state=open]:bg-muted/90 data-[state=open]:border-border/80 text-left">
                                                                                     <IconFileText className="w-3.5 h-3.5 text-primary/70 shrink-0" />
                                                                                     <span className="truncate max-w-[150px] text-foreground/80">Context Reference</span>
                                                                                 </button>
@@ -382,7 +382,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                                 </TooltipProvider>
 
                                                                 <SheetContent side="right" className="w-[320px] sm:w-[400px] px-0 pb-0 flex flex-col" hideOverlay>
-                                                                    <SheetHeader className="px-6 py-4 text-left space-y-1.5 border-b border-border/40 shrink-0">
+                                                                    <SheetHeader className="px-6 py-4 text-left space-y-1.5 shrink-0">
                                                                         <SheetTitle className="flex items-center gap-3 pr-8">
                                                                             <IconFileText className="w-5 h-5 text-primary/80 shrink-0" />
                                                                             <TooltipProvider delayDuration={300}>
@@ -396,7 +396,6 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                                                 </Tooltip>
                                                                             </TooltipProvider>
                                                                         </SheetTitle>
-                                                                        <SheetDescription className="pl-8">Manually added context via user interaction</SheetDescription>
                                                                     </SheetHeader>
                                                                     <ScrollArea className="flex-1 w-full min-h-0">
                                                                         <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed bg-muted/30 p-4 m-6 rounded-xl border border-border/50">
@@ -412,7 +411,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                                     <Tooltip>
                                                                         <TooltipTrigger asChild>
                                                                             <SheetTrigger asChild>
-                                                                                <button className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border/50 rounded-xl text-xs font-medium cursor-pointer hover:bg-muted/90 transition-colors shadow-sm select-none data-[state=open]:bg-muted">
+                                                                                <button className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border border-border/50 rounded-xl text-xs font-medium cursor-pointer hover:bg-muted/90 transition-colors shadow-sm select-none data-[state=open]:bg-muted/90 data-[state=open]:border-border/80">
                                                                                     <IconFileText className="w-3.5 h-3.5 text-primary/70 shrink-0" />
                                                                                     <span className="truncate max-w-[200px] text-foreground/80">{file.name}</span>
                                                                                 </button>
@@ -425,7 +424,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                                 </TooltipProvider>
 
                                                                 <SheetContent side="right" className="w-[320px] sm:w-[400px] px-0 pb-0 flex flex-col" hideOverlay>
-                                                                    <SheetHeader className="px-6 py-4 text-left space-y-1.5 border-b border-border/40 shrink-0">
+                                                                    <SheetHeader className="px-6 py-4 text-left space-y-1.5 shrink-0">
                                                                         <SheetTitle className="flex items-center gap-3 pr-8">
                                                                             <IconFileText className="w-5 h-5 text-primary/80 shrink-0" />
                                                                             <TooltipProvider delayDuration={300}>
@@ -439,7 +438,6 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                                                                 </Tooltip>
                                                                             </TooltipProvider>
                                                                         </SheetTitle>
-                                                                        <SheetDescription className="pl-8">Extracted Document Text for LLM Context</SheetDescription>
                                                                     </SheetHeader>
                                                                     <ScrollArea className="flex-1 w-full min-h-0">
                                                                         <div className="whitespace-pre-wrap font-mono text-[13px] leading-relaxed bg-muted/30 p-4 m-6 rounded-xl border border-border/50">

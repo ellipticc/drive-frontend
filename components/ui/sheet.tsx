@@ -26,11 +26,11 @@ if (typeof window !== 'undefined') {
       animation: sheet-slide-out-to-right 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
     body.document-sheet-open [data-slot="sidebar-inset"] {
-      margin-right: calc(var(--document-sheet-width, 0px) + 1rem);
+      margin-right: calc(var(--document-sheet-width, 0px) + 0.5rem);
       transition: margin-right 400ms cubic-bezier(0.4, 0, 0.2, 1);
     }
     body:not(.document-sheet-open) [data-slot="sidebar-inset"] {
-      margin-right: 0px;
+      margin-right: 0.5rem;
       transition: margin-right 400ms cubic-bezier(0.4, 0, 0.2, 1);
     }
   `
@@ -170,6 +170,15 @@ function SheetContent({
             className
           )}
           style={contentStyle}
+          onInteractOutside={(e) => {
+            const target = e.target as Element | null;
+            // Only allow closing if clicking on another sheet trigger (to swap to it)
+            if (target?.closest('[data-slot="sheet-trigger"]')) {
+              return;
+            }
+            // Prevent close on sidebar navigation, app interactions, backgrounds, etc.
+            e.preventDefault();
+          }}
           {...props}
         >
           {resizable && (
