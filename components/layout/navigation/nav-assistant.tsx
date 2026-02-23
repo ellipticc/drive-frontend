@@ -65,9 +65,9 @@ function groupChatsByTimeline(chats: ChatType[]) {
   const sorted = [...chats]
     .filter(c => !c.archived && !c.pinned)
     .sort((a, b) => {
-        const ta = new Date(b.lastMessageAt || b.createdAt).getTime();
-        const tb = new Date(a.lastMessageAt || a.createdAt).getTime();
-        return ta - tb;
+      const ta = new Date(b.lastMessageAt || b.createdAt).getTime();
+      const tb = new Date(a.lastMessageAt || a.createdAt).getTime();
+      return ta - tb;
     })
 
   for (const chat of sorted) {
@@ -197,7 +197,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
           isActive={isActive}
           onClick={handleNavigate}
           className={cn(
-            "group/chat-item relative cursor-pointer ml-0 pl-8 pr-3 h-8 rounded-md transition-none w-full",
+            "group/chat-item relative cursor-pointer ml-0 pl-4 pr-3 h-8 rounded-md transition-none w-full",
             isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
           )}
         >
@@ -349,9 +349,9 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
     [...chats]
       .filter(c => !!c.pinned && !c.archived)
       .sort((a, b) => {
-          const ta = new Date(b.lastMessageAt || b.createdAt).getTime();
-          const tb = new Date(a.lastMessageAt || a.createdAt).getTime();
-          return ta - tb;
+        const ta = new Date(b.lastMessageAt || b.createdAt).getTime();
+        const tb = new Date(a.lastMessageAt || a.createdAt).getTime();
+        return ta - tb;
       }),
     [chats]
   )
@@ -385,7 +385,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
         <div
           role="button"
           onClick={toggleExpanded}
-          className="flex items-center justify-center p-0.5 -mx-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+          className="flex items-center justify-center p-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
         >
           {isHovered && state !== "collapsed" ? (
             <IconChevronDown
@@ -404,8 +404,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
       </SidebarMenuButton>
 
       {isExpanded && state !== "collapsed" && (
-        <SidebarMenuSub className="relative mx-0 border-none px-0 min-w-0">
-          <div className="absolute left-3.5 top-0 bottom-0 w-px bg-border/50 pointer-events-none group-data-[collapsible=icon]:hidden" />
+        <SidebarMenuSub className="relative ml-3.5 border-l border-border/50 min-w-0">
           {visibleChats.map((chat) => (
             <ChatItem key={chat.id} chat={chat} actions={actions} />
           ))}
@@ -414,7 +413,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
             <SidebarMenuSubItem className="w-full">
               <SidebarMenuSubButton
                 asChild
-                className="text-muted-foreground/60 hover:text-sidebar-foreground hover:bg-transparent cursor-pointer ml-0 pl-8 pr-3 h-8 rounded-md min-w-0 w-full"
+                className="text-muted-foreground/60 hover:text-sidebar-foreground hover:bg-transparent cursor-pointer ml-0 pl-4 pr-3 h-8 rounded-md min-w-0 w-full"
                 onClick={onSearchOpen}
               >
                 <span>See all</span>
@@ -469,7 +468,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
         <div
           role="button"
           onClick={toggleExpanded}
-          className="flex items-center justify-center p-0.5 -mx-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+          className="flex items-center justify-center p-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
         >
           {isHovered && state !== "collapsed" ? (
             <IconChevronDown
@@ -488,8 +487,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
       </SidebarMenuButton>
 
       {isExpanded && state !== "collapsed" && (
-        <SidebarMenuSub className="relative mx-0 border-none px-0 min-w-0">
-          <div className="absolute left-3.5 top-0 bottom-0 w-px bg-border/50 pointer-events-none group-data-[collapsible=icon]:hidden" />
+        <SidebarMenuSub className="relative ml-3.5 border-l border-border/50 min-w-0">
           {groups.map((group, groupIdx) => {
             const hasGroupMore = hasMore && groupIdx === groups.length - 1;
             const limit = hasGroupMore
@@ -502,7 +500,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
 
             return (
               <React.Fragment key={group.label}>
-                <div className="pl-8 py-1.5 text-xs font-medium text-muted-foreground/70 select-none tracking-tight">
+                <div className="pl-4 py-1.5 text-xs font-medium text-muted-foreground/70 select-none tracking-tight">
                   {group.label}
                 </div>
                 {visibleChats.map((chat) => (
@@ -516,7 +514,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
             <SidebarMenuSubItem className="w-full">
               <SidebarMenuSubButton
                 asChild
-                className="text-muted-foreground/60 hover:text-sidebar-foreground hover:bg-transparent cursor-pointer ml-0 pl-8 pr-3 h-8 rounded-md min-w-0 w-full"
+                className="text-muted-foreground/60 hover:text-sidebar-foreground hover:bg-transparent cursor-pointer ml-0 pl-4 pr-3 h-8 rounded-md min-w-0 w-full"
                 onClick={onSearchOpen}
               >
                 <span>See all</span>

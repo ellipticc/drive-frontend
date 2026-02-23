@@ -245,7 +245,7 @@ export function NavMain({
                       <div
                         role="button"
                         onClick={toggleMyFiles}
-                        className="flex items-center justify-center p-0.5 -mx-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                        className="flex items-center justify-center p-0.5 rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
                       >
                         {isVaultHovered && state !== 'collapsed' ? (
                           <IconChevronDown

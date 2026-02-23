@@ -11,6 +11,7 @@ import {
     IconArrowsDiagonalMinimize2,
     IconMaximize,
     IconMessageCircleOff,
+    IconCopy,
 } from "@tabler/icons-react"
 import { useRelativeTime, cn } from "@/lib/utils"
 import { sortChatsByLastMessage } from "@/lib/chat-utils"
@@ -340,8 +341,8 @@ export function GlobalSearch({
 
     const chatGroups = React.useMemo(() => groupChatsByDate(filteredChats), [filteredChats])
 
-    //  Footer / keyboard target: Selected > Preview 
-    const activeFooterId = selectedConversationId || previewConversationId || null
+    //  Footer / keyboard target: Selected > Hovered (if collapsed) > Preview 
+    const activeFooterId = selectedConversationId || previewConversationId || hoveredConversationId || null
     const footerChat = React.useMemo(() => chats.find(c => c.id === activeFooterId) ?? null, [chats, activeFooterId])
     const previewChat = React.useMemo(() => chats.find(c => c.id === previewConversationId) ?? null, [chats, previewConversationId])
 
@@ -640,7 +641,7 @@ export function GlobalSearch({
                                                                         )}
                                                                     >
                                                                         {msg.role === "assistant" || msg.role === "system" ? (
-                                                                            <div className="prose prose-lg dark:prose-invert max-w-none [&_.suggestions]:hidden [&_.action-buttons]:pointer-events-none [&_.action-buttons]:opacity-50 [&_.regenerate-button]:pointer-events-none [&_.regenerate-button]:opacity-50">
+                                                                            <div className="prose prose-lg dark:prose-invert max-w-none [&_.suggestions]:hidden [&_.action-buttons]:pointer-events-none [&_.action-buttons]:opacity-50 [&_.regenerate-button]:pointer-events-none [&_.regenerate-button]:opacity-50 pointer-events-none">
                                                                                 <ChatMessage
                                                                                     message={{
                                                                                         ...msg,
@@ -654,7 +655,30 @@ export function GlobalSearch({
                                                                                 />
                                                                             </div>
                                                                         ) : (
-                                                                            <span className="whitespace-pre-wrap">{msg.content}</span>
+                                                                            <div className="group relative flex flex-col">
+                                                                                <span className="whitespace-pre-wrap flex-1">{msg.content}</span>
+                                                                                <div className="absolute -bottom-6 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 bg-background/80 backdrop-blur-sm px-2 py-1 rounded-md shadow-sm border border-border/50 translate-y-2 group-hover:translate-y-0 text-foreground pointer-events-auto">
+                                                                                    {msg.createdAt && (
+                                                                                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                                                                            {new Date(msg.createdAt).toLocaleString(undefined, {
+                                                                                                month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                                                                                            })}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="icon"
+                                                                                        className="h-5 w-5 text-muted-foreground hover:text-foreground"
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            navigator.clipboard.writeText(msg.content);
+                                                                                            toast.success("Copied to clipboard");
+                                                                                        }}
+                                                                                    >
+                                                                                        <IconCopy className="h-3 w-3" />
+                                                                                    </Button>
+                                                                                </div>
+                                                                            </div>
                                                                         )}
                                                                     </div>
                                                                 </div>

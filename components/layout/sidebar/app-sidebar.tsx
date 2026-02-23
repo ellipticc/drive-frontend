@@ -323,7 +323,7 @@ export const AppSidebar = React.memo(function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent className="flex-1 gap-0">
-        <SidebarGroup className="py-0 pr-0 pl-2">
+        <SidebarGroup className="py-0 px-2">
           <SidebarGroupContent>
             <SidebarMenu className="mt-1">
               {/* Chat (new chat) button */}

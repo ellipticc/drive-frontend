@@ -1968,7 +1968,7 @@ export default function AssistantPage() {
             <SiteHeader className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm" customTitle={ChatTitleHeader} rightContent={ChatHeaderActions} />
 
             {/* Main Content Area */}
-            <div className="flex-1 relative flex flex-col overflow-hidden">
+            <div className="flex-1 relative z-0 flex flex-col overflow-hidden">
 
                 {isInitialLoading || (!isContentReady && messages.length === 0) ? (
                     // LOADING SKELETON - Simple pulsating paragraph (only on initial load)
