@@ -375,7 +375,7 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={onSearchOpen}
-        className="cursor-pointer group/nav-item transition-all"
+        className="cursor-pointer group/nav-item transition-all group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
         tooltip={{
           children: "Pinned",
           side: "right",
@@ -458,7 +458,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={onSearchOpen}
-        className="cursor-pointer group/nav-item transition-all"
+        className="cursor-pointer group/nav-item transition-all group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
         tooltip={{
           children: "History",
           side: "right",

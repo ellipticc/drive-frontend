@@ -439,8 +439,8 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="sidebar-content"
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto overflow-x-hidden group-data-[collapsible=icon]:overflow-hidden",
-        "[&>div[data-sidebar=group]]:w-[calc(var(--sidebar-width)-1px)]",
+        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto overflow-y-auto overflow-x-hidden pr-1 group-data-[collapsible=icon]:overflow-hidden",
+        "[&>div[data-sidebar=group]]:w-[calc(var(--sidebar-width)-16px)]",
         className
       )}
       {...props}
@@ -717,7 +717,7 @@ function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
       data-slot="sidebar-menu-sub"
       data-sidebar="menu-sub"
       className={cn(
-        "border-sidebar-border ml-3.5 mr-0 flex min-w-0 translate-x-px flex-col gap-1 border-s pl-2.5 pr-0 py-0.5 list-none",
+        "border-sidebar-border ml-3.5 mr-0 flex min-w-0 translate-x-px flex-col gap-1 border-s pl-2.5 pr-1 py-0.5 list-none overflow-hidden",
         "group-data-[collapsible=icon]:hidden",
         className
       )}

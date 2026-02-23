@@ -134,7 +134,7 @@ export function NavDrafts({ item }: { item: any }) {
                 }}
                 isActive={pathname === item.url && !searchParams.has('fileId')}
                 onClick={() => handleNavigate(item.url)}
-                className="cursor-pointer group/nav-item"
+                className="cursor-pointer group/nav-item group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
                 data-space-id="draft"
                 data-space-name={t("sidebar.drafts")}
             >

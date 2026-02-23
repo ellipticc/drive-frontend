@@ -237,7 +237,7 @@ export function NavMain({
                         handleNavigate(item.url);
                       }
                     }}
-                    className="cursor-pointer group/nav-item"
+                    className="cursor-pointer group/nav-item group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
                     data-space-id="root"
                     data-space-name="Vault"
                   >
@@ -268,12 +268,12 @@ export function NavMain({
                     )}
                     <span>{item.title}</span>
                     {item.shortcut && (
-                      <kbd className="pointer-events-none ml-auto h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/nav-item:opacity-100 transition-opacity sm:inline-flex">
+                      <kbd className="pointer-events-none ml-auto h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/nav-item:opacity-100 transition-opacity sm:inline-flex group-data-[collapsible=icon]:hidden">
                         {item.shortcut}
                       </kbd>
                     )}
                     {item.badge && (
-                      <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-medium text-white min-w-[1.25rem]">
+                      <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-medium text-white min-w-[1.25rem] group-data-[collapsible=icon]:hidden">
                         {item.badge}
                       </span>
                     )}

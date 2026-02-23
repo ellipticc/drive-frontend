@@ -310,7 +310,7 @@ export const AppSidebar = React.memo(function AppSidebar({
               }}
               isActive={true}
               className={cn(
-                "relative group/menu-button font-medium transition-all"
+                "relative group/menu-button font-medium transition-all group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
               )}
             >
               <IconSearch />
