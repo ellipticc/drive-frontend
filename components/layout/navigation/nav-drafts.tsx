@@ -141,8 +141,15 @@ export function NavDrafts({ item }: { item: any }) {
                 {!isLeaf ? (
                     <div
                         role="button"
-                        onClick={toggleOpen}
-                        className="flex items-center justify-center rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          if (state !== 'collapsed') {
+                            toggleOpen(e)
+                          }
+                        }}
+                        className={cn(
+                          "flex items-center justify-center rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors",
+                          state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'cursor-pointer'
+                        )}
                     >
                         {isHovered && state !== 'collapsed' ? (
                             <IconChevronDown

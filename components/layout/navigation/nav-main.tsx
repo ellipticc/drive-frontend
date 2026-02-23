@@ -244,8 +244,15 @@ export function NavMain({
                     {!isMyFilesLeaf ? (
                       <div
                         role="button"
-                        onClick={toggleMyFiles}
-                        className="flex items-center justify-center rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          if (state !== 'collapsed') {
+                            toggleMyFiles(e)
+                          }
+                        }}
+                        className={cn(
+                          "flex items-center justify-center rounded-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors",
+                          state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'cursor-pointer'
+                        )}
                       >
                         {isVaultHovered && state !== 'collapsed' ? (
                           <IconChevronDown
