@@ -200,7 +200,7 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
 }
 
 
-export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint, availableModels = [], onRerunSystemWithModel, onAddToChat, onSuggestionClick }: ChatMessageProps) {
+export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint, availableModels = [], onRerunSystemWithModel, onAddToChat, onSuggestionClick }: ChatMessageProps) {
     // Helper to display pretty model names
     const formatModelName = (name?: string) => {
         if (!name) return '';
@@ -268,10 +268,17 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
     };
 
     const handleEditPromptSubmit = () => {
-        if (editContent.trim() && editContent !== message.content) {
-            onEdit?.(editContent);
+        const trimmedEdit = editContent.trim();
+        const trimmedMsg = message.content.trim();
+
+        if (!trimmedEdit || trimmedEdit === trimmedMsg) {
+            setEditContent(message.content); // Reset just in case spaces were removed
             setIsEditingPrompt(false);
+            return;
         }
+
+        onEdit?.(trimmedEdit);
+        setIsEditingPrompt(false);
     };
 
     const handleRegenerateSubmit = (instruction?: string) => {
@@ -299,7 +306,7 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
             <div className={cn(
                 "flex flex-col min-w-0 transition-all duration-200",
                 isUser
-                    ? (isEditingPrompt ? "w-full max-w-full items-start" : "items-end max-w-[85%]")
+                    ? (isEditingPrompt ? "w-full max-w-full items-start !max-w-[none]" : "items-end max-w-[85%]")
                     : "items-start flex-1 max-w-full"
             )}>
                 {isUser ? (
@@ -469,11 +476,6 @@ export function ChatMessage({ message, isLast, onCopy, onRetry, onEdit, onFeedba
                                         )}
 
                                         <div className="flex items-center gap-1">
-                                            <ActionButton
-                                                icon={IconRefresh}
-                                                label="Retry"
-                                                onClick={onRetry}
-                                            />
                                             {/* Only rendered when parent passes onEdit — enforced at the last user message level */}
                                             {onEdit && (
                                                 <ActionButton

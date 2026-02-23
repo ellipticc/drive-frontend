@@ -514,7 +514,7 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
 
             return (
               <React.Fragment key={group.label}>
-                <div className="pl-4 py-1.5 text-xs font-medium text-muted-foreground/70 select-none tracking-tight">
+                <div className="pl-2 py-1.5 text-xs font-medium text-muted-foreground/70 select-none tracking-tight">
                   {group.label}
                 </div>
                 {visibleChats.map((chat) => (

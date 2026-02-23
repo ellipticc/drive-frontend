@@ -124,30 +124,9 @@ export default function AssistantPage() {
         return () => mediaQuery.removeEventListener('change', checkMobile);
     }, []);
 
-    // Watch for scroll-to target message and scroll it to top of viewport (manual calculation, not scrollIntoView)
-    React.useEffect(() => {
-        if (scrollToMessageIdRef.current && scrollContainerRef.current) {
-            const messageId = scrollToMessageIdRef.current;
-            const attemptScroll = () => {
-                const element = document.getElementById(`message-${messageId}`);
-                const container = scrollContainerRef.current;
-                if (element && container) {
-                    // Calculate element position relative to container's scroll view
-                    const elementOffsetTop = (element as HTMLElement).offsetTop;
-                    // Scroll so element appears at roughly 80px from top of container (below header)
-                    const targetScroll = Math.max(0, elementOffsetTop - 80);
-                    container.scrollTop = targetScroll;
-                    scrollToMessageIdRef.current = null;
-                } else if (!element) {
-                    // Element not in DOM yet, retry after a short delay
-                    setTimeout(attemptScroll, 50);
-                }
-            };
-            attemptScroll();
-        }
-    }, [messages]);
+    // Scroll-to-message logic is handled directly in handleSubmit to prevent React render cycle race conditions.
 
-    const { isReady, kyberPublicKey, decryptHistory, decryptStreamChunk, encryptMessage, encryptWithSessionKey, loadChats, updateChatTimestamp, chats, renameChat, pinChat, deleteChat } = useAICrypto();
+    const { isReady, kyberPublicKey, userKeys, decryptHistory, decryptStreamChunk, encryptMessage, encryptWithSessionKey, loadChats, updateChatTimestamp, chats, renameChat, pinChat, deleteChat } = useAICrypto();
 
     // Available models for system rerun popovers
     const availableModels = [
@@ -585,8 +564,27 @@ export default function AssistantPage() {
         // Disable auto-scroll-to-bottom so user message stays at top of viewport
         shouldAutoScrollRef.current = false;
 
-        // Mark this message for scrolling (will scroll when messages array updates and DOM renders)
-        scrollToMessageIdRef.current = tempId;
+        // Mark this message for scrolling and handle completely deterministically 
+        // decoupled from React render cycle to prevent race conditions or cancelled timeouts.
+        let scrollAttempts = 0;
+        const attemptScroll = () => {
+            const element = document.getElementById(`message-${tempId}`);
+            const container = scrollContainerRef.current;
+            if (element && container) {
+                // Double rAF ensures layout calculation handles dynamic content (like user message edits)
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        const elementOffsetTop = (element as HTMLElement).offsetTop;
+                        const targetScroll = Math.max(0, elementOffsetTop - 80);
+                        container.scrollTop = targetScroll;
+                    });
+                });
+            } else if (scrollAttempts < 30) {
+                scrollAttempts++;
+                setTimeout(attemptScroll, 50);
+            }
+        };
+        setTimeout(attemptScroll, 10);
 
         // Reset metrics for new stream
         currentMetricsRef.current = {};
@@ -884,6 +882,34 @@ export default function AssistantPage() {
                                 }
                             } catch (e) {
                                 console.warn('Failed to parse sources event', dataStr, e);
+                            }
+                            continue;
+                        }
+
+                        // Handle chat-title events (generated synchronously for new chats before stream ends)
+                        if (eventType === 'chat-title' && dataStr) {
+                            try {
+                                const data = JSON.parse(dataStr);
+                                if (data.encrypted_title && data.iv && data.encapsulated_key) {
+                                    // Trigger a sidebar refresh to load the new title
+                                    loadChats(true);
+
+                                    // Also decrypt locally immediately for the header
+                                    if (kyberPublicKey && userKeys) {
+                                        decryptStreamChunk(
+                                            data.encrypted_title,
+                                            data.iv,
+                                            data.encapsulated_key
+                                        ).then(({ decrypted }) => {
+                                            if (decrypted) {
+                                                setChatTitle(decrypted);
+                                                setDisplayedTitle(decrypted);
+                                            }
+                                        }).catch(e => console.error("Failed to decrypt live title:", e));
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('Failed to parse chat-title event', e);
                             }
                             continue;
                         }
@@ -1278,22 +1304,6 @@ export default function AssistantPage() {
         handleSubmit(text, []);
     };
 
-    const handleRetry = (messageId: string) => {
-        // Find the user message
-        const message = messages.find(m => m.id === messageId);
-        if (!message || message.role !== 'user') return;
-
-        // Remove this message and all messages after it
-        const messageIndex = messages.findIndex(m => m.id === messageId);
-        if (messageIndex !== -1) {
-            // Use setTimeout to ensure state updates before submit
-            setTimeout(() => {
-                setMessages(prev => prev.slice(0, messageIndex + 1));
-                handleSubmit(message.content, []);
-            }, 0);
-        }
-    };
-
     const handleRegenerate = async (messageId: string, instruction?: string) => {
         const messageIndex = messages.findIndex(m => m.id === messageId);
         if (messageIndex === -1) return;
@@ -1594,39 +1604,7 @@ export default function AssistantPage() {
                     return newMessages;
                 });
 
-                console.log('[Cancel] User stopped generation, truncated content shown');
-
-                // Send PATCH request to backend to trim the saved message
-                if (lastMessage.id && latestSessionKeyRef.current && isReady) {
-                    const sessionKey = latestSessionKeyRef.current;
-                    const messageId = lastMessage.id;
-                    const reasoning = lastMessage.reasoning || "";
-
-                    (async () => {
-                        try {
-                            const updates: any = {};
-
-                            if (newContent) {
-                                const encContent = await encryptWithSessionKey(newContent, sessionKey);
-                                updates.encrypted_content = encContent.encryptedContent;
-                                updates.iv = encContent.iv;
-                            }
-
-                            if (reasoning) {
-                                const encReasoning = await encryptWithSessionKey(reasoning, sessionKey);
-                                updates.reasoning = encReasoning.encryptedContent;
-                                updates.reasoning_iv = encReasoning.iv;
-                            }
-
-                            if (Object.keys(updates).length > 0) {
-                                await apiClient.updateAIChatMessage(messageId, updates);
-                                console.log('[Cancel] Successfully updated trimmed message on backend');
-                            }
-                        } catch (err) {
-                            console.error('[Cancel] Failed to update trimmed message on backend', err);
-                        }
-                    })();
-                }
+                console.log('[Cancel] User stopped generation, truncated content shown locally but NOT saved to database.');
             }
         }
     };
@@ -2038,16 +2016,15 @@ export default function AssistantPage() {
                                                         isLast={index === messages.length - 1}
                                                         onCopy={handleCopy}
                                                         onFeedback={handleFeedback}
-                                                        onRetry={() => handleRetry(message.id || '')}
                                                         onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
                                                         onEdit={(() => {
-                                                        // Only the last user message can be edited
-                                                        if (message.role !== 'user') return undefined;
-                                                        const lastUserIdx = messages.reduce((last, m, i) => (m.role === 'user' ? i : last), -1);
-                                                        return index === lastUserIdx && message.id
-                                                            ? (content: string) => handleEditMessage(message.id || '', content)
-                                                            : undefined;
-                                                    })()}
+                                                            // Only the last user message can be edited
+                                                            if (message.role !== 'user') return undefined;
+                                                            const lastUserIdx = messages.reduce((last, m, i) => (m.role === 'user' ? i : last), -1);
+                                                            return index === lastUserIdx && message.id
+                                                                ? (content: string) => handleEditMessage(message.id || '', content)
+                                                                : undefined;
+                                                        })()}
                                                         onVersionChange={(dir) => handleVersionChange(message.id || '', dir)}
                                                         onCheckpoint={() => handleAddCheckpoint()}
                                                         availableModels={availableModels}
