@@ -12,20 +12,12 @@ if (typeof window !== 'undefined') {
   const style = document.createElement('style')
   style.textContent = `
     @keyframes sheet-slide-in-from-right {
-      from { transform: translate3d(100%, 0, 0); }
+      from { transform: translate3d(calc(100% + 1rem), 0, 0); }
       to { transform: translate3d(0, 0, 0); }
     }
     @keyframes sheet-slide-out-to-right {
       from { transform: translate3d(0, 0, 0); }
-      to { transform: translate3d(100%, 0, 0); }
-    }
-    @keyframes page-shift-left {
-      from { transform: translate3d(0, 0, 0); }
-      to { transform: translate3d(calc(-1 * var(--document-sheet-width, 0px)), 0, 0); }
-    }
-    @keyframes page-shift-right {
-      from { transform: translate3d(calc(-1 * var(--document-sheet-width, 0px)), 0, 0); }
-      to { transform: translate3d(0, 0, 0); }
+      to { transform: translate3d(calc(100% + 1rem), 0, 0); }
     }
     [data-slot="sheet-content"][data-state="open"] {
       animation: sheet-slide-in-from-right 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
@@ -33,13 +25,13 @@ if (typeof window !== 'undefined') {
     [data-slot="sheet-content"][data-state="closed"] {
       animation: sheet-slide-out-to-right 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
-    body.document-sheet-open [data-shift-layout] {
-      transform: translate3d(calc(-1 * var(--document-sheet-width, 0px)), 0, 0);
-      transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    body.document-sheet-open [data-slot="sidebar-inset"] {
+      margin-right: calc(var(--document-sheet-width, 0px) + 1rem);
+      transition: margin-right 400ms cubic-bezier(0.4, 0, 0.2, 1);
     }
-    body:not(.document-sheet-open) [data-shift-layout] {
-      transform: translate3d(0, 0, 0);
-      transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    body:not(.document-sheet-open) [data-slot="sidebar-inset"] {
+      margin-right: 0px;
+      transition: margin-right 400ms cubic-bezier(0.4, 0, 0.2, 1);
     }
   `
   document.head.appendChild(style)
@@ -105,8 +97,8 @@ function SheetContent({
   children,
   side = "right",
   resizable = false,
-  initialFraction = 0.40, // Increased to provide a better reading width
-  minWidth = 400, // Widened default bound as requested
+  initialFraction = 0.25, // Significantly smaller to be less intrusive
+  minWidth = 320, // Reduced minimum width back to normal sidebar constraint
   maxWidth = null,
   hideOverlay = false,
   ...props
@@ -170,10 +162,10 @@ function SheetContent({
           data-slot="sheet-content"
           className={cn(
             "bg-background fixed z-50 flex flex-col shadow-lg",
-            side === "right" && "inset-y-0 right-0 h-full border-l",
-            side === "left" && "inset-y-0 left-0 h-full border-r",
-            side === "top" && "inset-x-0 top-0 h-auto border-b",
-            side === "bottom" && "inset-x-0 bottom-0 h-auto border-t",
+            side === "right" && "inset-y-2 right-2 h-[calc(100svh-1rem)] rounded-2xl border border-sidebar-border shadow-sm",
+            side === "left" && "inset-y-2 left-2 h-[calc(100svh-1rem)] rounded-2xl border border-sidebar-border shadow-sm",
+            side === "top" && "inset-x-2 top-2 h-auto rounded-2xl border border-sidebar-border shadow-sm",
+            side === "bottom" && "inset-x-2 bottom-2 h-auto rounded-2xl border border-sidebar-border shadow-sm",
             "overflow-x-auto",
             className
           )}
