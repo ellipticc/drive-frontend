@@ -247,6 +247,7 @@ export const H1: React.FC<{
       'text-foreground',
       'mt-6 mb-3 first:mt-0',
       'pb-2 border-b border-border/40',
+      'w-4/5 mx-auto',
       'tracking-tight',
       className
     )}
@@ -265,6 +266,7 @@ export const H2: React.FC<{
       'text-foreground',
       'mt-5 mb-2.5',
       'pb-1.5 border-b border-border/30',
+      'w-4/5 mx-auto',
       'tracking-tight',
       className
     )}
@@ -548,7 +550,7 @@ export const HorizontalRule: React.FC<{
 }> = ({ className }) => (
   <hr
     className={cn(
-      'w-4/5 mx-auto my-8 border-0 border-t border-border/50',
+      'block w-1/2 mx-auto my-10 border-0 border-t border-border/60',
       className
     )}
   />

@@ -353,20 +353,35 @@ export function useAICrypto(): UseAICryptoReturn {
         const mById = new Map<string, any>();
         sortedMessages.forEach(m => mById.set(m.id, m));
 
-        // Lineage Repair: If ALL previous messages did not have parentId, we need to link them
-        // into a chain logically based on timestamps to prevent them being treated as independent roots.
-        const repairedMessages = sortedMessages.map((m, idx) => {
-            // If the message has no parent_id and it's not the first message, link it to the previous one
-            if (!m.parent_id && idx > 0) {
-                return { ...m, parent_id: sortedMessages[idx - 1].id, _repaired: true };
+        // Lineage Repair: If messages do not have parentId, we link them logically.
+        // We detect "versions" by looking for consecutive messages of the same role.
+
+        // Better approach: iterate once and build a local map of repaired IDs
+        const repairedLineage = new Map<string, string | null>();
+        const finalRepairedMessages = sortedMessages.map((m, idx) => {
+            let pid = m.parent_id || null;
+
+            if (!pid && idx > 0) {
+                const prev = sortedMessages[idx - 1];
+                const prevPid = repairedLineage.get(prev.id) || null;
+
+                if (m.role === prev.role) {
+                    // Same role usually means a regeneration or alternative (siblings)
+                    pid = prevPid;
+                } else {
+                    // Different role means continuation (parent-child)
+                    pid = prev.id;
+                }
             }
-            return m;
+
+            repairedLineage.set(m.id, pid);
+            return { ...m, parent_id: pid, _repaired: !m.parent_id && idx > 0 };
         });
 
         // Re-build maps with repaired lineage
         const map = new Map<string | null, any[]>();
         const repairedById = new Map<string, any>();
-        repairedMessages.forEach(m => {
+        finalRepairedMessages.forEach(m => {
             repairedById.set(m.id, m);
             const pid = m.parent_id || null;
             if (!map.has(pid)) map.set(pid, []);
