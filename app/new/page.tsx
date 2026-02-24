@@ -1592,9 +1592,40 @@ export default function AssistantPage() {
             return;
         }
 
+        // Initialize versioning for the message if needed (optimistic UI)
+        setMessages(prev => {
+            const newMessages = prev.map((m, idx) => {
+                if (idx !== targetIdx) return m;
+
+                const msg = { ...m };
+                // Initialize versions if missing
+                if (!msg.versions) {
+                    msg.versions = [{
+                        id: msg.id || 'initial',
+                        content: msg.content,
+                        createdAt: Number(msg.createdAt) || Date.now()
+                    }];
+                    msg.currentVersionIndex = 0;
+                }
+
+                // Create new version slot
+                const newVersionIndex = msg.versions.length;
+                msg.versions.push({
+                    id: `pending-${Date.now()}`,
+                    content: trimmed,
+                    createdAt: Date.now()
+                });
+                msg.currentVersionIndex = newVersionIndex;
+
+                // Update display state
+                msg.content = trimmed;
+
+                return msg;
+            });
+            return newMessages;
+        });
+
         // Get the parent ID of the target message to ensure we branch correctly
-        // We look at our existing state (which reflects what's in the DB/local state)
-        // If it's a legacy message repaired by getLinearBranch, it might have a virtual parent_id
         const parentId = oldMessage.parent_id || null;
 
         // Re-submit with edited content and explicit parentId to trigger sibling branching

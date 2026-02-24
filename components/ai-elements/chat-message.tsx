@@ -725,6 +725,38 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             <p>Dislike</p>
                                         </TooltipContent>
                                     </Tooltip>
+                                    {versionCount > 1 && (
+                                        <div className="flex items-center gap-1.5 mr-auto">
+                                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-border/40 bg-muted/20 text-[10px] font-mono text-muted-foreground/70">
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            onClick={() => onVersionChange?.('prev')}
+                                                            className="hover:text-foreground disabled:opacity-20 transition-colors p-0.5"
+                                                            disabled={currentVersion <= 1}
+                                                        >
+                                                            <IconChevronLeft className="size-3" />
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="bottom"><p>Previous version</p></TooltipContent>
+                                                </Tooltip>
+                                                <span className="min-w-[2.5ch] text-center select-none">{currentVersion} / {versionCount}</span>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            onClick={() => onVersionChange?.('next')}
+                                                            className="hover:text-foreground disabled:opacity-20 transition-colors p-0.5"
+                                                            disabled={currentVersion >= versionCount}
+                                                        >
+                                                            <IconChevronRight className="size-3" />
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="bottom"><p>Next version</p></TooltipContent>
+                                                </Tooltip>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <ActionButton
                                         icon={copied ? IconCheck : IconCopy}
                                         label="Copy"
@@ -771,39 +803,6 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             <DropdownMenuSeparator className="mx-0.5 my-1 opacity-50" />
 
                                             <div className="space-y-0.5">
-                                                {/* Version navigation for Assistant messages */}
-                                                {versionCount > 1 && (
-                                                    <div className="flex items-center justify-between px-2 py-1.5 text-[11px] font-mono text-muted-foreground/80 bg-muted/20 rounded-md mb-1 border border-border/30">
-                                                        <div className="flex items-center gap-2">
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <button
-                                                                        onClick={() => onVersionChange?.('prev')}
-                                                                        className="hover:text-foreground disabled:opacity-30 transition-colors p-0.5"
-                                                                        disabled={currentVersion <= 1}
-                                                                    >
-                                                                        <IconChevronLeft className="size-3.5" />
-                                                                    </button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent side="bottom"><p>Previous version</p></TooltipContent>
-                                                            </Tooltip>
-                                                            <span>{currentVersion} / {versionCount}</span>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <button
-                                                                        onClick={() => onVersionChange?.('next')}
-                                                                        className="hover:text-foreground disabled:opacity-30 transition-colors p-0.5"
-                                                                        disabled={currentVersion >= versionCount}
-                                                                    >
-                                                                        <IconChevronRight className="size-3.5" />
-                                                                    </button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent side="bottom"><p>Next version</p></TooltipContent>
-                                                            </Tooltip>
-                                                        </div>
-                                                        <span className="text-[10px] opacity-60">Versions</span>
-                                                    </div>
-                                                )}
 
                                                 <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-xs cursor-pointer py-1 px-2 focus:bg-sidebar-accent/50 rounded-md">
                                                     <IconRefresh className="mr-2 size-3.5 opacity-60" /> Retry
@@ -970,7 +969,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }
 
