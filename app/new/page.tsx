@@ -1312,7 +1312,7 @@ export default function AssistantPage() {
         handleSubmit(text, []);
     };
 
-    const handleRegenerate = async (messageId: string, instruction?: string) => {
+    const handleRegenerate = async (messageId: string, instruction?: string, overrides?: { thinkingMode?: boolean; webSearch?: boolean }) => {
         const messageIndex = messages.findIndex(m => m.id === messageId);
         if (messageIndex === -1) return;
 
@@ -1410,9 +1410,9 @@ export default function AssistantPage() {
                 conversationId || lastCreatedConversationId.current || "",
                 model,
                 kyberPublicKey || undefined,
-                undefined,
-                isWebSearchEnabled,
-                false,
+                undefined, // encryptedUserMessage
+                overrides?.webSearch !== undefined ? overrides.webSearch : isWebSearchEnabled,
+                overrides?.thinkingMode !== undefined ? overrides.thinkingMode : undefined,
                 controller.signal
             );
 

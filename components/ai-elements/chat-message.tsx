@@ -2,14 +2,14 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconFileText, IconThumbUp, IconCheck, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowsMinimize, IconBrain, IconArrowRight, IconHandStop } from "@tabler/icons-react"
+import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconFileText, IconThumbUp, IconCheck, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowRight, IconHandStop, IconBulb, IconWorld, IconWorldOff, IconBulbFilled, IconViewportShort } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Reasoning, ReasoningTrigger, ReasoningContent, detectThinkingTagType } from "@/components/ai-elements/reasoning"
 import {
@@ -77,7 +77,7 @@ interface ChatMessageProps {
     onRetry?: () => void;
     onEdit?: (content: string) => void;
     onFeedback?: (messageId: string, feedback: 'like' | 'dislike') => void;
-    onRegenerate?: (instruction?: string) => void;
+    onRegenerate?: (instruction?: string, overrides?: { thinkingMode?: boolean; webSearch?: boolean }) => void;
     onVersionChange?: (direction: 'prev' | 'next') => void;
     onCheckpoint?: (messageId: string) => void;
     availableModels?: { id: string; name: string }[];
@@ -226,10 +226,44 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
     const [feedbackGiven, setFeedbackGiven] = React.useState(!!message.feedback);
     const [isEditingPrompt, setIsEditingPrompt] = React.useState(false);
     const [editContent, setEditContent] = React.useState(message.content);
-    const [isRegenPanelOpen, setIsRegenPanelOpen] = React.useState(false);
+    const [regenInput, setRegenInput] = React.useState("");
+    const [isRegenOpen, setIsRegenOpen] = React.useState(false);
     const [systemModelPopoverOpen, setSystemModelPopoverOpen] = React.useState(false);
 
+    const usedThinking = !!(message.reasoning || message.isThinking || message.reasoningDuration);
+    const usedWebSearch = (message.toolCalls && message.toolCalls.some(tc => tc.function.name === 'browser_search' || tc.function.name === 'web_search')) || (message.sources && message.sources.length > 0);
+
     // ... existing handlers ...
+    const handleRegenerateOption = (type: string) => {
+        setIsRegenOpen(false);
+        setRegenInput("");
+        switch (type) {
+            case 'retry':
+                onRegenerate?.();
+                break;
+            case 'custom':
+                if (regenInput.trim()) {
+                    onRegenerate?.(`Please rewrite the previous answer applying these changes: ${regenInput.trim()}`);
+                }
+                break;
+            case 'details':
+                onRegenerate?.("Provide a more detailed and expanded version of the previous answer.");
+                break;
+            case 'concise':
+                onRegenerate?.("Provide a shorter, more concise version of the previous answer.");
+                break;
+            case 'think':
+                onRegenerate?.(undefined, { thinkingMode: true });
+                break;
+            case 'search':
+                onRegenerate?.(undefined, { webSearch: true });
+                break;
+            case 'no-search':
+                onRegenerate?.(undefined, { webSearch: false });
+                break;
+        }
+    };
+
     const handleCopy = () => {
         onCopy(message.content);
         setCopied(true);
@@ -280,15 +314,6 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
         onEdit?.(trimmedEdit);
         setIsEditingPrompt(false);
     };
-
-    const handleRegenerateSubmit = (instruction?: string) => {
-        setIsRegenPanelOpen(false);
-        onRegenerate?.(instruction);
-    };
-
-
-    // MarkdownRenderer handles all Markdown parsing with Shiki highlighting
-    // Uses Remark + Rehype AST pipeline for streaming-safe rendering
 
     // Version Navigation
     const versionCount = message.versions?.length || 1;
@@ -532,14 +557,14 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                         )}{/* Show thinking placeholder only during active streaming */}
                         {message.isThinking && isLast && !message.reasoning && (
                             <div className="flex items-center text-sm text-muted-foreground italic animate-pulse">
-                                <IconBrain className="size-3 mr-2" />
+                                <IconBulb className="size-3 mr-2" />
                                 Thinking...
                             </div>
                         )}
                         {/* If reasoning finished but we only have duration (no content), show duration */}
                         {!message.isThinking && message.reasoningDuration !== undefined && message.reasoningDuration > 0 && !message.reasoning && (
                             <div className="flex items-center text-sm text-muted-foreground italic">
-                                <IconBrain className="size-3 mr-2" />
+                                <IconBulbFilled className="size-3 mr-2" />
                                 Thought for {message.reasoningDuration}s
                             </div>
                         )}
@@ -585,10 +610,10 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'like' ? "text-green-500" : "text-muted-foreground hover:text-green-500 hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
+                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'like' ? "text-foreground bg-sidebar-accent/40" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
                                                 onClick={() => handleFeedback('like')}
                                             >
-                                                <IconThumbUp className="size-3.5" />
+                                                <IconThumbUp className={cn("size-3.5", feedbackGiven && message.feedback === 'like' && "fill-foreground/20")} />
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent side="bottom">
@@ -600,10 +625,10 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'dislike' ? "text-red-500" : "text-muted-foreground hover:text-red-500 hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
+                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'dislike' ? "text-foreground bg-sidebar-accent/40" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
                                                 onClick={() => handleFeedback('dislike')}
                                             >
-                                                <IconThumbDown className="size-3.5" />
+                                                <IconThumbDown className={cn("size-3.5", feedbackGiven && message.feedback === 'dislike' && "fill-foreground/20")} />
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent side="bottom">
@@ -616,11 +641,68 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                         onClick={handleCopy}
                                     />
 
-                                    <RegeneratePanel
-                                        isOpen={isRegenPanelOpen}
-                                        onOpenChange={setIsRegenPanelOpen}
-                                        onSubmit={handleRegenerateSubmit}
-                                    />
+                                    <DropdownMenu open={isRegenOpen} onOpenChange={setIsRegenOpen}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className={cn("h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors", isRegenOpen && "bg-muted text-foreground")}>
+                                                        <IconRefresh className="size-3.5" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom"><p>Regenerate</p></TooltipContent>
+                                        </Tooltip>
+                                        <DropdownMenuContent align="start" side="top" className="w-64 p-2">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Input
+                                                    value={regenInput}
+                                                    onChange={(e) => setRegenInput(e.target.value)}
+                                                    placeholder="Quick instruction..."
+                                                    className="h-8 text-xs"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            if (regenInput.trim()) handleRegenerateOption('custom');
+                                                        }
+                                                    }}
+                                                />
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 shrink-0 bg-primary/10 hover:bg-primary/20 text-primary"
+                                                    disabled={!regenInput.trim()}
+                                                    onClick={() => handleRegenerateOption('custom')}
+                                                >
+                                                    <IconArrowRight className="size-3.5" />
+                                                </Button>
+                                            </div>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-xs cursor-pointer py-1.5 focus:bg-sidebar-accent/30">
+                                                <IconRefresh className="mr-2 size-3.5" /> Retry
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleRegenerateOption('details')} className="text-xs cursor-pointer py-1.5 focus:bg-sidebar-accent/30">
+                                                <IconListDetails className="mr-2 size-3.5" /> Add details
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleRegenerateOption('concise')} className="text-xs cursor-pointer py-1.5 focus:bg-sidebar-accent/30">
+                                                <IconViewportShort className="mr-2 size-3.5" /> More concise
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            {!usedThinking && (
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-xs cursor-pointer py-1.5 focus:bg-sidebar-accent/30 text-emerald-600 dark:text-emerald-400">
+                                                    <IconBulb className="mr-2 size-3.5" /> Think Longer
+                                                </DropdownMenuItem>
+                                            )}
+                                            {usedWebSearch ? (
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('no-search')} className="text-xs cursor-pointer py-1.5 focus:bg-sidebar-accent/30 text-amber-600 dark:text-amber-400">
+                                                    <IconWorldOff className="mr-2 size-3.5" /> Don't search web
+                                                </DropdownMenuItem>
+                                            ) : (
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('search')} className="text-xs cursor-pointer py-1.5 focus:bg-sidebar-accent/30 text-blue-600 dark:text-blue-400">
+                                                    <IconWorld className="mr-2 size-3.5" /> Search web
+                                                </DropdownMenuItem>
+                                            )}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
 
                                     <ActionButton
                                         icon={IconDownload}
@@ -759,126 +841,6 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
             </div>
         </div>
     );
-}
-
-function RegeneratePanel({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean, onOpenChange: (open: boolean) => void, onSubmit: (instruction?: string) => void }) {
-    const [instruction, setInstruction] = React.useState("");
-    const [selectedOption, setSelectedOption] = React.useState<string | null>(null);
-
-    React.useEffect(() => {
-        if (!isOpen) {
-            setInstruction("");
-            setSelectedOption(null);
-        }
-    }, [isOpen]);
-
-    const handleSubmit = () => {
-        if (instruction.trim()) {
-            onSubmit(`User requested the following changes to the previous answer: ${instruction}`);
-        } else if (selectedOption) {
-            switch (selectedOption) {
-                case 'try-again': onSubmit(); break; // Default regen
-                case 'details': onSubmit("Provide a more detailed and expanded version."); break;
-                case 'concise': onSubmit("Provide a shorter, more concise version."); break;
-                case 'think': onSubmit("Take more time to reason and provide a deeper answer."); break;
-                default: onSubmit();
-            }
-        } else {
-            onSubmit(); // Default try again
-        }
-    };
-
-    return (
-        <Popover open={isOpen} onOpenChange={onOpenChange}>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <PopoverTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className={cn("h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors", isOpen && "text-foreground bg-muted")}
-                        >
-                            <IconRefresh className="size-3.5" />
-                        </Button>
-                    </PopoverTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="bottom"><p>Regenerate</p></TooltipContent>
-            </Tooltip>
-            <PopoverContent className="w-80 p-0" align="start" side="bottom">
-                <div className="p-3 space-y-3">
-                    <p className="text-xs font-semibold text-muted-foreground">Describe desired changes...</p>
-                    <Textarea
-                        value={instruction}
-                        onChange={(e) => setInstruction(e.target.value)}
-                        placeholder="What needs to be changed?"
-                        className="min-h-[80px] text-sm resize-none"
-                        maxLength={500}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSubmit();
-                            }
-                        }}
-                    />
-
-                    <div className="grid grid-cols-2 gap-2">
-                        <QuickOption
-                            icon={IconRefresh}
-                            label="Try Again"
-                            ariaLabel="Regenerate the response without changes"
-                            selected={selectedOption === 'try-again'}
-                            onClick={() => { setSelectedOption('try-again'); onSubmit(); onOpenChange(false); }}
-                            disabled={!!instruction}
-                        />
-                        <QuickOption
-                            icon={IconListDetails}
-                            label="Add Details"
-                            ariaLabel="Regenerate with more details and explanation"
-                            selected={selectedOption === 'details'}
-                            onClick={() => { setSelectedOption('details'); onSubmit("Provide a more detailed and expanded version."); onOpenChange(false); }}
-                            disabled={!!instruction}
-                        />
-                        <QuickOption
-                            icon={IconArrowsMinimize}
-                            label="More Concise"
-                            ariaLabel="Regenerate a shorter, more concise response"
-                            selected={selectedOption === 'concise'}
-                            onClick={() => { setSelectedOption('concise'); onSubmit("Provide a shorter, more concise version."); onOpenChange(false); }}
-                            disabled={!!instruction}
-                        />
-                        <QuickOption
-                            icon={IconBrain}
-                            label="Think Longer"
-                            ariaLabel="Regenerate with deeper reasoning and analysis"
-                            selected={selectedOption === 'think'}
-                            onClick={() => { setSelectedOption('think'); onSubmit("Take more time to reason and provide a deeper answer."); onOpenChange(false); }}
-                            disabled={!!instruction}
-                        />
-                    </div>
-                </div>
-            </PopoverContent>
-        </Popover>
-    );
-}
-
-function QuickOption({ icon: Icon, label, ariaLabel, selected, onClick, disabled }: { icon: any, label: string, ariaLabel: string, selected: boolean, onClick: () => void, disabled?: boolean }) {
-    return (
-        <button
-            onClick={onClick}
-            disabled={disabled}
-            aria-label={ariaLabel}
-            className={cn(
-                "flex items-center gap-2 p-2 rounded-md border text-xs font-medium transition-all",
-                selected
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background hover:bg-muted text-muted-foreground hover:text-foreground",
-                disabled && "opacity-50 cursor-not-allowed"
-            )}
-        >
-            <Icon className="size-3.5" />
-            <span>{label}</span>
-        </button>
-    )
 }
 
 function ActionButton({ icon: Icon, label, onClick, className, delayDuration }: { icon: any, label: string, onClick?: () => void, className?: string, delayDuration?: number }) {

@@ -449,7 +449,45 @@ export function useAICrypto(): UseAICryptoReturn {
                 }
             }));
 
-            return decrypted;
+            // Group consecutive assistant messages into versions
+            const grouped = decrypted.reduce((acc: any[], curr: any) => {
+                if (curr.role === 'assistant' && acc.length > 0) {
+                    const prev = acc[acc.length - 1];
+                    if (prev.role === 'assistant') {
+                        // Initialize versions if not already existing on prev obj
+                        if (!prev.versions) {
+                            prev.versions = [{
+                                id: prev.id,
+                                content: prev.content,
+                                toolCalls: prev.toolCalls,
+                                feedback: prev.feedback,
+                                createdAt: prev.createdAt
+                            }];
+                            prev.currentVersionIndex = 0;
+                        }
+                        // Add the newer message as a version
+                        prev.versions.push({
+                            id: curr.id,
+                            content: curr.content,
+                            toolCalls: curr.toolCalls,
+                            feedback: curr.feedback,
+                            createdAt: curr.createdAt
+                        });
+                        // Update the active display to the newest version
+                        prev.id = curr.id;
+                        prev.content = curr.content;
+                        prev.toolCalls = curr.toolCalls;
+                        prev.feedback = curr.feedback;
+                        prev.createdAt = curr.createdAt;
+                        prev.currentVersionIndex = prev.versions.length - 1;
+                        return acc;
+                    }
+                }
+                acc.push(curr);
+                return acc;
+            }, []);
+
+            return grouped;
         } catch (err) {
             console.error("Failed to fetch/decrypt history:", err);
             throw err;
