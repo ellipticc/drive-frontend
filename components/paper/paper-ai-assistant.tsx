@@ -161,6 +161,7 @@ export function PaperAIAssistant({
                 encryptedUserMessage,
                 false, // no web search
                 false, // no thinking mode
+                trimmedMessages[trimmedMessages.length - 1]?.id || null, // parentId
                 controller.signal
             );
 
@@ -442,7 +443,7 @@ export function PaperAIAssistant({
 
             // Fetch the chat messages
             const { messages: loadedMessages } = await apiClient.getAIChatMessages(chatId, { offset: 0, limit: 50 });
-            
+
             if (loadedMessages && Array.isArray(loadedMessages)) {
                 // Map backend messages to Message type
                 const mappedMessages: Message[] = loadedMessages.map((m: any) => ({
