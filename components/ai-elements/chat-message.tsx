@@ -456,16 +456,6 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                                             </div>
                                                         )}
 
-                                                        {/* Action buttons shown on hover far left to avoid content overlap */}
-                                                        <div className="absolute -left-12 bottom-0 opacity-0 group-hover/user-msg:opacity-100 transition-opacity flex gap-0.5 pointer-events-auto">
-                                                            <ActionButton
-                                                                icon={IconEdit}
-                                                                label="Edit message"
-                                                                onClick={() => { setEditContent(parsed.text); setIsEditingPrompt(true); }}
-                                                                delayDuration={0}
-                                                            />
-                                                            <ActionButton icon={IconCopy} label="Copy text" onClick={handleCopy} delayDuration={0} />
-                                                        </div>
                                                     </div>
                                                 )}
 

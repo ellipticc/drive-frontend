@@ -241,38 +241,38 @@ export const H1: React.FC<{
   children?: React.ReactNode;
   className?: string;
 }> = ({ children, className }) => (
-  <h1
-    className={cn(
-      'text-2xl sm:text-3xl font-bold',
-      'text-foreground',
-      'mt-6 mb-3 first:mt-0',
-      'pb-2 border-b border-border/40',
-      'w-4/5 mx-auto',
-      'tracking-tight',
-      className
-    )}
-  >
-    {children}
-  </h1>
+  <div className="w-full mt-6 mb-3 first:mt-0 relative">
+    <h1
+      className={cn(
+        'text-2xl sm:text-3xl font-bold',
+        'text-foreground',
+        'pb-2 tracking-tight',
+        className
+      )}
+    >
+      {children}
+    </h1>
+    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 border-b border-border/40" />
+  </div>
 );
 
 export const H2: React.FC<{
   children?: React.ReactNode;
   className?: string;
 }> = ({ children, className }) => (
-  <h2
-    className={cn(
-      'text-xl sm:text-2xl font-bold',
-      'text-foreground',
-      'mt-5 mb-2.5',
-      'pb-1.5 border-b border-border/30',
-      'w-4/5 mx-auto',
-      'tracking-tight',
-      className
-    )}
-  >
-    {children}
-  </h2>
+  <div className="w-full mt-5 mb-2.5 relative">
+    <h2
+      className={cn(
+        'text-xl sm:text-2xl font-bold',
+        'text-foreground',
+        'pb-1.5 tracking-tight',
+        className
+      )}
+    >
+      {children}
+    </h2>
+    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 border-b border-border/30" />
+  </div>
 );
 
 export const H3: React.FC<{
@@ -550,7 +550,7 @@ export const HorizontalRule: React.FC<{
 }> = ({ className }) => (
   <hr
     className={cn(
-      'block w-1/2 mx-auto my-10 border-0 border-t border-border/60',
+      'block w-1/2 mx-auto my-10 border-0 border-t border-border/60 dark:border-border/80',
       className
     )}
   />
