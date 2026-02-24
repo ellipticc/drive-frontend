@@ -208,6 +208,8 @@ export default function AssistantPage() {
     const [displayedTitle, setDisplayedTitle] = React.useState("");
     const [isTypingTitle, setIsTypingTitle] = React.useState(false);
 
+    const prevTitleRef = React.useRef("");
+
     // Unified effect
     React.useEffect(() => {
         if (!conversationId) {
@@ -216,6 +218,7 @@ export default function AssistantPage() {
             setIsTypingTitle(false);
             setIsStarred(false);
             document.title = "New Chat | Ellipticc";
+            prevTitleRef.current = "New Chat";
             return;
         }
 
@@ -232,19 +235,25 @@ export default function AssistantPage() {
         setIsStarred(!!currentChat.pinned);
         document.title = `${newTitle} | Ellipticc`;
 
-        // Typing animation for the header title
-        setIsTypingTitle(true);
-        let i = 0;
-        setDisplayedTitle("");
-        const interval = setInterval(() => {
-            setDisplayedTitle(newTitle.substring(0, i + 1));
-            i++;
-            if (i >= newTitle.length) {
-                clearInterval(interval);
-                setIsTypingTitle(false);
-            }
-        }, 30);
-        return () => clearInterval(interval);
+        // Only run typing animation if title actually changed
+        if (newTitle !== prevTitleRef.current) {
+            setIsTypingTitle(true);
+            let i = 0;
+            setDisplayedTitle("");
+            const interval = setInterval(() => {
+                setDisplayedTitle(newTitle.substring(0, i + 1));
+                i++;
+                if (i >= newTitle.length) {
+                    clearInterval(interval);
+                    setIsTypingTitle(false);
+                }
+            }, 30);
+            prevTitleRef.current = newTitle;
+            return () => clearInterval(interval);
+        } else {
+            setDisplayedTitle(newTitle);
+            setIsTypingTitle(false);
+        }
     }, [conversationId, chats]);
 
     const scrollToMessage = (messageId: string, behavior: ScrollBehavior = 'smooth') => {
@@ -569,14 +578,13 @@ export default function AssistantPage() {
         let scrollAttempts = 0;
         const attemptScroll = () => {
             const element = document.getElementById(`message-${tempId}`);
-            const container = scrollContainerRef.current;
-            if (element && container) {
+            if (element) {
                 // Double rAF ensures layout calculation handles dynamic content (like user message edits)
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
-                        const elementOffsetTop = (element as HTMLElement).offsetTop;
-                        const targetScroll = Math.max(0, elementOffsetTop - 80);
-                        container.scrollTop = targetScroll;
+                        // Rely on native scrollIntoView and CSS scroll-margin-top (scroll-mt-24 on ChatMessage)
+                        // for perfectly robust and hardware-accelerated viewport clearing
+                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     });
                 });
             } else if (scrollAttempts < 30) {
@@ -1560,6 +1568,12 @@ export default function AssistantPage() {
         const lastUserIdx = messages.reduce((last, m, i) => (m.role === 'user' ? i : last), -1);
         const targetIdx = messages.findIndex(m => m.id === messageId);
         if (targetIdx === -1 || targetIdx !== lastUserIdx) return;
+
+        // Prevent submission if text hasn't changed
+        const oldMessage = messages[targetIdx];
+        if (oldMessage && oldMessage.content.trim() === trimmed) {
+            return;
+        }
 
         // Remove the edited message and everything after it (will re-add optimistic message via handleSubmit)
         // This avoids duplicate user messages in the thread
