@@ -153,6 +153,8 @@ export function PaperAIAssistant({
             const controller = new AbortController();
             abortControllerRef.current = controller;
 
+            const assistantMessageId = crypto.randomUUID();
+
             const response = await apiClient.chatAI(
                 fullPayload,
                 conversationId || "",
@@ -162,7 +164,9 @@ export function PaperAIAssistant({
                 false, // no web search
                 false, // no thinking mode
                 trimmedMessages[trimmedMessages.length - 1]?.id || null, // parentId
-                controller.signal
+                controller.signal,
+                optimisticUserMessage.id,
+                assistantMessageId
             );
 
             if (!response.ok) {

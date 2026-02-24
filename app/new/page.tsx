@@ -668,6 +668,8 @@ export default function AssistantPage() {
             const controller = new AbortController();
             abortControllerRef.current = controller;
 
+            const assistantMessageId = crypto.randomUUID();
+
             const response = await apiClient.chatAI(
                 fullPayload,
                 conversationId || lastCreatedConversationId.current || "", // Use new ID if we just created one
@@ -677,7 +679,9 @@ export default function AssistantPage() {
                 isWebSearchEnabled, // webSearch
                 thinkingMode,
                 trimmedMessages[trimmedMessages.length - 1]?.id || null, // parentId
-                controller.signal
+                controller.signal,
+                optimisticUserMessage.id,
+                assistantMessageId
             );
 
             if (!response.ok) {
@@ -1412,6 +1416,8 @@ export default function AssistantPage() {
         abortControllerRef.current = controller;
 
         try {
+            const assistantId = messageId || crypto.randomUUID(); // Reuse existing ID or generate new one
+
             const response = await apiClient.chatAI(
                 historyPayload,
                 conversationId || lastCreatedConversationId.current || "",
@@ -1421,7 +1427,9 @@ export default function AssistantPage() {
                 overrides?.webSearch !== undefined ? overrides.webSearch : isWebSearchEnabled,
                 overrides?.thinkingMode !== undefined ? overrides.thinkingMode : undefined,
                 trimmedContext[trimmedContext.length - 1]?.id || null, // parentId 
-                controller.signal
+                controller.signal,
+                undefined, // no new user message in regenerate
+                assistantId
             );
 
             if (!response.ok) throw new Error('Failed to regenerate');

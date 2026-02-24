@@ -78,39 +78,44 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   // Normalize problematic unicode characters while preserving math delimiters
   const safeContent = React.useMemo(() => {
     if (!content) return content;
-    
+
     let normalized = content;
-    
+
     // Preserve math regions and don't normalize inside them
     const mathRegex = /(\$\$[\s\S]*?\$\$|\$[^\$\n]*?\$)/g;
     const mathBlocks: string[] = [];
     let mathIndex = 0;
     const placeholder = '\u0000MATH_PLACEHOLDER_';
-    
+
     // Extract math blocks
     normalized = normalized.replace(mathRegex, (match) => {
       mathBlocks.push(match);
       return placeholder + (mathIndex++) + '\u0000';
     });
-    
+
     // Normalize ALL hyphens/dashes to regular ASCII hyphen-minus (U+002D)
     // This includes: hyphen, non-breaking hyphen, en-dash, em-dash, etc.
     normalized = normalized.replace(/[\u2010-\u2015‐‑‒–—]/g, '-');
-    
+
     // Normalize ALL spaces to regular space
     // This includes: non-breaking space, thin space, hair space, etc.
     normalized = normalized.replace(/[\u00A0\u2000-\u200B\u202F\u205F]/g, ' ');
-    
+
     // Normalize quotes
     normalized = normalized.replace(/[\u2018\u2019]/g, "'"); // Curly single quotes
     normalized = normalized.replace(/[\u201C\u201D]/g, '"'); // Curly double quotes
     normalized = normalized.replace(/[\u00AD]/g, '-'); // Soft hyphen
-    
+
     // Restore math blocks
     mathBlocks.forEach((block, idx) => {
       normalized = normalized.replace(placeholder + idx + '\u0000', block);
     });
-    
+
+    // Normalize multiple equals signs or hyphens on their own line to standard horizontal rules (---)
+    // This handles non-standard separators like "=========================="
+    normalized = normalized.replace(/^={3,}\s*$/gm, '---');
+    normalized = normalized.replace(/^-{3,}\s*$/gm, '---');
+
     return normalized;
   }, [content]);
 
