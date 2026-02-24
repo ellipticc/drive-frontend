@@ -3136,9 +3136,6 @@ class ApiClient {
       };
     }
   }
-  // Attestations API removed (feature deprecated)
-  // NOTE: methods and types for attestations have been removed from the frontend.
-
 
   async chatAI(
     messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
@@ -3148,6 +3145,7 @@ class ApiClient {
     encryptedUserMessage?: { encryptedContent: string; iv: string; encapsulatedKey: string },
     webSearch?: boolean,
     thinkingMode?: boolean,
+    parentId?: string | null,
     signal?: AbortSignal
   ): Promise<Response> {
     const endpoint = '/ai/chat';
@@ -3167,7 +3165,8 @@ class ApiClient {
         kyberPublicKey,
         encryptedUserMessage,
         webSearch,
-        thinking_mode: thinkingMode
+        thinking_mode: thinkingMode,
+        parent_id: parentId
       }),
     });
   }

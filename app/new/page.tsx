@@ -132,7 +132,8 @@ export default function AssistantPage() {
 
     // Scroll-to-message logic is handled directly in handleSubmit to prevent React render cycle race conditions.
 
-    const { isReady, kyberPublicKey, userKeys, decryptHistory, decryptStreamChunk, encryptMessage, encryptWithSessionKey, loadChats, updateChatTimestamp, chats, renameChat, pinChat, deleteChat } = useAICrypto();
+    const { isReady, kyberPublicKey, userKeys, decryptHistory, decryptStreamChunk, encryptMessage, encryptWithSessionKey, loadChats, updateChatTimestamp, chats, renameChat, pinChat, deleteChat, getLinearBranch } = useAICrypto();
+    const [fullHistory, setFullHistory] = React.useState<any[]>([]);
 
     // Available models for system rerun popovers
     const availableModels = [
@@ -275,37 +276,19 @@ export default function AssistantPage() {
     }, []);
 
     const handleVersionChange = (messageId: string, direction: 'prev' | 'next') => {
-        setMessages(prev => {
-            const newMessages = [...prev];
-            const msgIndex = newMessages.findIndex(m => m.id === messageId);
-            if (msgIndex === -1) return prev;
+        const msg = messages.find(m => m.id === messageId);
+        if (!msg || !msg.versions || msg.versions.length <= 1) return;
 
-            const msg = newMessages[msgIndex];
-            if (!msg.versions || msg.versions.length <= 1) return prev;
+        const currentIdx = msg.currentVersionIndex || 0;
+        const newIdx = direction === 'next'
+            ? (currentIdx + 1) % msg.versions.length
+            : (currentIdx - 1 + msg.versions.length) % msg.versions.length;
 
-            const currentIndex = msg.currentVersionIndex || 0;
-            const newIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
+        const newVersionId = msg.versions[newIdx].id;
 
-            if (newIndex >= 0 && newIndex < msg.versions.length) {
-                // Swap content to main object
-                const version = msg.versions[newIndex];
-                msg.content = version.content;
-                msg.toolCalls = version.toolCalls;
-                msg.id = version.id;
-                msg.feedback = version.feedback;
-                msg.createdAt = version.createdAt;
-                msg.total_time = version.total_time;
-                msg.ttft = version.ttft;
-                msg.tps = version.tps;
-                msg.model = version.model;
-                msg.suggestions = version.suggestions;
-                msg.sources = version.sources;
-                msg.reasoning = version.reasoning;
-                msg.reasoningDuration = version.reasoningDuration;
-                msg.currentVersionIndex = newIndex;
-            }
-            return newMessages;
-        });
+        // Re-calculate the entire linear branch to follow this new version's lineage
+        const newBranch = getLinearBranch(fullHistory, newVersionId);
+        setMessages(newBranch);
     };
 
     // Load History when conversationId changes
@@ -321,10 +304,10 @@ export default function AssistantPage() {
             setIsInitialLoading(true);
             setMessages([]); // Clear previous messages while loading
             decryptHistory(conversationId)
-                .then((msgs: Message[]) => {
+                .then((result: any) => {
+                    const msgs = result.messages;
                     setMessages(msgs);
-                    // Don't reset title to 'Chat' here, let the useEffect handle it or keep current
-                    // setChatTitle('Chat');
+                    setFullHistory(result.fullHistory);
 
                     setPagination({
                         offset: 0,
@@ -335,7 +318,7 @@ export default function AssistantPage() {
 
                     // Scroll to last user message after render
                     setTimeout(() => {
-                        const lastUserMessage = msgs.slice().reverse().find(m => m.role === 'user');
+                        const lastUserMessage = msgs.slice().reverse().find((m: any) => m.role === 'user');
                         if (lastUserMessage && lastUserMessage.id) {
                             scrollToMessage(lastUserMessage.id, 'instant');
                             hasScrolledRef.current = true;
@@ -691,8 +674,9 @@ export default function AssistantPage() {
                 model,
                 kyberPublicKey,
                 encryptedUserMessage,
-                searchMode,
+                isWebSearchEnabled, // webSearch
                 thinkingMode,
+                trimmedMessages[trimmedMessages.length - 1]?.id || null, // parentId
                 controller.signal
             );
 
@@ -1433,9 +1417,10 @@ export default function AssistantPage() {
                 conversationId || lastCreatedConversationId.current || "",
                 model,
                 kyberPublicKey || undefined,
-                undefined, // encryptedUserMessage
+                undefined,
                 overrides?.webSearch !== undefined ? overrides.webSearch : isWebSearchEnabled,
                 overrides?.thinkingMode !== undefined ? overrides.thinkingMode : undefined,
+                trimmedContext[trimmedContext.length - 1]?.id || null, // parentId 
                 controller.signal
             );
 

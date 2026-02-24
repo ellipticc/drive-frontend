@@ -371,8 +371,9 @@ export function GlobalSearch({
         setPreviewLoading(true)
 
         decryptHistory(previewConversationId)
-            .then(msgs => {
+            .then(result => {
                 if (cancelled) return
+                const msgs = (result as any).messages
                 previewCacheRef.current.set(previewConversationId, {
                     messages: msgs,
                     fetchedAt: Date.now(),

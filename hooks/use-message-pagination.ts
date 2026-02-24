@@ -40,7 +40,8 @@ export function useMessagePagination(
 
     const loadInitial = async () => {
       try {
-        const messages = await decryptHistory(conversationId);
+        const result: any = await decryptHistory(conversationId);
+        const messages = result.messages;
         // Load only the last PAGE_SIZE messages
         const recentMessages = messages.slice(-PAGE_SIZE);
         offsetRef.current = Math.max(0, messages.length - PAGE_SIZE);

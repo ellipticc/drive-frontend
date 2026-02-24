@@ -32,10 +32,11 @@ export interface UseAICryptoReturn {
     pinChat: (conversationId: string, pinned: boolean) => Promise<void>;
     archiveChat: (conversationId: string, archived: boolean) => Promise<void>;
     deleteChat: (conversationId: string) => Promise<void>;
-    decryptHistory: (conversationId: string) => Promise<DecryptedMessage[]>;
+    decryptHistory: (conversationId: string) => Promise<{ messages: any[]; fullHistory: any[]; getLinearBranch: (messages: any[], targetLeafId?: string) => any[] }>;
     decryptStreamChunk: (encryptedContent: string, iv: string, encapsulatedKey?: string, existingSessionKey?: Uint8Array) => Promise<{ decrypted: string, sessionKey: Uint8Array }>;
     encryptMessage: (content: string) => Promise<{ encryptedContent: string, iv: string, encapsulatedKey: string }>;
     encryptWithSessionKey: (content: string, sessionKey: Uint8Array) => Promise<{ encryptedContent: string, iv: string }>;
+    getLinearBranch: (messages: any[], targetLeafId?: string) => any[];
     error: string | null;
 }
 
@@ -343,8 +344,50 @@ export function useAICrypto(): UseAICryptoReturn {
         };
     };
 
-    const decryptHistory = useCallback(async (conversationId: string): Promise<DecryptedMessage[]> => {
-        if (!userKeys) return [];
+    const getLinearBranch = useCallback((messages: any[], targetLeafId?: string) => {
+        const map = new Map<string | null, any[]>();
+        const mById = new Map<string, any>();
+        messages.forEach(m => {
+            mById.set(m.id, m);
+            const pid = m.parent_id || null;
+            if (!map.has(pid)) map.set(pid, []);
+            map.get(pid)!.push(m);
+        });
+
+        const pathIds = new Set<string>();
+        if (targetLeafId) {
+            let curr: string | null = targetLeafId;
+            while (curr) {
+                pathIds.add(curr);
+                curr = mById.get(curr)?.parent_id || null;
+            }
+        }
+
+        const branch: any[] = [];
+        const follow = (parentId: string | null) => {
+            const kids = map.get(parentId) || [];
+            if (kids.length === 0) return;
+            kids.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            const picked = targetLeafId ? (kids.find(k => pathIds.has(k.id)) || kids[kids.length - 1]) : kids[kids.length - 1];
+            const versions = kids.map(m => ({
+                id: m.id, content: m.content, toolCalls: m.toolCalls, feedback: m.feedback,
+                createdAt: m.createdAt, total_time: m.total_time, ttft: m.ttft, tps: m.tps,
+                model: m.model, suggestions: m.suggestions, sources: m.sources, reasoning: m.reasoning, reasoningDuration: m.reasoningDuration
+            }));
+            const base = { ...picked };
+            if (versions.length > 1) {
+                base.versions = versions;
+                base.currentVersionIndex = versions.findIndex(v => v.id === base.id);
+            }
+            branch.push(base);
+            follow(base.id);
+        };
+        follow(null);
+        return branch;
+    }, []);
+
+    const decryptHistory = useCallback(async (conversationId: string): Promise<any> => {
+        if (!userKeys) return { messages: [], fullHistory: [], getLinearBranch };
 
         try {
             const { decryptData } = await import('@/lib/crypto');
@@ -352,7 +395,7 @@ export function useAICrypto(): UseAICryptoReturn {
 
             const response = await apiClient.getAIChatMessages(conversationId);
             const encryptedMessages = response.messages || [];
-            if (!encryptedMessages || encryptedMessages.length === 0) return [];
+            if (!encryptedMessages || encryptedMessages.length === 0) return { messages: [], fullHistory: [], getLinearBranch };
 
             const decrypted = await Promise.all(encryptedMessages.map(async (msg: any) => {
                 try {
@@ -376,42 +419,26 @@ export function useAICrypto(): UseAICryptoReturn {
                                 decryptedReasoning = new TextDecoder().decode(reasoningDecryptedBytes);
                             } catch (e) {
                                 console.warn("Failed to decrypt reasoning:", msg.id, e);
-                                // Continue without reasoning if decryption fails
                             }
                         }
 
-                        // Parse thinking tags from content and reasoning
-                        const { content: cleanContent, reasoning: parsedReasoning } = parseThinkingFromContent(
-                            decryptedContent,
-                            decryptedReasoning
-                        );
+                        const { content: cleanContent, reasoning: parsedReasoning } = parseThinkingFromContent(decryptedContent, decryptedReasoning);
 
-                        // Parse suggestions JSON if present (decrypt if encrypted)
                         let suggestions: string[] | undefined;
                         if (msg.suggestions) {
                             try {
                                 let suggestionsJson = msg.suggestions;
-
-                                // Decrypt if IV is present
                                 if (msg.suggestions_iv) {
                                     try {
                                         const suggestionsDecryptedBytes = decryptData(msg.suggestions, sharedSecret, msg.suggestions_iv);
                                         suggestionsJson = new TextDecoder().decode(suggestionsDecryptedBytes);
                                     } catch (e) {
                                         console.warn("Failed to decrypt suggestions:", msg.id, e);
-                                        // If decryption fails, we can't do anything with the encrypted string
                                         suggestionsJson = "[]";
                                     }
                                 }
-
-                                if (typeof suggestionsJson === 'string') {
-                                    suggestions = JSON.parse(suggestionsJson);
-                                } else if (Array.isArray(suggestionsJson)) {
-                                    // Handle case where it might be already parsed (unlikely from DB but possible in some flows)
-                                    suggestions = suggestionsJson;
-                                }
+                                suggestions = typeof suggestionsJson === 'string' ? JSON.parse(suggestionsJson) : (Array.isArray(suggestionsJson) ? suggestionsJson : []);
                             } catch {
-                                // If parse fails, assume empty
                                 suggestions = [];
                             }
                         }
@@ -433,83 +460,24 @@ export function useAICrypto(): UseAICryptoReturn {
                         };
                     }
 
-                    // Legacy/fallback: Parse thinking tags from unencrypted content
                     if (msg.content) {
                         const { content: cleanContent, reasoning: parsedReasoning } = parseThinkingFromContent(msg.content);
-                        return {
-                            ...msg,
-                            content: cleanContent,
-                            reasoning: parsedReasoning,
-                            createdAt: msg.created_at || msg.createdAt,
-                        };
+                        return { ...msg, content: cleanContent, reasoning: parsedReasoning, createdAt: msg.created_at || msg.createdAt };
                     }
-
-                    return {
-                        ...msg,
-                        createdAt: msg.created_at || msg.createdAt,
-                    }; // Return as-is if no parseable content
+                    return { ...msg, createdAt: msg.created_at || msg.createdAt };
                 } catch (e) {
                     console.error("Failed to decrypt message:", msg.id, e);
                     return { ...msg, content: "[Decryption Failed]", createdAt: msg.created_at || msg.createdAt };
                 }
             }));
 
-            // NEW: Build a conversation tree using parent_id
-            const treeMap = new Map<string | null, any[]>();
-            decrypted.forEach(msg => {
-                const parentId = msg.parent_id || null;
-                if (!treeMap.has(parentId)) {
-                    treeMap.set(parentId, []);
-                }
-                treeMap.get(parentId)!.push(msg);
-            });
-
-            const result: any[] = [];
-
-            // Reconstruct the thread starting from the root (parent_id = null)
-            const buildChain = (currentParentId: string | null) => {
-                const kids = treeMap.get(currentParentId) || [];
-                if (kids.length === 0) return;
-
-                // Sort children chronologically
-                kids.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-                // Group siblings (children of the same parent) as versions
-                const versions = kids.map(m => ({
-                    id: m.id,
-                    content: m.content,
-                    toolCalls: m.toolCalls,
-                    feedback: m.feedback,
-                    createdAt: m.createdAt,
-                    total_time: m.total_time,
-                    ttft: m.ttft,
-                    tps: m.tps,
-                    model: m.model,
-                    suggestions: m.suggestions,
-                    sources: m.sources,
-                    reasoning: m.reasoning,
-                    reasoningDuration: m.reasoningDuration
-                }));
-
-                const base = { ...kids[kids.length - 1] }; // Default to latest version
-                if (versions.length > 1) {
-                    base.versions = versions;
-                    base.currentVersionIndex = versions.length - 1;
-                }
-
-                result.push(base);
-
-                // Recursively follow the latest version's children
-                buildChain(base.id);
-            };
-
-            buildChain(null);
-            return result;
+            const messages = getLinearBranch(decrypted);
+            return { messages, fullHistory: decrypted, getLinearBranch };
         } catch (err) {
             console.error("Failed to fetch/decrypt history:", err);
             throw err;
         }
-    }, [userKeys]);
+    }, [userKeys, getLinearBranch]);
 
     const decryptStreamChunk = useCallback(async (
         encryptedContent: string,
@@ -523,32 +491,27 @@ export function useAICrypto(): UseAICryptoReturn {
         const { decryptData } = await import('@/lib/crypto');
         const { ml_kem768 } = await import('@noble/post-quantum/ml-kem');
 
-        // 1. If we received an encapsulated key (first chunk), derive the session key
         if (encapsulatedKey && !sessionKey) {
             const encKeyBytes = Uint8Array.from(atob(encapsulatedKey), c => c.charCodeAt(0));
             const kyberPriv = userKeys.keypairs.kyberPrivateKey;
-
-            // Decapsulate
             const sharedSecret = ml_kem768.decapsulate(encKeyBytes, kyberPriv);
-            sessionKey = sharedSecret; // 32 bytest
+            sessionKey = sharedSecret;
         }
 
         if (!sessionKey) throw new Error("No session key available for decryption");
 
-        // 2. Decrypt the chunk
         try {
             if (!encryptedContent) return { decrypted: "", sessionKey };
             const decryptedBytes = decryptData(encryptedContent, sessionKey, iv);
             const decrypted = new TextDecoder().decode(decryptedBytes);
             return { decrypted, sessionKey };
         } catch (e: any) {
-            // Ignore padding errors or empty chunks which might be keep-alives
             if (e.message && (e.message.includes("padding") || e.message.includes("invalid"))) {
-                console.warn("Soft decryption failure (likely padding/keep-alive):", e.message);
+                console.warn("Soft decryption failure:", e.message);
                 return { decrypted: "", sessionKey };
             }
             console.error("Critical decryption failure:", e);
-            throw e; // Re-throw critical errors
+            throw e;
         }
     }, [userKeys]);
 
@@ -561,11 +524,7 @@ export function useAICrypto(): UseAICryptoReturn {
     const encryptWithSessionKey = useCallback(async (content: string, sessionKey: Uint8Array) => {
         const { encryptData } = await import('@/lib/crypto');
         const { encryptedData, nonce } = encryptData(new TextEncoder().encode(content), sessionKey);
-
-        return {
-            encryptedContent: encryptedData,
-            iv: nonce
-        };
+        return { encryptedContent: encryptedData, iv: nonce };
     }, []);
 
     return {
@@ -573,7 +532,7 @@ export function useAICrypto(): UseAICryptoReturn {
         kyberPublicKey,
         userKeys,
         chats,
-        loadChats, // Expose for manual refresh
+        loadChats,
         updateChatTimestamp,
         renameChat,
         pinChat,
@@ -583,6 +542,7 @@ export function useAICrypto(): UseAICryptoReturn {
         decryptStreamChunk,
         encryptMessage,
         encryptWithSessionKey,
+        getLinearBranch,
         error
     };
 }

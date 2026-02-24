@@ -17,6 +17,7 @@ export interface ContextBreakdown {
 }
 
 export interface Message {
+  id?: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   toolCalls?: any[];
@@ -62,7 +63,7 @@ export function trimHistoryByTokens(
 
   const contextWindow = getContextWindow(model);
   const systemTokens = systemPrompt ? estimateTokens(systemPrompt) : 420;
-  
+
   // Calculate budget: 85% of window minus system prompt and reserves
   const threshold = contextWindow * 0.85;
   const budget = threshold - systemTokens - maxReserveTokens - estimateTokens(currentUserMessage);
@@ -73,12 +74,12 @@ export function trimHistoryByTokens(
   // Add messages from most recent backwards until hitting budget
   for (let i = messages.length - 1; i >= 0; i--) {
     const msgTokens = estimateTokens(messages[i].content);
-    
+
     // Stop if adding this message would exceed budget
     if (totalTokens + msgTokens > budget) {
       break;
     }
-    
+
     trimmed.unshift(messages[i]);
     totalTokens += msgTokens;
   }
@@ -96,15 +97,15 @@ export function calculateContextBreakdown(
   tools?: any[],
 ): ContextBreakdown {
   const maxTokens = getContextWindow(model);
-  
+
   // 1. System prompt tokens (typically ~200-500 tokens for standard system prompts)
   const systemTokens = systemPrompt ? estimateTokens(systemPrompt) : 420;
-  
+
   // 2. Tool definitions tokens (if tools are provided)
   const toolDefinitionTokens = tools && tools.length > 0
     ? estimateTokens(JSON.stringify(tools))
     : 0;
-  
+
   // 3. Message tokens (from conversation history) - split by role
   let messageTokens = 0;
   let userMessageTokens = 0;
@@ -116,7 +117,7 @@ export function calculateContextBreakdown(
     if (msg.role === 'user') userMessageTokens += t;
     else if (msg.role === 'assistant') assistantMessageTokens += t;
   }
-  
+
   // 4. Tool results tokens (estimate from any tool calls)
   const toolResultTokens = messages.reduce((total, msg) => {
     if (msg.toolCalls && Array.isArray(msg.toolCalls)) {
@@ -127,10 +128,10 @@ export function calculateContextBreakdown(
     }
     return total;
   }, 0);
-  
+
   const totalUsed = systemTokens + toolDefinitionTokens + messageTokens + toolResultTokens;
   const percentage = (totalUsed / maxTokens) * 100;
-  
+
   return {
     systemTokens,
     toolDefinitionTokens,
