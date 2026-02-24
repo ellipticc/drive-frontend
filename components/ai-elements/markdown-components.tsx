@@ -546,7 +546,7 @@ export const HorizontalRule: React.FC<{
 }> = ({ className }) => (
   <hr
     className={cn(
-      'my-4 border-0 border-t border-border/50',
+      'my-6 border-0 border-t border-border',
       className
     )}
   />

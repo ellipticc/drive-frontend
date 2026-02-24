@@ -423,6 +423,11 @@ export function useAICrypto(): UseAICryptoReturn {
                             reasoning: parsedReasoning,
                             reasoningDuration: msg.reasoning_duration,
                             suggestions,
+                            total_time: msg.total_time,
+                            ttft: msg.ttft,
+                            tps: msg.tps,
+                            model: msg.model,
+                            sources: msg.sources,
                             feedback: msg.feedback as 'like' | 'dislike' | undefined,
                             createdAt: msg.created_at || msg.createdAt,
                         };
@@ -461,7 +466,15 @@ export function useAICrypto(): UseAICryptoReturn {
                                 content: prev.content,
                                 toolCalls: prev.toolCalls,
                                 feedback: prev.feedback,
-                                createdAt: prev.createdAt
+                                createdAt: prev.createdAt,
+                                total_time: prev.total_time,
+                                ttft: prev.ttft,
+                                tps: prev.tps,
+                                model: prev.model,
+                                suggestions: prev.suggestions,
+                                sources: prev.sources,
+                                reasoning: prev.reasoning,
+                                reasoningDuration: prev.reasoningDuration
                             }];
                             prev.currentVersionIndex = 0;
                         }
@@ -471,7 +484,15 @@ export function useAICrypto(): UseAICryptoReturn {
                             content: curr.content,
                             toolCalls: curr.toolCalls,
                             feedback: curr.feedback,
-                            createdAt: curr.createdAt
+                            createdAt: curr.createdAt,
+                            total_time: curr.total_time,
+                            ttft: curr.ttft,
+                            tps: curr.tps,
+                            model: curr.model,
+                            suggestions: curr.suggestions,
+                            sources: curr.sources,
+                            reasoning: curr.reasoning,
+                            reasoningDuration: curr.reasoningDuration
                         });
                         // Update the active display to the newest version
                         prev.id = curr.id;
@@ -479,6 +500,14 @@ export function useAICrypto(): UseAICryptoReturn {
                         prev.toolCalls = curr.toolCalls;
                         prev.feedback = curr.feedback;
                         prev.createdAt = curr.createdAt;
+                        prev.total_time = curr.total_time;
+                        prev.ttft = curr.ttft;
+                        prev.tps = curr.tps;
+                        prev.model = curr.model;
+                        prev.suggestions = curr.suggestions;
+                        prev.sources = curr.sources;
+                        prev.reasoning = curr.reasoning;
+                        prev.reasoningDuration = curr.reasoningDuration;
                         prev.currentVersionIndex = prev.versions.length - 1;
                         return acc;
                     }

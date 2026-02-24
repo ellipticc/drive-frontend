@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconFileText, IconThumbUp, IconCheck, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowRight, IconHandStop, IconBulb, IconWorld, IconWorldOff, IconBulbFilled, IconViewportShort, IconThumbUpFilled, IconThumbDownFilled } from "@tabler/icons-react"
+import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconFileText, IconThumbUp, IconCheck, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowRight, IconHandStop, IconBulb, IconWorld, IconWorldOff, IconBulbFilled, IconViewportShort, IconThumbUpFilled, IconThumbDownFilled, IconArrowUp } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
@@ -46,6 +46,14 @@ export interface MessageVersion {
     toolCalls?: ToolCall[];
     createdAt?: number;
     feedback?: 'like' | 'dislike';
+    total_time?: number | string;
+    ttft?: number | string;
+    tps?: number | string;
+    model?: string;
+    suggestions?: string[];
+    sources?: { title: string; url: string; content?: string }[];
+    reasoning?: string;
+    reasoningDuration?: number;
 }
 
 export interface Message {
@@ -64,9 +72,9 @@ export interface Message {
     reasoning?: string; // Content inside <think> tags
     reasoningDuration?: number; // Duration of thinking in seconds
     suggestions?: string[];
-    ttft?: number;
-    tps?: number;
-    total_time?: number;
+    ttft?: number | string;
+    tps?: number | string;
+    total_time?: number | string;
     model?: string;
 }
 
@@ -315,9 +323,34 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
         setIsEditingPrompt(false);
     };
 
-    // Version Navigation
     const versionCount = message.versions?.length || 1;
-    const currentVersion = (message.currentVersionIndex || 0) + 1;
+    const currentVersionIndex = message.currentVersionIndex || 0;
+    const currentVersion = currentVersionIndex + 1;
+
+    // Use metadata from current version if available, otherwise fallback to base message
+    const displayRes = React.useMemo(() => {
+        const v = message.versions?.[currentVersionIndex];
+        if (!v) return message;
+        return {
+            ...message,
+            content: v.content,
+            toolCalls: v.toolCalls || message.toolCalls,
+            feedback: v.feedback || message.feedback,
+            createdAt: v.createdAt || message.createdAt,
+            total_time: v.total_time !== undefined ? v.total_time : message.total_time,
+            ttft: v.ttft !== undefined ? v.ttft : message.ttft,
+            tps: v.tps !== undefined ? v.tps : message.tps,
+            model: v.model || message.model,
+            suggestions: v.suggestions || message.suggestions,
+            sources: v.sources || message.sources,
+            reasoning: v.reasoning || message.reasoning,
+            reasoningDuration: v.reasoningDuration !== undefined ? v.reasoningDuration : message.reasoningDuration
+        };
+    }, [message, currentVersionIndex]);
+
+    const displayContent = displayRes.content;
+    const feedbackValue = displayRes.feedback;
+    const isInterrupted = displayContent && /Stopped by user/i.test(displayContent);
 
     return (
         <div
@@ -534,56 +567,57 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                     </>
                 ) : (
                     <div className="w-full space-y-0.5 selection:bg-primary/20 selection:text-foreground">{/* Reasoning / Chain of Thought */}
-                        {message.reasoning && (
+                        {/* Reasoning / Chain of Thought */}
+                        {displayRes.reasoning && (
                             (() => {
-                                const reasoningContent = message.reasoning;
+                                const reasoningContent = displayRes.reasoning;
                                 const tagType = detectThinkingTagType(reasoningContent);
 
                                 return (
                                     <Reasoning
-                                        key={`reasoning-${message.id}-${message.reasoningDuration ?? 'none'}`}
-                                        isStreaming={isLast && message.isThinking}
-                                        duration={message.reasoningDuration}
+                                        key={`reasoning-${displayRes.id}-${displayRes.reasoningDuration ?? 'none'}`}
+                                        isStreaming={displayRes.isThinking}
+                                        duration={displayRes.reasoningDuration}
                                         thinkingType={tagType || undefined}
                                         className="mb-1"
                                     >
                                         <ReasoningTrigger className="w-fit" />
-                                        <ReasoningContent isStreaming={isLast && message.isThinking}>
+                                        <ReasoningContent isStreaming={displayRes.isThinking}>
                                             {reasoningContent}
                                         </ReasoningContent>
                                     </Reasoning>
                                 );
                             })()
                         )}{/* Show thinking placeholder only during active streaming */}
-                        {message.isThinking && isLast && !message.reasoning && (
+                        {displayRes.isThinking && isLast && !displayRes.reasoning && (
                             <div className="flex items-center text-sm text-muted-foreground italic animate-pulse">
                                 <IconBulb className="size-3 mr-2" />
                                 Thinking...
                             </div>
                         )}
                         {/* If reasoning finished but we only have duration (no content), show duration */}
-                        {!message.isThinking && message.reasoningDuration !== undefined && message.reasoningDuration > 0 && !message.reasoning && (
+                        {!displayRes.isThinking && displayRes.reasoningDuration !== undefined && displayRes.reasoningDuration > 0 && !displayRes.reasoning && (
                             <div className="flex items-center text-sm text-muted-foreground italic">
                                 <IconBulbFilled className="size-3 mr-2" />
-                                Thought for {message.reasoningDuration}s
+                                Thought for {displayRes.reasoningDuration}s
                             </div>
                         )}
 
                         <div className="w-full max-w-full break-words overflow-hidden">
                             {/* Use inline-citation component from ai-elements if sources exist */}
-                            {message.sources && message.sources.length > 0 ? (
-                                <InlineCitationRenderer content={message.content} sources={message.sources} isStreaming={isLast && !!message.isThinking} />
+                            {displayRes.sources && displayRes.sources.length > 0 ? (
+                                <InlineCitationRenderer content={displayRes.content} sources={displayRes.sources} isStreaming={!!displayRes.isThinking} />
                             ) : (
-                                <MarkdownRenderer content={message.content} compact={false} isStreaming={isLast && !!message.isThinking} />
+                                <MarkdownRenderer content={displayRes.content} compact={false} isStreaming={!!displayRes.isThinking} />
                             )}
                         </div>
 
                         {/* References Footer */}
-                        {message.sources && message.sources.length > 0 && (
+                        {displayRes.sources && displayRes.sources.length > 0 && (
                             <div className="mt-2 pt-2 border-t border-border/50">
                                 <p className="text-xs font-semibold text-muted-foreground mb-1">Sources</p>
                                 <div className="flex flex-wrap gap-2">
-                                    {message.sources.map((source, idx) => (
+                                    {displayRes.sources.map((source, idx) => (
                                         <a
                                             key={idx}
                                             href={source.url}
@@ -599,9 +633,8 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                             </div>
                         )}
 
-                        {/* Actions Footer - Always Visible for Assistant */}
-                        {/* Only show assistant actions when this is an assistant message */}
-                        {isAssistant && (
+                        {/* Actions Footer - rendered only when not thinking/streaming */}
+                        {isAssistant && !message.isThinking && (
                             <div className="flex items-center justify-between mt-2 select-none">
                                 {/* Left Actions */}
                                 <div className="flex items-center gap-0.5">
@@ -610,10 +643,10 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'like' ? "text-foreground bg-sidebar-accent/40" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
+                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && feedbackValue === 'like' ? "text-foreground bg-sidebar-accent/40" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
                                                 onClick={() => handleFeedback('like')}
                                             >
-                                                {feedbackGiven && message.feedback === 'like' ? (
+                                                {feedbackGiven && feedbackValue === 'like' ? (
                                                     <IconThumbUpFilled className="size-3.5" />
                                                 ) : (
                                                     <IconThumbUp className="size-3.5" />
@@ -629,10 +662,10 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'dislike' ? "text-foreground bg-sidebar-accent/40" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
+                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && feedbackValue === 'dislike' ? "text-foreground bg-sidebar-accent/40" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
                                                 onClick={() => handleFeedback('dislike')}
                                             >
-                                                {feedbackGiven && message.feedback === 'dislike' ? (
+                                                {feedbackGiven && feedbackValue === 'dislike' ? (
                                                     <IconThumbDownFilled className="size-3.5" />
                                                 ) : (
                                                     <IconThumbDown className="size-3.5" />
@@ -660,17 +693,13 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             </TooltipTrigger>
                                             <TooltipContent side="bottom"><p>Regenerate</p></TooltipContent>
                                         </Tooltip>
-                                        <DropdownMenuContent align="start" side="top" className="w-80 p-2 shadow-xl">
-                                            <DropdownMenuLabel className="px-3 pt-2 pb-1 text-[13px] font-semibold text-foreground/80">
-                                                Ask to change response
-                                            </DropdownMenuLabel>
-
-                                            <div className="flex items-center gap-2 mb-3 px-2 pt-1">
+                                        <DropdownMenuContent align="start" side="top" className="w-[280px] p-2 shadow-xl">
+                                            <div className="flex items-center gap-2 mb-2 px-1 pt-1">
                                                 <div className="relative flex-1">
                                                     <Input
                                                         value={regenInput}
                                                         onChange={(e) => setRegenInput(e.target.value)}
-                                                        placeholder="Quick instruction..."
+                                                        placeholder="Ask to change response"
                                                         className="h-9 text-[13px] bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-border rounded-lg pr-9"
                                                         onKeyDown={(e) => {
                                                             if (e.key === 'Enter') {
@@ -681,42 +710,41 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                                     />
                                                     <Button
                                                         size="icon"
-                                                        variant="ghost"
-                                                        className="absolute right-1 top-1 h-7 w-7 text-muted-foreground hover:text-foreground transition-colors"
+                                                        className="absolute right-1 top-1 h-7 w-7 bg-foreground/10 hover:bg-foreground/20 text-foreground dark:bg-muted dark:hover:bg-muted/80 rounded-md transition-colors"
                                                         disabled={!regenInput.trim()}
                                                         onClick={() => handleRegenerateOption('custom')}
                                                     >
-                                                        <IconArrowRight className="size-4" />
+                                                        <IconArrowUp className="size-4" />
                                                     </Button>
                                                 </div>
                                             </div>
 
                                             <DropdownMenuSeparator className="mx-1 my-1" />
 
-                                            <div className="p-1 space-y-0.5">
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-md">
+                                            <div className="p-0.5 space-y-0.5">
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-[13px] cursor-pointer py-1.5 px-3 focus:bg-sidebar-accent/50 rounded-md">
                                                     <IconRefresh className="mr-3 size-4 opacity-60" /> Retry
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('details')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-md">
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('details')} className="text-[13px] cursor-pointer py-1.5 px-3 focus:bg-sidebar-accent/50 rounded-md">
                                                     <IconListDetails className="mr-3 size-4 opacity-60" /> Add details
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('concise')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-md">
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('concise')} className="text-[13px] cursor-pointer py-1.5 px-3 focus:bg-sidebar-accent/50 rounded-md">
                                                     <IconViewportShort className="mr-3 size-4 opacity-60" /> More concise
                                                 </DropdownMenuItem>
 
                                                 <DropdownMenuSeparator className="mx-1 my-1" />
 
                                                 {!usedThinking && (
-                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-md">
+                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-[13px] cursor-pointer py-1.5 px-3 focus:bg-sidebar-accent/50 rounded-md">
                                                         <IconBulb className="mr-3 size-4 opacity-60" /> Think Longer
                                                     </DropdownMenuItem>
                                                 )}
                                                 {usedWebSearch ? (
-                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('no-search')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-md">
+                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('no-search')} className="text-[13px] cursor-pointer py-1.5 px-3 focus:bg-sidebar-accent/50 rounded-md">
                                                         <IconWorldOff className="mr-3 size-4 opacity-60" /> Don't search the web
                                                     </DropdownMenuItem>
                                                 ) : (
-                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('search')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-md">
+                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('search')} className="text-[13px] cursor-pointer py-1.5 px-3 focus:bg-sidebar-accent/50 rounded-md">
                                                         <IconWorld className="mr-3 size-4 opacity-60" /> Search the web
                                                     </DropdownMenuItem>
                                                 )}
@@ -731,7 +759,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                     />
 
                                     {/* Timing Metrics Indicator / Interrupted State */}
-                                    {message.content && /Stopped by user/i.test(message.content) ? (
+                                    {isInterrupted ? (
                                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md select-none cursor-default">
                                             <IconHandStop className="size-3.5" />
                                             <span>Interrupted</span>
@@ -739,23 +767,23 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                     ) : null}
 
                                     {/* display model badge on every assistant response */}
-                                    {message.model && (
+                                    {displayRes.model && (
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <span className="text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 transition-colors">
-                                                    {formatModelName(message.model)}
+                                                    {formatModelName(displayRes.model)}
                                                 </span>
                                             </TooltipTrigger>
                                             <TooltipContent side="bottom">
-                                                <p>Model used: {formatModelName(message.model)}</p>
+                                                <p>Model used: {formatModelName(displayRes.model)}</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     )}
 
-                                    {message.total_time !== undefined && Number(message.total_time) > 0 && (() => {
-                                        const totalTime = Number(message.total_time);
-                                        const ttft = Number(message.ttft);
-                                        const tps = Number(message.tps);
+                                    {displayRes.total_time !== undefined && Number(displayRes.total_time) > 0 && (() => {
+                                        const totalTime = Number(displayRes.total_time);
+                                        const ttft = Number(displayRes.ttft);
+                                        const tps = Number(displayRes.tps);
                                         // Show TTFT as the visible label, fallback to total time
                                         const displayValue = ttft > 0 ? ttft : totalTime;
                                         const displayText = displayValue < 1000
@@ -792,7 +820,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
 
                                 {/* Right Actions - Version Navigation */}
                                 {versionCount > 1 && (
-                                    <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/30 rounded-md px-1">
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground rounded-md px-1">
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -819,8 +847,8 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                             </div>
                         )}
 
-                        {/* System message actions */}
-                        {isSystem && availableModels.length > 0 && (
+                        {/* System message actions - hide when streaming */}
+                        {isSystem && !message.isThinking && availableModels.length > 0 && (
                             <div className="flex items-center justify-end mt-2 select-none">
                                 {/* System rerun UI commented out for now */}
                                 {/*
@@ -844,10 +872,10 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                 */}
                             </div>
                         )}
-                        {/* Follow-up Suggestions */}
-                        {message.suggestions && message.suggestions.length > 0 && (
+                        {/* Follow-up Suggestions - hide when streaming */}
+                        {isAssistant && !message.isThinking && displayRes.suggestions && displayRes.suggestions.length > 0 && (
                             <Suggestions>
-                                {message.suggestions.map((s, i) => (
+                                {displayRes.suggestions.map((s, i) => (
                                     <Suggestion
                                         key={i}
                                         suggestion={s}

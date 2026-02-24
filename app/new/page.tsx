@@ -59,6 +59,13 @@ interface MessageVersion {
     createdAt?: number;
     feedback?: 'like' | 'dislike';
     suggestions?: string[];
+    total_time?: number | string;
+    ttft?: number | string;
+    tps?: number | string;
+    model?: string;
+    sources?: { title: string; url: string; content?: string }[];
+    reasoning?: string;
+    reasoningDuration?: number;
 }
 
 interface Message {
@@ -77,9 +84,9 @@ interface Message {
     reasoning?: string;
     reasoningDuration?: number;
     suggestions?: string[];
-    ttft?: number;
-    tps?: number;
-    total_time?: number;
+    ttft?: number | string;
+    tps?: number | string;
+    total_time?: number | string;
     model?: string;
 }
 
@@ -284,8 +291,17 @@ export default function AssistantPage() {
                 const version = msg.versions[newIndex];
                 msg.content = version.content;
                 msg.toolCalls = version.toolCalls;
-                msg.id = version.id; // Although ID might change if backend treats them as diff messages, usually nice to keep stable unless backend returns new ID.
+                msg.id = version.id;
                 msg.feedback = version.feedback;
+                msg.createdAt = version.createdAt;
+                msg.total_time = version.total_time;
+                msg.ttft = version.ttft;
+                msg.tps = version.tps;
+                msg.model = version.model;
+                msg.suggestions = version.suggestions;
+                msg.sources = version.sources;
+                msg.reasoning = version.reasoning;
+                msg.reasoningDuration = version.reasoningDuration;
                 msg.currentVersionIndex = newIndex;
             }
             return newMessages;
@@ -1340,8 +1356,16 @@ export default function AssistantPage() {
                         id: msg.id || 'initial',
                         content: msg.content,
                         toolCalls: msg.toolCalls,
-                        createdAt: Date.now(),
-                        feedback: msg.feedback
+                        createdAt: Number(msg.createdAt) || Date.now(),
+                        feedback: msg.feedback,
+                        total_time: msg.total_time,
+                        ttft: msg.ttft,
+                        tps: msg.tps,
+                        model: msg.model,
+                        suggestions: msg.suggestions,
+                        sources: msg.sources,
+                        reasoning: msg.reasoning,
+                        reasoningDuration: msg.reasoningDuration
                     }];
                     msg.currentVersionIndex = 0;
                 } else {
@@ -2029,7 +2053,7 @@ export default function AssistantPage() {
                                                         isLast={index === messages.length - 1}
                                                         onCopy={handleCopy}
                                                         onFeedback={handleFeedback}
-                                                        onRegenerate={(instruction) => handleRegenerate(message.id || '', instruction)}
+                                                        onRegenerate={(instruction, overrides) => handleRegenerate(message.id || '', instruction, overrides)}
                                                         onEdit={(() => {
                                                             // Only the last user message can be edited
                                                             if (message.role !== 'user') return undefined;
