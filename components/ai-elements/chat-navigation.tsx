@@ -8,6 +8,7 @@ interface Message {
     id?: string;
     role: 'user' | 'assistant' | 'system';
     content: string;
+    parent_id?: string | null;
 }
 
 interface ChatScrollNavigationProps {
@@ -35,7 +36,7 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
     // Handle navigation only on user interaction
     const handleNavigationInfo = (id: string) => {
         userInteractionRef.current = true;
-        
+
         if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
         setIsHovered(true);
 
@@ -51,8 +52,8 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
 
         // Update URL with content fragment
         window.history.replaceState(
-            null, 
-            '', 
+            null,
+            '',
             `${window.location.pathname}${window.location.search}#content=${id}`
         );
     };
@@ -110,10 +111,10 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
         const handleHashChange = () => {
             const hash = window.location.hash;
             const match = hash.match(/content=([^&]*)/);
-            
+
             if (match?.[1]) {
                 const messageId = match[1];
-                
+
                 // If user hasn't interacted yet, just set activeId (don't open nav)
                 if (!userInteractionRef.current) {
                     const element = document.getElementById(`message-${messageId}`);
@@ -129,7 +130,7 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
                         // If element not found, wait for it to render
                         let frameCount = 0;
                         const maxFrames = 30; // ~500ms at 60fps
-                        
+
                         const checkForElement = () => {
                             frameCount++;
                             const el = document.getElementById(`message-${messageId}`);
@@ -142,7 +143,7 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
                                 rafRef.current = null;
                             }
                         };
-                        
+
                         rafRef.current = requestAnimationFrame(checkForElement);
                     }
                 }

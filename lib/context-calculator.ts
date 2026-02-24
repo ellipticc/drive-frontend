@@ -21,6 +21,7 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   toolCalls?: any[];
+  parent_id?: string | null;
 }
 
 // Model context window sizes (from provider specifications)

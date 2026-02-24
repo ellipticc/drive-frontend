@@ -76,6 +76,7 @@ export interface Message {
     tps?: number | string;
     total_time?: number | string;
     model?: string;
+    parent_id?: string | null;
 }
 
 interface ChatMessageProps {
@@ -435,25 +436,10 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                                             {parsed.text}
                                                         </div>
 
-                                                        {/* User Version navigation - visible on hover */}
-                                                        {versionCount > 1 && (
-                                                            <div className="absolute -left-20 top-1/2 -translate-y-1/2 opacity-0 group-hover/user-msg:opacity-100 transition-opacity flex items-center gap-1 text-[11px] text-muted-foreground font-mono bg-background/80 backdrop-blur-sm px-2 py-1 rounded-full border border-border shadow-sm">
-                                                                <button
-                                                                    onClick={() => onVersionChange?.('prev')}
-                                                                    className="hover:text-foreground disabled:opacity-30"
-                                                                    disabled={currentVersion <= 1}
-                                                                >
-                                                                    <IconChevronLeft className="size-3" />
-                                                                </button>
-                                                                <span>{currentVersion}/{versionCount}</span>
-                                                                <button
-                                                                    onClick={() => onVersionChange?.('next')}
-                                                                    className="hover:text-foreground disabled:opacity-30"
-                                                                    disabled={currentVersion >= versionCount}
-                                                                >
-                                                                    <IconChevronRight className="size-3" />
-                                                                </button>
-                                                            </div>
+                                                        {/* User Version navigation - moved to bottom */}
+                                                        {false && versionCount > 1 && (
+                                                            // Logic moved to bottom action row
+                                                            null
                                                         )}
 
                                                     </div>
@@ -568,6 +554,37 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
 
                                         <div className="flex items-center gap-1">
                                             {/* Only rendered when parent passes onEdit — enforced at the last user message level */}
+                                            {versionCount > 1 && (
+                                                <div className="flex items-center gap-1.5 mr-2 px-1.5 py-0.5 bg-muted/40 border border-border/40 rounded-lg text-[10px] font-mono text-muted-foreground/80">
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <button
+                                                                onClick={() => onVersionChange?.('prev')}
+                                                                className="hover:text-foreground disabled:opacity-30 transition-colors"
+                                                                disabled={currentVersion <= 1}
+                                                            >
+                                                                <IconChevronLeft className="size-3" />
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="bottom"><p>Previous version</p></TooltipContent>
+                                                    </Tooltip>
+
+                                                    <span className="min-w-[24px] text-center">{currentVersion}/{versionCount}</span>
+
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <button
+                                                                onClick={() => onVersionChange?.('next')}
+                                                                className="hover:text-foreground disabled:opacity-30 transition-colors"
+                                                                disabled={currentVersion >= versionCount}
+                                                            >
+                                                                <IconChevronRight className="size-3" />
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="bottom"><p>Next version</p></TooltipContent>
+                                                    </Tooltip>
+                                                </div>
+                                            )}
                                             {onEdit && (
                                                 <ActionButton
                                                     icon={IconEdit}
@@ -725,14 +742,14 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             </TooltipTrigger>
                                             <TooltipContent side="bottom"><p>Regenerate</p></TooltipContent>
                                         </Tooltip>
-                                        <DropdownMenuContent align="start" side="top" className="w-[280px] p-2 shadow-xl">
-                                            <div className="flex items-center gap-2 mb-2 px-1 pt-1">
+                                        <DropdownMenuContent align="start" side="top" className="w-[240px] p-1.5 shadow-xl border border-border/50">
+                                            <div className="flex items-center gap-1.5 mb-1.5 px-0.5">
                                                 <div className="relative flex-1">
                                                     <Input
                                                         value={regenInput}
                                                         onChange={(e) => setRegenInput(e.target.value)}
-                                                        placeholder="Ask to change response"
-                                                        className="h-9 text-[13px] bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-border rounded-lg pr-9"
+                                                        placeholder="Change response..."
+                                                        className="h-8 text-xs bg-muted/40 border-none focus-visible:ring-1 focus-visible:ring-border/40 rounded-md pr-8"
                                                         onKeyDown={(e) => {
                                                             if (e.key === 'Enter') {
                                                                 e.preventDefault();
@@ -742,42 +759,76 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                                     />
                                                     <Button
                                                         size="icon"
-                                                        className="absolute right-1 top-1 h-7 w-7 bg-foreground/10 hover:bg-foreground/20 text-foreground dark:bg-muted dark:hover:bg-muted/80 rounded-md transition-colors"
+                                                        className="absolute right-0.5 top-0.5 h-7 w-7 bg-foreground/5 hover:bg-foreground/10 text-foreground dark:bg-muted/40 dark:hover:bg-muted/60 rounded-sm transition-colors"
                                                         disabled={!regenInput.trim()}
                                                         onClick={() => handleRegenerateOption('custom')}
                                                     >
-                                                        <IconArrowUp className="size-4" />
+                                                        <IconArrowUp className="size-3.5" />
                                                     </Button>
                                                 </div>
                                             </div>
 
-                                            <DropdownMenuSeparator className="mx-1 my-1" />
+                                            <DropdownMenuSeparator className="mx-0.5 my-1 opacity-50" />
 
-                                            <div className="p-0.5 space-y-0.5">
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-[13px] cursor-pointer py-1.5 px-3 focus:bg-sidebar-accent/50 rounded-md">
-                                                    <IconRefresh className="mr-3 size-4 opacity-60" /> Retry
+                                            <div className="space-y-0.5">
+                                                {/* Version navigation for Assistant messages */}
+                                                {versionCount > 1 && (
+                                                    <div className="flex items-center justify-between px-2 py-1.5 text-[11px] font-mono text-muted-foreground/80 bg-muted/20 rounded-md mb-1 border border-border/30">
+                                                        <div className="flex items-center gap-2">
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <button
+                                                                        onClick={() => onVersionChange?.('prev')}
+                                                                        className="hover:text-foreground disabled:opacity-30 transition-colors p-0.5"
+                                                                        disabled={currentVersion <= 1}
+                                                                    >
+                                                                        <IconChevronLeft className="size-3.5" />
+                                                                    </button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="bottom"><p>Previous version</p></TooltipContent>
+                                                            </Tooltip>
+                                                            <span>{currentVersion} / {versionCount}</span>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <button
+                                                                        onClick={() => onVersionChange?.('next')}
+                                                                        className="hover:text-foreground disabled:opacity-30 transition-colors p-0.5"
+                                                                        disabled={currentVersion >= versionCount}
+                                                                    >
+                                                                        <IconChevronRight className="size-3.5" />
+                                                                    </button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="bottom"><p>Next version</p></TooltipContent>
+                                                            </Tooltip>
+                                                        </div>
+                                                        <span className="text-[10px] opacity-60">Versions</span>
+                                                    </div>
+                                                )}
+
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-xs cursor-pointer py-1 px-2 focus:bg-sidebar-accent/50 rounded-md">
+                                                    <IconRefresh className="mr-2 size-3.5 opacity-60" /> Retry
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('details')} className="text-[13px] cursor-pointer py-1.5 px-3 focus:bg-sidebar-accent/50 rounded-md">
-                                                    <IconListDetails className="mr-3 size-4 opacity-60" /> Add details
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('details')} className="text-xs cursor-pointer py-1 px-2 focus:bg-sidebar-accent/50 rounded-md">
+                                                    <IconListDetails className="mr-2 size-3.5 opacity-60" /> Add details
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('concise')} className="text-[13px] cursor-pointer py-1.5 px-3 focus:bg-sidebar-accent/50 rounded-md">
-                                                    <IconViewportShort className="mr-3 size-4 opacity-60" /> More concise
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('concise')} className="text-xs cursor-pointer py-1 px-2 focus:bg-sidebar-accent/50 rounded-md">
+                                                    <IconViewportShort className="mr-2 size-3.5 opacity-60" /> More concise
                                                 </DropdownMenuItem>
 
-                                                <DropdownMenuSeparator className="mx-1 my-1" />
+                                                <DropdownMenuSeparator className="mx-0.5 my-1 opacity-50" />
 
                                                 {!usedThinking && (
-                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-[13px] cursor-pointer py-1.5 px-3 focus:bg-sidebar-accent/50 rounded-md">
-                                                        <IconBulb className="mr-3 size-4 opacity-60" /> Think Longer
+                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-xs cursor-pointer py-1 px-2 focus:bg-sidebar-accent/50 rounded-md">
+                                                        <IconBulb className="mr-2 size-3.5 opacity-60" /> Think Longer
                                                     </DropdownMenuItem>
                                                 )}
                                                 {usedWebSearch ? (
-                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('no-search')} className="text-[13px] cursor-pointer py-1.5 px-3 focus:bg-sidebar-accent/50 rounded-md">
-                                                        <IconWorldOff className="mr-3 size-4 opacity-60" /> Don't search the web
+                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('no-search')} className="text-xs cursor-pointer py-1 px-2 focus:bg-sidebar-accent/50 rounded-md">
+                                                        <IconWorldOff className="mr-2 size-3.5 opacity-60" /> No web search
                                                     </DropdownMenuItem>
                                                 ) : (
-                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('search')} className="text-[13px] cursor-pointer py-1.5 px-3 focus:bg-sidebar-accent/50 rounded-md">
-                                                        <IconWorld className="mr-3 size-4 opacity-60" /> Search the web
+                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('search')} className="text-xs cursor-pointer py-1 px-2 focus:bg-sidebar-accent/50 rounded-md">
+                                                        <IconWorld className="mr-2 size-3.5 opacity-60" /> Search web
                                                     </DropdownMenuItem>
                                                 )}
                                             </div>

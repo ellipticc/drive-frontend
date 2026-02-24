@@ -241,38 +241,34 @@ export const H1: React.FC<{
   children?: React.ReactNode;
   className?: string;
 }> = ({ children, className }) => (
-  <div className="w-full mt-6 mb-3 first:mt-0 relative">
-    <h1
-      className={cn(
-        'text-2xl sm:text-3xl font-bold',
-        'text-foreground',
-        'pb-2 tracking-tight',
-        className
-      )}
-    >
-      {children}
-    </h1>
-    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 border-b border-border/40" />
-  </div>
+  <h1
+    className={cn(
+      'text-2xl sm:text-3xl font-bold',
+      'text-foreground',
+      'mt-10 mb-6 first:mt-0',
+      'tracking-tight',
+      className
+    )}
+  >
+    {children}
+  </h1>
 );
 
 export const H2: React.FC<{
   children?: React.ReactNode;
   className?: string;
 }> = ({ children, className }) => (
-  <div className="w-full mt-5 mb-2.5 relative">
-    <h2
-      className={cn(
-        'text-xl sm:text-2xl font-bold',
-        'text-foreground',
-        'pb-1.5 tracking-tight',
-        className
-      )}
-    >
-      {children}
-    </h2>
-    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 border-b border-border/30" />
-  </div>
+  <h2
+    className={cn(
+      'text-xl sm:text-2xl font-bold',
+      'text-foreground',
+      'mt-8 mb-5',
+      'tracking-tight',
+      className
+    )}
+  >
+    {children}
+  </h2>
 );
 
 export const H3: React.FC<{

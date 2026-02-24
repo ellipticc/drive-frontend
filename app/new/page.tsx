@@ -88,6 +88,7 @@ interface Message {
     tps?: number | string;
     total_time?: number | string;
     model?: string;
+    parent_id?: string | null;
 }
 
 
@@ -527,7 +528,7 @@ export default function AssistantPage() {
         };
     }, [conversationId, pagination.hasMore, pagination.offset, pagination.limit]);
 
-    const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, searchMode: boolean = false) => {
+    const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, searchMode: boolean = false, parentIdOverwrite?: string | null) => {
         if (!value.trim() && attachments.length === 0 && contextItems.length === 0) return;
 
         if (!isReady || !kyberPublicKey) {
@@ -678,7 +679,7 @@ export default function AssistantPage() {
                 encryptedUserMessage,
                 isWebSearchEnabled, // webSearch
                 thinkingMode,
-                trimmedMessages[trimmedMessages.length - 1]?.id || null, // parentId
+                parentIdOverwrite !== undefined ? parentIdOverwrite : (trimmedMessages[trimmedMessages.length - 1]?.id || null),
                 controller.signal,
                 optimisticUserMessage.id,
                 assistantMessageId
@@ -1591,12 +1592,13 @@ export default function AssistantPage() {
             return;
         }
 
-        // Remove the edited message and everything after it (will re-add optimistic message via handleSubmit)
-        // This avoids duplicate user messages in the thread
-        setMessages(prev => prev.slice(0, targetIdx));
+        // Get the parent ID of the target message to ensure we branch correctly
+        // We look at our existing state (which reflects what's in the DB/local state)
+        // If it's a legacy message repaired by getLinearBranch, it might have a virtual parent_id
+        const parentId = oldMessage.parent_id || null;
 
-        // Re-submit with edited content (this will add a new optimistic user message)
-        handleSubmit(trimmed, []);
+        // Re-submit with edited content and explicit parentId to trigger sibling branching
+        handleSubmit(trimmed, [], false, false, parentId);
     };
 
     const handleCopy = (content: string) => {
