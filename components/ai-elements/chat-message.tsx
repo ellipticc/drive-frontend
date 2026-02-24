@@ -652,53 +652,62 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             </TooltipTrigger>
                                             <TooltipContent side="bottom"><p>Regenerate</p></TooltipContent>
                                         </Tooltip>
-                                        <DropdownMenuContent align="start" side="top" className="w-64 p-2">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Input
-                                                    value={regenInput}
-                                                    onChange={(e) => setRegenInput(e.target.value)}
-                                                    placeholder="Quick instruction..."
-                                                    className="h-8 text-xs"
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            if (regenInput.trim()) handleRegenerateOption('custom');
-                                                        }
-                                                    }}
-                                                />
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    className="h-8 w-8 shrink-0 bg-primary/10 hover:bg-primary/20 text-primary"
-                                                    disabled={!regenInput.trim()}
-                                                    onClick={() => handleRegenerateOption('custom')}
-                                                >
-                                                    <IconArrowRight className="size-3.5" />
-                                                </Button>
+                                        <DropdownMenuContent align="start" side="top" className="w-80 p-3 shadow-xl border-border/50">
+                                            <div className="px-2 pb-2 mb-2 flex items-center justify-between border-b border-border/40">
+                                                <span className="text-[13px] font-semibold text-foreground/90">Ask to change response</span>
+                                                <IconArrowRight className="size-3.5 text-muted-foreground/50" />
                                             </div>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-xs cursor-pointer py-1.5 focus:bg-sidebar-accent/30">
-                                                <IconRefresh className="mr-2 size-3.5" /> Retry
+
+                                            <div className="flex items-center gap-2 mb-3 px-1">
+                                                <div className="relative flex-1">
+                                                    <Input
+                                                        value={regenInput}
+                                                        onChange={(e) => setRegenInput(e.target.value)}
+                                                        placeholder="Quick instruction..."
+                                                        className="h-9 text-[13px] bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-border rounded-lg pr-9"
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                if (regenInput.trim()) handleRegenerateOption('custom');
+                                                            }
+                                                        }}
+                                                    />
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="absolute right-1 top-1 h-7 w-7 text-muted-foreground hover:text-foreground transition-colors"
+                                                        disabled={!regenInput.trim()}
+                                                        onClick={() => handleRegenerateOption('custom')}
+                                                    >
+                                                        <IconArrowRight className="size-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-lg">
+                                                <IconRefresh className="mr-3 size-4 opacity-70" /> Retry
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleRegenerateOption('details')} className="text-xs cursor-pointer py-1.5 focus:bg-sidebar-accent/30">
-                                                <IconListDetails className="mr-2 size-3.5" /> Add details
+                                            <DropdownMenuItem onClick={() => handleRegenerateOption('details')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-lg">
+                                                <IconListDetails className="mr-3 size-4 opacity-70" /> Add details
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleRegenerateOption('concise')} className="text-xs cursor-pointer py-1.5 focus:bg-sidebar-accent/30">
-                                                <IconViewportShort className="mr-2 size-3.5" /> More concise
+                                            <DropdownMenuItem onClick={() => handleRegenerateOption('concise')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-lg">
+                                                <IconViewportShort className="mr-3 size-4 opacity-70" /> More concise
                                             </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
+
+                                            <DropdownMenuSeparator className="my-2 opacity-50" />
+
                                             {!usedThinking && (
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-xs cursor-pointer py-1.5 focus:bg-sidebar-accent/30 text-emerald-600 dark:text-emerald-400">
-                                                    <IconBulb className="mr-2 size-3.5" /> Think Longer
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-lg">
+                                                    <IconBulb className="mr-3 size-4 opacity-70" /> Think Longer
                                                 </DropdownMenuItem>
                                             )}
                                             {usedWebSearch ? (
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('no-search')} className="text-xs cursor-pointer py-1.5 focus:bg-sidebar-accent/30 text-amber-600 dark:text-amber-400">
-                                                    <IconWorldOff className="mr-2 size-3.5" /> Don't search web
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('no-search')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-lg">
+                                                    <IconWorldOff className="mr-3 size-4 opacity-70" /> Don't search the web
                                                 </DropdownMenuItem>
                                             ) : (
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('search')} className="text-xs cursor-pointer py-1.5 focus:bg-sidebar-accent/30 text-blue-600 dark:text-blue-400">
-                                                    <IconWorld className="mr-2 size-3.5" /> Search web
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('search')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-lg">
+                                                    <IconWorld className="mr-3 size-4 opacity-70" /> Search the web
                                                 </DropdownMenuItem>
                                             )}
                                         </DropdownMenuContent>

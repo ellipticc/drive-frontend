@@ -2,12 +2,11 @@
 
 import * as React from "react"
 import { useUser } from "@/components/user-context"
-import { IconPlus, IconChevronLeft, IconMessage, IconSettings, IconFolder, IconSearch, IconChevronRight, IconMenu, IconX, IconEdit, IconTrash, IconChevronDown, IconPin, IconPinFilled, IconDownload, IconPencil, IconArrowDown, IconRotateClockwise, IconBookmark, IconCaretLeftRightFilled } from "@tabler/icons-react";
+import { IconEdit, IconTrash, IconChevronDown, IconPin, IconPinFilled, IconDownload, IconPencil, IconArrowDown, IconRotateClockwise, IconBookmark, IconCaretLeftRightFilled } from "@tabler/icons-react";
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
 
 import { Skeleton } from "@/components/ui/skeleton"
-import { IconLoader2 } from "@tabler/icons-react"
 // Import AI Elements
 import {
     DropdownMenu,
