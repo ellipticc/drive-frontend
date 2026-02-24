@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconFileText, IconThumbUp, IconCheck, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowRight, IconHandStop, IconBulb, IconWorld, IconWorldOff, IconBulbFilled, IconViewportShort } from "@tabler/icons-react"
+import { IconCopy, IconEdit, IconRefresh, IconThumbDown, IconFileText, IconThumbUp, IconCheck, IconChevronRight, IconDownload, IconChevronLeft, IconListDetails, IconArrowRight, IconHandStop, IconBulb, IconWorld, IconWorldOff, IconBulbFilled, IconViewportShort, IconThumbUpFilled, IconThumbDownFilled } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
@@ -613,7 +613,11 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                                 className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'like' ? "text-foreground bg-sidebar-accent/40" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
                                                 onClick={() => handleFeedback('like')}
                                             >
-                                                <IconThumbUp className={cn("size-3.5", feedbackGiven && message.feedback === 'like' && "fill-foreground/20")} />
+                                                {feedbackGiven && message.feedback === 'like' ? (
+                                                    <IconThumbUpFilled className="size-3.5" />
+                                                ) : (
+                                                    <IconThumbUp className="size-3.5" />
+                                                )}
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent side="bottom">
@@ -628,7 +632,11 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                                 className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && message.feedback === 'dislike' ? "text-foreground bg-sidebar-accent/40" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
                                                 onClick={() => handleFeedback('dislike')}
                                             >
-                                                <IconThumbDown className={cn("size-3.5", feedbackGiven && message.feedback === 'dislike' && "fill-foreground/20")} />
+                                                {feedbackGiven && message.feedback === 'dislike' ? (
+                                                    <IconThumbDownFilled className="size-3.5" />
+                                                ) : (
+                                                    <IconThumbDown className="size-3.5" />
+                                                )}
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent side="bottom">
