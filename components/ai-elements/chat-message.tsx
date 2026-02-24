@@ -346,6 +346,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                         <Button
                                             size="sm"
                                             onClick={handleEditPromptSubmit}
+                                            disabled={!editContent.trim() || editContent.trim() === parseUserContent(message.content).text.trim()}
                                         >
                                             Send
                                         </Button>
