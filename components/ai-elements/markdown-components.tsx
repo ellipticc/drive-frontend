@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
-import { IconCopy, IconCheck, IconMaximize, IconCode } from '@tabler/icons-react';
+import { IconCopy, IconCheck, IconCode } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { highlightCode } from '@/lib/shiki-highlighter';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 
 /**
  * CodeBlock Component
@@ -548,7 +548,7 @@ export const HorizontalRule: React.FC<{
 }> = ({ className }) => (
   <hr
     className={cn(
-      'w-full my-6 border-0 border-t border-border/60',
+      'w-4/5 mx-auto my-8 border-0 border-t border-border/50',
       className
     )}
   />

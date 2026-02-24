@@ -345,10 +345,29 @@ export function useAICrypto(): UseAICryptoReturn {
     };
 
     const getLinearBranch = useCallback((messages: any[], targetLeafId?: string) => {
-        const map = new Map<string | null, any[]>();
+        // Sort messages by creation date to ensure we have a chronological sequence
+        const sortedMessages = [...messages].sort((a, b) =>
+            new Date(a.createdAt || a.created_at).getTime() - new Date(b.createdAt || b.created_at).getTime()
+        );
+
         const mById = new Map<string, any>();
-        messages.forEach(m => {
-            mById.set(m.id, m);
+        sortedMessages.forEach(m => mById.set(m.id, m));
+
+        // Lineage Repair: If ALL previous messages did not have parentId, we need to link them
+        // into a chain logically based on timestamps to prevent them being treated as independent roots.
+        const repairedMessages = sortedMessages.map((m, idx) => {
+            // If the message has no parent_id and it's not the first message, link it to the previous one
+            if (!m.parent_id && idx > 0) {
+                return { ...m, parent_id: sortedMessages[idx - 1].id, _repaired: true };
+            }
+            return m;
+        });
+
+        // Re-build maps with repaired lineage
+        const map = new Map<string | null, any[]>();
+        const repairedById = new Map<string, any>();
+        repairedMessages.forEach(m => {
+            repairedById.set(m.id, m);
             const pid = m.parent_id || null;
             if (!map.has(pid)) map.set(pid, []);
             map.get(pid)!.push(m);
@@ -359,7 +378,7 @@ export function useAICrypto(): UseAICryptoReturn {
             let curr: string | null = targetLeafId;
             while (curr) {
                 pathIds.add(curr);
-                curr = mById.get(curr)?.parent_id || null;
+                curr = repairedById.get(curr)?.parent_id || null;
             }
         }
 
@@ -367,13 +386,20 @@ export function useAICrypto(): UseAICryptoReturn {
         const follow = (parentId: string | null) => {
             const kids = map.get(parentId) || [];
             if (kids.length === 0) return;
+
+            // Sort children by date just in case
             kids.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-            const picked = targetLeafId ? (kids.find(k => pathIds.has(k.id)) || kids[kids.length - 1]) : kids[kids.length - 1];
+
+            const picked = targetLeafId
+                ? (kids.find(k => pathIds.has(k.id)) || kids[kids.length - 1])
+                : kids[kids.length - 1];
+
             const versions = kids.map(m => ({
                 id: m.id, content: m.content, toolCalls: m.toolCalls, feedback: m.feedback,
                 createdAt: m.createdAt, total_time: m.total_time, ttft: m.ttft, tps: m.tps,
                 model: m.model, suggestions: m.suggestions, sources: m.sources, reasoning: m.reasoning, reasoningDuration: m.reasoningDuration
             }));
+
             const base = { ...picked };
             if (versions.length > 1) {
                 base.versions = versions;
@@ -382,6 +408,7 @@ export function useAICrypto(): UseAICryptoReturn {
             branch.push(base);
             follow(base.id);
         };
+
         follow(null);
         return branch;
     }, []);
