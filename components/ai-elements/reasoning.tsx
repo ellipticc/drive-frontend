@@ -13,7 +13,7 @@ import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
-import { IconBrain, IconChevronDown, IconChevronRight, IconBulb } from "@tabler/icons-react";
+import { IconChevronDown, IconChevronRight, IconBulb, IconBulbFilled } from "@tabler/icons-react";
 import {
   createContext,
   memo,
@@ -218,7 +218,11 @@ export const ReasoningTrigger = memo(
         {children ?? (
           <div className="flex gap-2 items-center">
             <div className="relative flex items-center">
-              <IconBrain className="size-4" />
+              {isStreaming ? (
+                <IconBulb className="size-4" />
+              ) : (
+                <IconBulbFilled className="size-4" />
+              )}
               {isOpen && <div className="absolute top-5 bottom-0 left-1/2 -mx-px w-px bg-border" />}
             </div>
             <div className="flex-1">

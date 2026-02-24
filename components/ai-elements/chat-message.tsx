@@ -9,7 +9,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Reasoning, ReasoningTrigger, ReasoningContent, detectThinkingTagType } from "@/components/ai-elements/reasoning"
 import {
@@ -652,19 +652,18 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             </TooltipTrigger>
                                             <TooltipContent side="bottom"><p>Regenerate</p></TooltipContent>
                                         </Tooltip>
-                                        <DropdownMenuContent align="start" side="top" className="w-80 p-3 shadow-xl border-border/50">
-                                            <div className="px-2 pb-2 mb-2 flex items-center justify-between border-b border-border/40">
-                                                <span className="text-[13px] font-semibold text-foreground/90">Ask to change response</span>
-                                                <IconArrowRight className="size-3.5 text-muted-foreground/50" />
-                                            </div>
+                                        <DropdownMenuContent align="start" side="top" className="w-80 p-2 shadow-xl">
+                                            <DropdownMenuLabel className="px-3 pt-2 pb-1 text-[13px] font-semibold text-foreground/80">
+                                                Ask to change response
+                                            </DropdownMenuLabel>
 
-                                            <div className="flex items-center gap-2 mb-3 px-1">
+                                            <div className="flex items-center gap-2 mb-3 px-2 pt-1">
                                                 <div className="relative flex-1">
                                                     <Input
                                                         value={regenInput}
                                                         onChange={(e) => setRegenInput(e.target.value)}
                                                         placeholder="Quick instruction..."
-                                                        className="h-9 text-[13px] bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-border rounded-lg pr-9"
+                                                        className="h-9 text-[13px] bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-border rounded-lg pr-9"
                                                         onKeyDown={(e) => {
                                                             if (e.key === 'Enter') {
                                                                 e.preventDefault();
@@ -684,32 +683,36 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                                 </div>
                                             </div>
 
-                                            <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-lg">
-                                                <IconRefresh className="mr-3 size-4 opacity-70" /> Retry
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleRegenerateOption('details')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-lg">
-                                                <IconListDetails className="mr-3 size-4 opacity-70" /> Add details
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleRegenerateOption('concise')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-lg">
-                                                <IconViewportShort className="mr-3 size-4 opacity-70" /> More concise
-                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator className="mx-1 my-1" />
 
-                                            <DropdownMenuSeparator className="my-2 opacity-50" />
+                                            <div className="p-1 space-y-0.5">
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-md">
+                                                    <IconRefresh className="mr-3 size-4 opacity-60" /> Retry
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('details')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-md">
+                                                    <IconListDetails className="mr-3 size-4 opacity-60" /> Add details
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('concise')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-md">
+                                                    <IconViewportShort className="mr-3 size-4 opacity-60" /> More concise
+                                                </DropdownMenuItem>
 
-                                            {!usedThinking && (
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-lg">
-                                                    <IconBulb className="mr-3 size-4 opacity-70" /> Think Longer
-                                                </DropdownMenuItem>
-                                            )}
-                                            {usedWebSearch ? (
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('no-search')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-lg">
-                                                    <IconWorldOff className="mr-3 size-4 opacity-70" /> Don't search the web
-                                                </DropdownMenuItem>
-                                            ) : (
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('search')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-lg">
-                                                    <IconWorld className="mr-3 size-4 opacity-70" /> Search the web
-                                                </DropdownMenuItem>
-                                            )}
+                                                <DropdownMenuSeparator className="mx-1 my-1" />
+
+                                                {!usedThinking && (
+                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-md">
+                                                        <IconBulb className="mr-3 size-4 opacity-60" /> Think Longer
+                                                    </DropdownMenuItem>
+                                                )}
+                                                {usedWebSearch ? (
+                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('no-search')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-md">
+                                                        <IconWorldOff className="mr-3 size-4 opacity-60" /> Don't search the web
+                                                    </DropdownMenuItem>
+                                                ) : (
+                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('search')} className="text-[13px] cursor-pointer py-2 px-3 focus:bg-sidebar-accent/50 rounded-md">
+                                                        <IconWorld className="mr-3 size-4 opacity-60" /> Search the web
+                                                    </DropdownMenuItem>
+                                                )}
+                                            </div>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
 
