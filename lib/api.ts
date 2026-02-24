@@ -3172,53 +3172,6 @@ class ApiClient {
     });
   }
 
-  async saveAIChatMessage(
-    conversationId: string,
-    role: 'user' | 'assistant' | 'system',
-    model: string,
-    encrypted_content: string,
-    iv: string
-  ): Promise<Response> {
-    const endpoint = '/ai/message';
-    const authHeaders = await this.getAuthHeaders(endpoint, 'POST');
-
-    return fetch(`${this.baseURL}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders,
-      },
-      body: JSON.stringify({
-        conversationId,
-        model,
-        role,
-        encrypted_content,
-        iv,
-      }),
-    });
-  }
-  async updateAIChatMessage(
-    messageId: string,
-    updates: {
-      encrypted_content?: string;
-      iv?: string;
-      encapsulated_key?: string;
-      reasoning?: string;
-      reasoning_iv?: string;
-    }
-  ): Promise<Response> {
-    const endpoint = `/ai/messages/${messageId}`;
-    const authHeaders = await this.getAuthHeaders(endpoint, 'PATCH');
-
-    return fetch(`${this.baseURL}${endpoint}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders,
-      },
-      body: JSON.stringify(updates),
-    });
-  }
 
 
 

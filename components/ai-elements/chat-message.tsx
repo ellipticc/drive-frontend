@@ -393,21 +393,29 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             autoFocus
                                         />
                                     </div>
-                                    <div className="flex gap-2 justify-end mt-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => setIsEditingPrompt(false)}
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            onClick={handleEditPromptSubmit}
-                                            disabled={!editContent.trim() || editContent.trim() === parseUserContent(message.content).text.trim()}
-                                        >
-                                            Send
-                                        </Button>
+                                    <div className="flex items-center justify-between mt-2">
+                                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground select-none">
+                                            <IconBulb className="size-3.5 text-amber-500/80" />
+                                            <span>Editing will start a new branch. Navigation is possible via arrows.</span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => setIsEditingPrompt(false)}
+                                                className="h-8 px-3 text-xs"
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                onClick={handleEditPromptSubmit}
+                                                disabled={!editContent.trim() || editContent.trim() === (message.content ?? '').trim()}
+                                                className="h-8 px-4 text-xs font-semibold bg-primary hover:bg-primary/90"
+                                            >
+                                                Send
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
@@ -419,11 +427,45 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             <div className="flex flex-col gap-2 w-full items-end">
                                                 {/* Message bubble */}
                                                 {parsed.text && (
-                                                    <div className={cn(
-                                                        "px-4 py-3 rounded-2xl text-[15px] leading-relaxed shadow-sm font-medium w-fit selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap",
-                                                        "bg-primary text-primary-foreground"
-                                                    )}>
-                                                        {parsed.text}
+                                                    <div className="relative group/user-msg w-fit max-w-full">
+                                                        <div className={cn(
+                                                            "px-4 py-3 rounded-2xl text-[15px] leading-relaxed shadow-sm font-medium w-fit selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap",
+                                                            "bg-primary text-primary-foreground"
+                                                        )}>
+                                                            {parsed.text}
+                                                        </div>
+
+                                                        {/* User Version navigation - visible on hover */}
+                                                        {versionCount > 1 && (
+                                                            <div className="absolute -left-20 top-1/2 -translate-y-1/2 opacity-0 group-hover/user-msg:opacity-100 transition-opacity flex items-center gap-1 text-[11px] text-muted-foreground font-mono bg-background/80 backdrop-blur-sm px-2 py-1 rounded-full border border-border shadow-sm">
+                                                                <button
+                                                                    onClick={() => onVersionChange?.('prev')}
+                                                                    className="hover:text-foreground disabled:opacity-30"
+                                                                    disabled={currentVersion <= 1}
+                                                                >
+                                                                    <IconChevronLeft className="size-3" />
+                                                                </button>
+                                                                <span>{currentVersion}/{versionCount}</span>
+                                                                <button
+                                                                    onClick={() => onVersionChange?.('next')}
+                                                                    className="hover:text-foreground disabled:opacity-30"
+                                                                    disabled={currentVersion >= versionCount}
+                                                                >
+                                                                    <IconChevronRight className="size-3" />
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Action buttons shown on hover far left to avoid content overlap */}
+                                                        <div className="absolute -left-12 bottom-0 opacity-0 group-hover/user-msg:opacity-100 transition-opacity flex gap-0.5 pointer-events-auto">
+                                                            <ActionButton
+                                                                icon={IconEdit}
+                                                                label="Edit message"
+                                                                onClick={() => { setEditContent(parsed.text); setIsEditingPrompt(true); }}
+                                                                delayDuration={0}
+                                                            />
+                                                            <ActionButton icon={IconCopy} label="Copy text" onClick={handleCopy} delayDuration={0} />
+                                                        </div>
                                                     </div>
                                                 )}
 
@@ -896,7 +938,7 @@ function ActionButton({ icon: Icon, label, onClick, className, delayDuration }: 
         <TooltipProvider>
             <Tooltip delayDuration={delayDuration}>
                 <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className={cn("h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors", className)} onClick={onClick}>
+                    <Button variant="ghost" size="icon" className={cn("h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50 rounded-md transition-colors", className)} onClick={onClick}>
                         <Icon className="size-3.5" />
                     </Button>
                 </TooltipTrigger>

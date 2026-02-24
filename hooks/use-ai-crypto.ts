@@ -454,69 +454,57 @@ export function useAICrypto(): UseAICryptoReturn {
                 }
             }));
 
-            // Group consecutive assistant messages into versions
-            const grouped = decrypted.reduce((acc: any[], curr: any) => {
-                if (curr.role === 'assistant' && acc.length > 0) {
-                    const prev = acc[acc.length - 1];
-                    if (prev.role === 'assistant') {
-                        // Initialize versions if not already existing on prev obj
-                        if (!prev.versions) {
-                            prev.versions = [{
-                                id: prev.id,
-                                content: prev.content,
-                                toolCalls: prev.toolCalls,
-                                feedback: prev.feedback,
-                                createdAt: prev.createdAt,
-                                total_time: prev.total_time,
-                                ttft: prev.ttft,
-                                tps: prev.tps,
-                                model: prev.model,
-                                suggestions: prev.suggestions,
-                                sources: prev.sources,
-                                reasoning: prev.reasoning,
-                                reasoningDuration: prev.reasoningDuration
-                            }];
-                            prev.currentVersionIndex = 0;
-                        }
-                        // Add the newer message as a version
-                        prev.versions.push({
-                            id: curr.id,
-                            content: curr.content,
-                            toolCalls: curr.toolCalls,
-                            feedback: curr.feedback,
-                            createdAt: curr.createdAt,
-                            total_time: curr.total_time,
-                            ttft: curr.ttft,
-                            tps: curr.tps,
-                            model: curr.model,
-                            suggestions: curr.suggestions,
-                            sources: curr.sources,
-                            reasoning: curr.reasoning,
-                            reasoningDuration: curr.reasoningDuration
-                        });
-                        // Update the active display to the newest version
-                        prev.id = curr.id;
-                        prev.content = curr.content;
-                        prev.toolCalls = curr.toolCalls;
-                        prev.feedback = curr.feedback;
-                        prev.createdAt = curr.createdAt;
-                        prev.total_time = curr.total_time;
-                        prev.ttft = curr.ttft;
-                        prev.tps = curr.tps;
-                        prev.model = curr.model;
-                        prev.suggestions = curr.suggestions;
-                        prev.sources = curr.sources;
-                        prev.reasoning = curr.reasoning;
-                        prev.reasoningDuration = curr.reasoningDuration;
-                        prev.currentVersionIndex = prev.versions.length - 1;
-                        return acc;
-                    }
+            // NEW: Build a conversation tree using parent_id
+            const treeMap = new Map<string | null, any[]>();
+            decrypted.forEach(msg => {
+                const parentId = msg.parent_id || null;
+                if (!treeMap.has(parentId)) {
+                    treeMap.set(parentId, []);
                 }
-                acc.push(curr);
-                return acc;
-            }, []);
+                treeMap.get(parentId)!.push(msg);
+            });
 
-            return grouped;
+            const result: any[] = [];
+
+            // Reconstruct the thread starting from the root (parent_id = null)
+            const buildChain = (currentParentId: string | null) => {
+                const kids = treeMap.get(currentParentId) || [];
+                if (kids.length === 0) return;
+
+                // Sort children chronologically
+                kids.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+                // Group siblings (children of the same parent) as versions
+                const versions = kids.map(m => ({
+                    id: m.id,
+                    content: m.content,
+                    toolCalls: m.toolCalls,
+                    feedback: m.feedback,
+                    createdAt: m.createdAt,
+                    total_time: m.total_time,
+                    ttft: m.ttft,
+                    tps: m.tps,
+                    model: m.model,
+                    suggestions: m.suggestions,
+                    sources: m.sources,
+                    reasoning: m.reasoning,
+                    reasoningDuration: m.reasoningDuration
+                }));
+
+                const base = { ...kids[kids.length - 1] }; // Default to latest version
+                if (versions.length > 1) {
+                    base.versions = versions;
+                    base.currentVersionIndex = versions.length - 1;
+                }
+
+                result.push(base);
+
+                // Recursively follow the latest version's children
+                buildChain(base.id);
+            };
+
+            buildChain(null);
+            return result;
         } catch (err) {
             console.error("Failed to fetch/decrypt history:", err);
             throw err;
