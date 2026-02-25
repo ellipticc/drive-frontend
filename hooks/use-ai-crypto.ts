@@ -466,6 +466,23 @@ export function useAICrypto(): UseAICryptoReturn {
 
                         const { content: cleanContent, reasoning: parsedReasoning } = parseThinkingFromContent(decryptedContent, decryptedReasoning);
 
+                        let decryptedCitations: any[] | undefined;
+                        if (msg.citations && msg.citations_iv) {
+                            try {
+                                const citationsDecryptedBytes = decryptData(msg.citations, sharedSecret, msg.citations_iv);
+                                const citationsJson = new TextDecoder().decode(citationsDecryptedBytes);
+                                decryptedCitations = JSON.parse(citationsJson);
+                            } catch (e) {
+                                console.warn("Failed to decrypt citations:", msg.id, e);
+                            }
+                        } else if (msg.citations) {
+                            try {
+                                decryptedCitations = typeof msg.citations === 'string' ? JSON.parse(msg.citations) : msg.citations;
+                            } catch {
+                                decryptedCitations = [];
+                            }
+                        }
+
                         let suggestions: string[] | undefined;
                         if (msg.suggestions) {
                             try {
@@ -487,7 +504,7 @@ export function useAICrypto(): UseAICryptoReturn {
 
                         return {
                             ...msg,
-                            role: msg.role,
+                            role: msg.role as any,
                             content: cleanContent,
                             reasoning: parsedReasoning,
                             reasoningDuration: msg.reasoning_duration,
@@ -496,7 +513,7 @@ export function useAICrypto(): UseAICryptoReturn {
                             ttft: msg.ttft,
                             tps: msg.tps,
                             model: msg.model,
-                            sources: msg.sources,
+                            sources: decryptedCitations || msg.sources,
                             feedback: msg.feedback as 'like' | 'dislike' | undefined,
                             createdAt: msg.created_at || msg.createdAt,
                         };
