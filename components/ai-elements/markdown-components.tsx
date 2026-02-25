@@ -243,7 +243,7 @@ export const H1: React.FC<{
 }> = ({ children, className }) => (
   <h1
     className={cn(
-      'text-3xl sm:text-4xl font-bold',
+      'text-4xl sm:text-5xl font-bold',
       'text-foreground',
       'mt-10 mb-6 first:mt-0',
       'tracking-tight',
@@ -260,7 +260,7 @@ export const H2: React.FC<{
 }> = ({ children, className }) => (
   <h2
     className={cn(
-      'text-2xl sm:text-3xl font-bold',
+      'text-3xl sm:text-4xl font-bold',
       'text-foreground',
       'mt-8 mb-4',
       'tracking-tight',
@@ -277,7 +277,7 @@ export const H3: React.FC<{
 }> = ({ children, className }) => (
   <h3
     className={cn(
-      'text-xl sm:text-2xl font-bold',
+      'text-lg sm:text-xl font-bold',
       'text-foreground',
       'mt-6 mb-3',
       'tracking-tight',
@@ -294,7 +294,7 @@ export const H4: React.FC<{
 }> = ({ children, className }) => (
   <h4
     className={cn(
-      'text-lg sm:text-xl font-bold',
+      'text-base sm:text-lg font-bold',
       'text-foreground',
       'mt-4 mb-2',
       'tracking-tight',
@@ -311,7 +311,7 @@ export const H5: React.FC<{
 }> = ({ children, className }) => (
   <h5
     className={cn(
-      'text-base font-bold',
+      'text-sm sm:text-base font-bold',
       'text-foreground',
       'mt-3 mb-1.5',
       className
@@ -327,10 +327,10 @@ export const H6: React.FC<{
 }> = ({ children, className }) => (
   <h6
     className={cn(
-      'text-xs font-bold uppercase',
+      'text-xs sm:text-sm font-bold uppercase',
       'text-muted-foreground',
-      'mt-2 mb-1',
-      'tracking-wide',
+      'mt-2.5 mb-1',
+      'tracking-widest',
       className
     )}
   >
