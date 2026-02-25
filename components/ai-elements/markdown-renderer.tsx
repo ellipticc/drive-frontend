@@ -109,20 +109,7 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     mathBlocks.forEach((block, idx) => {
       normalized = normalized.replace(placeholder + idx + '\u0000', block);
     });
-
-    // Setext heading detection
-    normalized = normalized.replace(
-      /^([^\n]+)\n[ \t]*={3,}[ \t]*$/gm,
-      (_, headingText) => `# ${headingText.trim()}`
-    );
-    normalized = normalized.replace(
-      /^([^\n]+)\n[ \t]*-{3,}[ \t]*$/gm,
-      (_, headingText) => `## ${headingText.trim()}`
-    );
-
-    // Normalize
-    normalized = normalized.replace(/^\s*={3,}\s*$/gm, '\n\n---\n\n');
-    normalized = normalized.replace(/^\s*-{3,}\s*$/gm, '\n\n---\n\n');
+    normalized = normalized.replace(/^([ \t]*[=-]{3,}[ \t]*)$/gm, '\n\n---\n\n');
 
     return normalized;
   }, [content]);

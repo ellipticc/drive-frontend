@@ -578,6 +578,11 @@ export default function AssistantPage() {
                 createdAt: Date.now(),
             };
             setMessages(prev => [...prev, optimisticUserMessage, { id: assistantMessageId, role: 'assistant', content: '', isThinking: true, reasoning: '', model }]);
+
+            // Update chat timestamp immediately for sorting
+            if (conversationId) {
+                updateChatTimestamp(conversationId, new Date().toISOString());
+            }
         } else {
             // Instant update for edits
             setMessages(prev => {
@@ -760,6 +765,10 @@ export default function AssistantPage() {
 
                 // Refresh sidebar list
                 loadChats();
+                updateChatTimestamp(newConversationId, new Date().toISOString());
+            } else if (conversationId) {
+                // Also update for existing chats if we haven't already
+                updateChatTimestamp(conversationId, new Date().toISOString());
             }
 
             if (!response.body) throw new Error('No response body')

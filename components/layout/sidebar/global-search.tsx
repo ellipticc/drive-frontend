@@ -283,7 +283,7 @@ export function GlobalSearch({
     const searchParams = useSearchParams()
     const currentConversationId = searchParams.get("conversationId")
 
-    const { chats, renameChat, deleteChat, decryptHistory } = useAICrypto()
+    const { chats, renameChat, deleteChat, decryptHistory, getLinearBranch } = useAICrypto()
 
     //  Modal state 
     const [editingChat, setEditingChat] = React.useState<ChatType | null>(null)
@@ -311,6 +311,7 @@ export function GlobalSearch({
 
     //  Preview messages 
     const [previewMessages, setPreviewMessages] = React.useState<Message[]>([])
+    const [fullHistory, setFullHistory] = React.useState<Message[]>([])
     const [previewLoading, setPreviewLoading] = React.useState(false)
     const scrollRef = React.useRef<HTMLDivElement>(null)
 
@@ -373,12 +374,17 @@ export function GlobalSearch({
         decryptHistory(previewConversationId)
             .then(result => {
                 if (cancelled) return
-                const msgs = (result as any).messages
+                const history = (result as any).fullHistory || []
+                const helper = (result as any).getLinearBranch
+
+                setFullHistory(history)
+                const branch = helper(history)
+                setPreviewMessages(branch)
+
                 previewCacheRef.current.set(previewConversationId, {
-                    messages: msgs,
+                    messages: branch,
                     fetchedAt: Date.now(),
                 })
-                setPreviewMessages(msgs)
                 setPreviewLoading(false)
             })
             .catch(err => {
@@ -653,6 +659,16 @@ export function GlobalSearch({
                                                                                     onCopy={() => { }}
                                                                                     onFeedback={() => { }}
                                                                                     onRegenerate={() => { }}
+                                                                                    onVersionChange={(dir) => {
+                                                                                        const currentIdx = msg.currentVersionIndex || 0;
+                                                                                        const versionCount = msg.versions?.length || 0;
+                                                                                        let nextIdx = dir === 'next' ? currentIdx + 1 : currentIdx - 1;
+                                                                                        if (nextIdx >= 0 && nextIdx < versionCount) {
+                                                                                            const nextVersion = msg.versions![nextIdx];
+                                                                                            const branch = getLinearBranch(fullHistory, nextVersion.id);
+                                                                                            setPreviewMessages(branch);
+                                                                                        }
+                                                                                    }}
                                                                                 />
                                                                             </div>
                                                                         ) : (

@@ -532,8 +532,11 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                     })()}
 
                                     {/* Actions Row - Below message */}
-                                    <div className="flex items-center justify-between w-full mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none">
-                                        <div className="flex items-center gap-3">
+                                    <div className={cn(
+                                        "flex items-center w-full mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none",
+                                        isUser ? "justify-end" : "justify-between"
+                                    )}>
+                                        <div className={cn("flex items-center gap-3", isUser && "flex-row-reverse")}>
                                             {/* Timestamp - Explicitly to the left of buttons */}
                                             {message.createdAt && (
                                                 <span className="text-[10px] text-muted-foreground/60 select-none">
