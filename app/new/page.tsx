@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useUser } from "@/components/user-context"
-import { IconEdit, IconTrash, IconChevronDown, IconPin, IconPinFilled, IconDownload, IconPencil, IconArrowDown, IconRotateClockwise, IconBookmark, IconCaretLeftRightFilled } from "@tabler/icons-react";
+import { IconEdit, IconTrash, IconChevronDown, IconPin, IconPinFilled, IconDownload, IconPencil, IconArrowDown, IconRotateClockwise, IconBookmark, IconCaretLeftRightFilled, IconDots, IconStackPush, IconBrain, IconShare } from "@tabler/icons-react";
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
 
@@ -27,6 +27,13 @@ import { cn } from "@/lib/utils"
 // Import AI Elements
 import { EnhancedPromptInput } from "@/components/enhanced-prompt-input"
 import { SiteHeader } from "@/components/layout/header/site-header"
+import {
+    Context,
+    ContextTrigger,
+    ContextContent,
+    ContextContentHeader,
+    ContextWindowBreakdown,
+} from "@/components/ai-elements/context"
 import { useAICrypto } from "@/hooks/use-ai-crypto";
 import { parseFile } from "@/lib/file-parser";
 import { calculateContextBreakdown, ContextBreakdown, trimHistoryByTokens } from "@/lib/context-calculator"
@@ -354,7 +361,7 @@ export default function AssistantPage() {
     }, [conversationId, isReady, decryptHistory, router]);
 
     const [contextItems, setContextItems] = React.useState<Array<{ id: string; type: 'text' | 'code'; content: string }>>([]);
-
+    const [contextOpen, setContextOpen] = React.useState(false);
     // Calculate context breakdown whenever messages or model changes
     React.useEffect(() => {
         if (messages.length > 0 && conversationId) {
@@ -1927,6 +1934,10 @@ export default function AssistantPage() {
                                     <IconPencil className="mr-2 size-4" />
                                     Rename
                                 </DropdownMenuItem>
+                                <DropdownMenuItem disabled>
+                                    <IconStackPush className="mr-2 size-4" />
+                                    Add to project
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     onClick={() => setIsDeleteDialogOpen(true)}
@@ -1943,7 +1954,7 @@ export default function AssistantPage() {
         </div>
     );
 
-    // Chat Header Actions - Star, Download, Menu (positioned on extreme right)
+    // Chat Header Actions - Pin, New Chat, Context indicator, three-dots menu
     const ChatHeaderActions = (!isTypingTitle && displayedTitle && displayedTitle !== "New Chat") ? (
         <div className="flex items-center gap-1">
             <Tooltip>
@@ -1968,10 +1979,42 @@ export default function AssistantPage() {
                 </TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors" onClick={() => {
-                        // Conversation export with timestamps + Ellipticc notice
+            {/* Context window indicator — shows token usage, hover to expand */}
+            {conversationId && (contextBreakdown?.totalUsed ?? 0) > 0 && (
+                <Context
+                    open={contextOpen}
+                    onOpenChange={setContextOpen}
+                    usedTokens={contextBreakdown?.totalUsed ?? 0}
+                    maxTokens={contextBreakdown?.maxTokens ?? 128000}
+                    systemTokens={contextBreakdown?.systemTokens}
+                    toolDefinitionTokens={contextBreakdown?.toolDefinitionTokens}
+                    messageTokens={contextBreakdown?.messageTokens}
+                    userMessageTokens={contextBreakdown?.userMessageTokens}
+                    assistantMessageTokens={contextBreakdown?.assistantMessageTokens}
+                    toolResultTokens={contextBreakdown?.toolResultTokens}
+                >
+                    <ContextTrigger />
+                    <ContextContent className="w-64">
+                        <ContextContentHeader />
+                        <ContextWindowBreakdown />
+                    </ContextContent>
+                </Context>
+            )}
+
+            {/* Three-dots menu */}
+            <DropdownMenu>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors">
+                                <IconDots className="size-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom"><p>More options</p></TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem onClick={() => {
                         const lines: string[] = [];
                         const exportedAt = new Date();
                         lines.push(`# Conversation export`);
@@ -1980,7 +2023,6 @@ export default function AssistantPage() {
                         if (conversationId) lines.push(`Conversation ID: ${conversationId}`);
                         if (model) lines.push(`Model: ${formatModelName(model)}`);
                         lines.push('---\n');
-
                         for (const m of messages) {
                             const ts = m.createdAt ? new Date(m.createdAt).toLocaleString() : '';
                             lines.push(`**${m.role.toUpperCase()}**${ts ? ` — ${ts}` : ''}${m.id ? ` [Message ID: ${m.id}]` : ''}`);
@@ -1988,7 +2030,6 @@ export default function AssistantPage() {
                             lines.push(m.content || '');
                             lines.push('\n---\n');
                         }
-
                         const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement('a');
@@ -2000,15 +2041,22 @@ export default function AssistantPage() {
                         document.body.removeChild(a);
                         URL.revokeObjectURL(url);
                     }}>
-                        <IconDownload className="size-4" />
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                    <p>Download</p>
-                </TooltipContent>
-            </Tooltip>
-
-
+                        <IconDownload className="mr-2 size-4" />
+                        Download
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onClick={() => setContextOpen(true)}
+                        disabled={!conversationId || (contextBreakdown?.totalUsed ?? 0) === 0}
+                    >
+                        <IconBrain className="mr-2 size-4" />
+                        See context
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled>
+                        <IconShare className="mr-2 size-4" />
+                        Share
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     ) : null;
 
