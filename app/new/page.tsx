@@ -293,7 +293,7 @@ export default function AssistantPage() {
         const targetModel = optionModel || model;
         const targetThinking = thinkingMode !== undefined ? thinkingMode : (model === 'deepthink'); // fallback logic
 
-        handleSubmit(msg.content, [], targetThinking, msgParentId);
+        handleSubmit(msg.content, [], targetThinking, false, msgParentId);
     };
 
     const handleVersionChange = (messageId: string, direction: 'prev' | 'next') => {
@@ -548,7 +548,7 @@ export default function AssistantPage() {
         };
     }, [conversationId, pagination.hasMore, pagination.offset, pagination.limit]);
 
-    const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, parentIdOverwrite?: string | null, isEdit: boolean = false) => {
+    const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, webSearch: boolean = false, parentIdOverwrite?: string | null, isEdit: boolean = false) => {
         if (!value.trim() && attachments.length === 0 && contextItems.length === 0) return;
 
         if (!isReady || !kyberPublicKey) {
@@ -730,7 +730,8 @@ export default function AssistantPage() {
                 msgParentId,
                 controller.signal,
                 newId,
-                assistantMessageId
+                assistantMessageId,
+                webSearch
             );
 
             if (!response.ok) {
@@ -1481,7 +1482,8 @@ export default function AssistantPage() {
                 trimmedContext[trimmedContext.length - 1]?.id || null, // parentId 
                 controller.signal,
                 undefined, // no new user message in regenerate
-                assistantId
+                assistantId,
+                overrides?.webSearch
             );
 
             if (!response.ok) throw new Error('Failed to regenerate');
@@ -1683,7 +1685,7 @@ export default function AssistantPage() {
         const parentId = oldMessage.parent_id || null;
 
         // Re-submit with edited content and explicit parentId to trigger sibling branching
-        handleSubmit(trimmed, [], false, parentId, true);
+        handleSubmit(trimmed, [], false, false, parentId, true);
     };
 
     const handleCopy = (content: string) => {
@@ -1957,49 +1959,6 @@ export default function AssistantPage() {
     // Chat Header Actions - Pin, New Chat, Context indicator, three-dots menu
     const ChatHeaderActions = (!isTypingTitle && displayedTitle && displayedTitle !== "New Chat") ? (
         <div className="flex items-center gap-1">
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors" onClick={handleToggleStar}>
-                        {isStarred ? <IconPinFilled className="size-4 text-primary" /> : <IconPin className="size-4" />}
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                    <p>{isStarred ? "Unpin" : "Pin"}</p>
-                </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors" onClick={() => router.push('/new')}>
-                        <IconEdit className="size-4" />
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                    <p>New Chat</p>
-                </TooltipContent>
-            </Tooltip>
-
-            {/* Context window indicator — shows token usage, hover to expand */}
-            {conversationId && (contextBreakdown?.totalUsed ?? 0) > 0 && (
-                <Context
-                    open={contextOpen}
-                    onOpenChange={setContextOpen}
-                    usedTokens={contextBreakdown?.totalUsed ?? 0}
-                    maxTokens={contextBreakdown?.maxTokens ?? 128000}
-                    systemTokens={contextBreakdown?.systemTokens}
-                    toolDefinitionTokens={contextBreakdown?.toolDefinitionTokens}
-                    messageTokens={contextBreakdown?.messageTokens}
-                    userMessageTokens={contextBreakdown?.userMessageTokens}
-                    assistantMessageTokens={contextBreakdown?.assistantMessageTokens}
-                    toolResultTokens={contextBreakdown?.toolResultTokens}
-                >
-                    <ContextTrigger />
-                    <ContextContent className="w-64">
-                        <ContextContentHeader />
-                        <ContextWindowBreakdown />
-                    </ContextContent>
-                </Context>
-            )}
 
             {/* Three-dots menu */}
             <DropdownMenu>
@@ -2104,8 +2063,8 @@ export default function AssistantPage() {
                             {/* Center Input Area */}
                             <div className="w-full max-w-5xl mx-auto px-4 z-20 mx-auto">
                                 <EnhancedPromptInput
-                                    onSubmit={async (text, files, thinkingMode) => {
-                                        await handleSubmit(text, files, thinkingMode);
+                                    onSubmit={async (text, files, thinkingMode, searchMode) => {
+                                        await handleSubmit(text, files, thinkingMode, searchMode);
                                     }}
                                     model={model}
                                     onModelChange={setModel}
@@ -2238,8 +2197,8 @@ export default function AssistantPage() {
                             <div className="flex justify-center w-full">
                                 <div className="max-w-4xl w-full px-4">
                                     <EnhancedPromptInput
-                                        onSubmit={async (text, files, thinkingMode) => {
-                                            await handleSubmit(text, files, thinkingMode);
+                                        onSubmit={async (text, files, thinkingMode, searchMode) => {
+                                            await handleSubmit(text, files, thinkingMode, searchMode);
                                         }}
                                         isLoading={isLoading || isCancelling || !isReady}
                                         onStop={handleCancel}

@@ -3147,7 +3147,8 @@ class ApiClient {
     parentId?: string | null,
     signal?: AbortSignal,
     messageId?: string,
-    assistantMessageId?: string
+    assistantMessageId?: string,
+    webSearch?: boolean
   ): Promise<Response> {
     const endpoint = '/ai/chat';
     const authHeaders = await this.getAuthHeaders(endpoint, 'POST');
@@ -3168,7 +3169,8 @@ class ApiClient {
         thinking_mode: thinkingMode,
         parent_id: parentId,
         message_id: messageId,
-        assistant_message_id: assistantMessageId
+        assistant_message_id: assistantMessageId,
+        webSearch: webSearch || false
       }),
     });
   }

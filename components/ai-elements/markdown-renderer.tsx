@@ -121,11 +121,11 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     // The 'gm' flag lets ^ / $ match per-line; [^\n]+ captures a single line.
     normalized = normalized.replace(
       /^([^\n]+)\n[ \t]*={3,}[ \t]*$/gm,
-      (_, headingText) => `# ${headingText.trim()}`
+      (_, headingText) => `# ${headingText.trim()}\n\n---`
     );
     normalized = normalized.replace(
       /^([^\n]+)\n[ \t]*-{3,}[ \t]*$/gm,
-      (_, headingText) => `## ${headingText.trim()}`
+      (_, headingText) => `## ${headingText.trim()}\n\n---`
     );
 
     // ── Standalone decorative lines → thematic breaks ───────────────────────
