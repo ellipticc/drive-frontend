@@ -28,7 +28,6 @@ const InternalCodeBlock = React.forwardRef<
   const [copied, setCopied] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [highlightedHtml, setHighlightedHtml] = React.useState<string | null>(null);
-  const [isLoading, setIsLoading] = React.useState(false);
   // Track local hover for this specific code block so copy button only shows for the hovered block
   const [isHovered, setIsHovered] = React.useState(false);
 
@@ -46,12 +45,10 @@ const InternalCodeBlock = React.forwardRef<
         const html = await highlightCode(codeContent, safeLanguage, isDark);
         if (!cancelled) {
           setHighlightedHtml(html);
-          setIsLoading(false);
         }
       } catch (error) {
         console.warn(`Failed to highlight code (${language}):`, error);
         // Don't clear highlightedHtml on error — keep showing stale version
-        if (!cancelled) setIsLoading(false);
       }
     })();
 
@@ -243,9 +240,9 @@ export const H1: React.FC<{
 }> = ({ children, className }) => (
   <h1
     className={cn(
-      'text-4xl sm:text-5xl font-bold',
+      'text-2xl sm:text-3xl font-bold',
       'text-foreground',
-      'mt-10 mb-6 first:mt-0',
+      'mt-8 mb-4 first:mt-0',
       'tracking-tight',
       className
     )}
@@ -260,9 +257,9 @@ export const H2: React.FC<{
 }> = ({ children, className }) => (
   <h2
     className={cn(
-      'text-3xl sm:text-4xl font-bold',
+      'text-xl sm:text-2xl font-bold',
       'text-foreground',
-      'mt-8 mb-4',
+      'mt-7 mb-3 first:mt-0',
       'tracking-tight',
       className
     )}
@@ -277,9 +274,9 @@ export const H3: React.FC<{
 }> = ({ children, className }) => (
   <h3
     className={cn(
-      'text-lg sm:text-xl font-bold',
+      'text-lg font-semibold',
       'text-foreground',
-      'mt-6 mb-3',
+      'mt-6 mb-2 first:mt-0',
       'tracking-tight',
       className
     )}
@@ -294,9 +291,9 @@ export const H4: React.FC<{
 }> = ({ children, className }) => (
   <h4
     className={cn(
-      'text-base sm:text-lg font-bold',
+      'text-base font-semibold',
       'text-foreground',
-      'mt-4 mb-2',
+      'mt-5 mb-2 first:mt-0',
       'tracking-tight',
       className
     )}
@@ -311,9 +308,9 @@ export const H5: React.FC<{
 }> = ({ children, className }) => (
   <h5
     className={cn(
-      'text-sm sm:text-base font-bold',
+      'text-sm font-semibold',
       'text-foreground',
-      'mt-3 mb-1.5',
+      'mt-4 mb-1.5 first:mt-0',
       className
     )}
   >
@@ -327,9 +324,9 @@ export const H6: React.FC<{
 }> = ({ children, className }) => (
   <h6
     className={cn(
-      'text-xs sm:text-sm font-bold uppercase',
+      'text-xs font-semibold uppercase',
       'text-muted-foreground',
-      'mt-2.5 mb-1',
+      'mt-3 mb-1 first:mt-0',
       'tracking-widest',
       className
     )}
@@ -366,8 +363,8 @@ export const UnorderedList: React.FC<{
 }> = ({ children, className }) => (
   <ul
     className={cn(
-      'list-disc list-outside', // Changed to outside
-      'my-3 space-y-1.5 ml-4 pl-1', // Added ml-4 and pl-1 for alignment
+      'list-disc list-outside',
+      'my-3 space-y-1.5 pl-6',
       'text-foreground text-base',
       className
     )}
@@ -382,8 +379,8 @@ export const OrderedList: React.FC<{
 }> = ({ children, className }) => (
   <ol
     className={cn(
-      'list-decimal list-outside', // Changed to outside
-      'my-3 space-y-1.5 ml-4 pl-1', // Added ml-4 and pl-1 for alignment
+      'list-decimal list-outside',
+      'my-3 space-y-1.5 pl-6',
       'text-foreground text-base',
       className
     )}
@@ -396,7 +393,7 @@ export const ListItem: React.FC<{
   children?: React.ReactNode;
   className?: string;
 }> = ({ children, className }) => (
-  <li className={cn('text-foreground', className)}>
+  <li className={cn('text-foreground leading-relaxed', className)}>
     {children}
   </li>
 );
@@ -410,7 +407,10 @@ export const BlockQuote: React.FC<{
 }> = ({ children, className }) => (
   <blockquote
     className={cn(
-      'border-l-2 border-border pl-4 my-2',
+      'border-l-4 border-primary/40 pl-4 pr-2 py-1 my-4',
+      'bg-muted/30 rounded-r-md',
+      'text-muted-foreground italic',
+      '[&_p]:my-0 [&_p]:text-muted-foreground',
       className
     )}
   >
@@ -455,8 +455,7 @@ export const TableBody: React.FC<{
 export const TableRow: React.FC<{
   children?: React.ReactNode;
   className?: string;
-  isHeader?: boolean;
-}> = ({ children, className, isHeader }) => (
+}> = ({ children, className }) => (
   <tr className={cn('hover:bg-muted/30 transition-colors', className)}>
     {children}
   </tr>
@@ -521,7 +520,7 @@ export const Strong: React.FC<{
   children?: React.ReactNode;
   className?: string;
 }> = ({ children, className }) => (
-  <strong className={cn('font-semibold text-foreground', className)}>
+  <strong className={cn('font-bold text-foreground', className)}>
     {children}
   </strong>
 );

@@ -2,7 +2,6 @@
 
 import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 
 // Import custom markdown components
@@ -111,9 +110,17 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       normalized = normalized.replace(placeholder + idx + '\u0000', block);
     });
 
-    // Normalize multiple equals signs or hyphens on their own line to standard horizontal rules (---)
-    // This handles non-standard separators like "=========================="
-    // We force double newlines before and after to ensure thematic break rendering
+    // Setext heading detection
+    normalized = normalized.replace(
+      /^([^\n]+)\n[ \t]*={3,}[ \t]*$/gm,
+      (_, headingText) => `# ${headingText.trim()}`
+    );
+    normalized = normalized.replace(
+      /^([^\n]+)\n[ \t]*-{3,}[ \t]*$/gm,
+      (_, headingText) => `## ${headingText.trim()}`
+    );
+
+    // Normalize
     normalized = normalized.replace(/^\s*={3,}\s*$/gm, '\n\n---\n\n');
     normalized = normalized.replace(/^\s*-{3,}\s*$/gm, '\n\n---\n\n');
 
@@ -200,8 +207,24 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       // Text formatting
       strong: Strong as any,
       em: Emphasis as any,
+
+      // GFM strikethrough
+      del: ({ children }: any) => (
+        <del className="line-through text-muted-foreground">{children}</del>
+      ),
+
+      // Images — constrained to container width, never overflow
+      img: ({ src, alt, title }: any) => (
+        <img
+          src={src}
+          alt={alt ?? ''}
+          title={title}
+          className="max-w-full h-auto rounded-lg my-4 block"
+          loading="lazy"
+        />
+      ),
     }),
-    []
+    [isStreaming]
   );
 
   // Remark plugins for Markdown parsing
