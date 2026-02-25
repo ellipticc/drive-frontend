@@ -243,7 +243,7 @@ export const H1: React.FC<{
 }> = ({ children, className }) => (
   <h1
     className={cn(
-      'text-2xl sm:text-3xl font-bold',
+      'text-3xl sm:text-4xl font-bold',
       'text-foreground',
       'mt-10 mb-6 first:mt-0',
       'tracking-tight',
@@ -260,9 +260,9 @@ export const H2: React.FC<{
 }> = ({ children, className }) => (
   <h2
     className={cn(
-      'text-xl sm:text-2xl font-bold',
+      'text-2xl sm:text-3xl font-bold',
       'text-foreground',
-      'mt-8 mb-5',
+      'mt-8 mb-4',
       'tracking-tight',
       className
     )}
@@ -277,9 +277,9 @@ export const H3: React.FC<{
 }> = ({ children, className }) => (
   <h3
     className={cn(
-      'text-lg font-bold',
+      'text-xl sm:text-2xl font-bold',
       'text-foreground',
-      'mt-4 mb-2',
+      'mt-6 mb-3',
       'tracking-tight',
       className
     )}
@@ -294,9 +294,9 @@ export const H4: React.FC<{
 }> = ({ children, className }) => (
   <h4
     className={cn(
-      'text-base font-bold',
+      'text-lg sm:text-xl font-bold',
       'text-foreground',
-      'mt-3 mb-1.5',
+      'mt-4 mb-2',
       'tracking-tight',
       className
     )}
@@ -311,9 +311,9 @@ export const H5: React.FC<{
 }> = ({ children, className }) => (
   <h5
     className={cn(
-      'text-sm font-bold',
+      'text-base font-bold',
       'text-foreground',
-      'mt-2 mb-1',
+      'mt-3 mb-1.5',
       className
     )}
   >
@@ -546,7 +546,7 @@ export const HorizontalRule: React.FC<{
 }> = ({ className }) => (
   <hr
     className={cn(
-      'block w-full mx-auto my-16 border-0 border-t-2 border-border/80 dark:border-border',
+      'block w-full mx-auto my-6 border-0 border-t-2 border-border/80 dark:border-border',
       className
     )}
   />

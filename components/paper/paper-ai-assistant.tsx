@@ -161,7 +161,6 @@ export function PaperAIAssistant({
                 model,
                 kyberPublicKey,
                 encryptedUserMessage,
-                false, // no web search
                 false, // no thinking mode
                 trimmedMessages[trimmedMessages.length - 1]?.id || null, // parentId
                 controller.signal,

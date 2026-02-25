@@ -86,7 +86,7 @@ interface ChatMessageProps {
     onRetry?: () => void;
     onEdit?: (content: string) => void;
     onFeedback?: (messageId: string, feedback: 'like' | 'dislike') => void;
-    onRegenerate?: (instruction?: string, overrides?: { thinkingMode?: boolean; webSearch?: boolean }) => void;
+    onRegenerate?: (instruction?: string, overrides?: { thinkingMode?: boolean }) => void;
     onVersionChange?: (direction: 'prev' | 'next') => void;
     onCheckpoint?: (messageId: string) => void;
     availableModels?: { id: string; name: string }[];
@@ -240,7 +240,6 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
     const [systemModelPopoverOpen, setSystemModelPopoverOpen] = React.useState(false);
 
     const usedThinking = !!(message.reasoning || message.isThinking || message.reasoningDuration);
-    const usedWebSearch = (message.toolCalls && message.toolCalls.some(tc => tc.function.name === 'browser_search' || tc.function.name === 'web_search')) || (message.sources && message.sources.length > 0);
 
     // ... existing handlers ...
     const handleRegenerateOption = (type: string) => {
@@ -263,12 +262,6 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                 break;
             case 'think':
                 onRegenerate?.(undefined, { thinkingMode: true });
-                break;
-            case 'search':
-                onRegenerate?.(undefined, { webSearch: true });
-                break;
-            case 'no-search':
-                onRegenerate?.(undefined, { webSearch: false });
                 break;
         }
     };
@@ -798,20 +791,9 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
 
                                                 <DropdownMenuSeparator className="mx-0.5 my-1.5 opacity-50" />
 
-                                                {!usedThinking && (
-                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
-                                                        <IconBulb className="mr-2.5 size-4 opacity-70" /> Think Longer
-                                                    </DropdownMenuItem>
-                                                )}
-                                                {usedWebSearch ? (
-                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('no-search')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
-                                                        <IconWorldOff className="mr-2.5 size-4 opacity-70" /> No web search
-                                                    </DropdownMenuItem>
-                                                ) : (
-                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('search')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
-                                                        <IconWorld className="mr-2.5 size-4 opacity-70" /> Search web
-                                                    </DropdownMenuItem>
-                                                )}
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
+                                                    <IconBulb className="mr-2.5 size-4 opacity-70" /> Think Longer
+                                                </DropdownMenuItem>
                                             </div>
                                         </DropdownMenuContent>
                                     </DropdownMenu>

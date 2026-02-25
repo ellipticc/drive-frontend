@@ -109,7 +109,6 @@ export default function AssistantPage() {
     const [feedbackResponseContext, setFeedbackResponseContext] = React.useState<string>("");
     const abortControllerRef = React.useRef<AbortController | null>(null)
     const [model, setModel] = React.useState("auto")
-    const [isWebSearchEnabled, setIsWebSearchEnabled] = React.useState(false);
     const [chatTitle, setChatTitle] = React.useState<string>('Chat');
     const lastScrollTopRef = React.useRef(0)
     const [isLoadingOlder, setIsLoadingOlder] = React.useState(false)
@@ -275,6 +274,20 @@ export default function AssistantPage() {
     const scrollToBottom = React.useCallback((behavior: ScrollBehavior = 'smooth') => {
         scrollEndRef.current?.scrollIntoView({ behavior, block: 'end' });
     }, []);
+
+    const handleRegenerateOption = (messageId: string, optionModel?: string, thinkingMode?: boolean) => {
+        const msg = messages.find(m => m.id === messageId);
+        if (!msg) return;
+
+        // Parent ID is the message before this assistant message
+        const msgParentId = msg.parent_id || null;
+
+        // If specific parameters passed, use them, otherwise use current page state
+        const targetModel = optionModel || model;
+        const targetThinking = thinkingMode !== undefined ? thinkingMode : (model === 'deepthink'); // fallback logic
+
+        handleSubmit(msg.content, [], targetThinking, msgParentId);
+    };
 
     const handleVersionChange = (messageId: string, direction: 'prev' | 'next') => {
         const msg = messages.find(m => m.id === messageId);
@@ -528,7 +541,7 @@ export default function AssistantPage() {
         };
     }, [conversationId, pagination.hasMore, pagination.offset, pagination.limit]);
 
-    const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, searchMode: boolean = false, parentIdOverwrite?: string | null, isEdit: boolean = false) => {
+    const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, parentIdOverwrite?: string | null, isEdit: boolean = false) => {
         if (!value.trim() && attachments.length === 0 && contextItems.length === 0) return;
 
         if (!isReady || !kyberPublicKey) {
@@ -692,17 +705,19 @@ export default function AssistantPage() {
             const controller = new AbortController();
             abortControllerRef.current = controller;
 
+            const msgParentId = parentIdOverwrite !== undefined ? parentIdOverwrite : (trimmedMessages[trimmedMessages.length - 1]?.id || null);
+            const newId = optimisticUserMessageId;
+
             const response = await apiClient.chatAI(
                 fullPayload,
-                conversationId || lastCreatedConversationId.current || "", // Use new ID if we just created one
+                conversationId || "",
                 model,
                 kyberPublicKey,
                 encryptedUserMessage,
-                isWebSearchEnabled, // webSearch
                 thinkingMode,
-                parentIdOverwrite !== undefined ? parentIdOverwrite : (trimmedMessages[trimmedMessages.length - 1]?.id || null),
+                msgParentId,
                 controller.signal,
-                optimisticUserMessageId,
+                newId,
                 assistantMessageId
             );
 
@@ -1446,8 +1461,7 @@ export default function AssistantPage() {
                 model,
                 kyberPublicKey || undefined,
                 undefined,
-                overrides?.webSearch !== undefined ? overrides.webSearch : isWebSearchEnabled,
-                overrides?.thinkingMode !== undefined ? overrides.thinkingMode : undefined,
+                overrides?.thinkingMode,
                 trimmedContext[trimmedContext.length - 1]?.id || null, // parentId 
                 controller.signal,
                 undefined, // no new user message in regenerate
@@ -1646,11 +1660,14 @@ export default function AssistantPage() {
             return newMessages;
         });
 
+        // update chat activity
+        updateChatTimestamp(conversationId || "", new Date().toISOString());
+
         // Get the parent ID of the target message to ensure we branch correctly
         const parentId = oldMessage.parent_id || null;
 
         // Re-submit with edited content and explicit parentId to trigger sibling branching
-        handleSubmit(trimmed, [], false, false, parentId, true);
+        handleSubmit(trimmed, [], false, parentId, true);
     };
 
     const handleCopy = (content: string) => {
@@ -2030,8 +2047,8 @@ export default function AssistantPage() {
                             {/* Center Input Area */}
                             <div className="w-full max-w-5xl mx-auto px-4 z-20 mx-auto">
                                 <EnhancedPromptInput
-                                    onSubmit={async (text, files, thinkingMode, searchMode) => {
-                                        await handleSubmit(text, files, thinkingMode, searchMode);
+                                    onSubmit={async (text, files, thinkingMode) => {
+                                        await handleSubmit(text, files, thinkingMode);
                                     }}
                                     model={model}
                                     onModelChange={setModel}
@@ -2164,8 +2181,8 @@ export default function AssistantPage() {
                             <div className="flex justify-center w-full">
                                 <div className="max-w-4xl w-full px-4">
                                     <EnhancedPromptInput
-                                        onSubmit={async (text, files, thinkingMode, searchMode) => {
-                                            await handleSubmit(text, files, thinkingMode, searchMode);
+                                        onSubmit={async (text, files, thinkingMode) => {
+                                            await handleSubmit(text, files, thinkingMode);
                                         }}
                                         isLoading={isLoading || isCancelling || !isReady}
                                         onStop={handleCancel}
