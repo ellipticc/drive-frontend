@@ -539,75 +539,89 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                     })()}
 
                                     {/* Actions Row - Below message */}
-                                    <div className="flex items-center gap-3 mt-1 mr-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                        {/* Timestamp - Explicitly to the left of buttons */}
-                                        {message.createdAt && (
-                                            <span className="text-[10px] text-muted-foreground/60 select-none">
-                                                {new Date(message.createdAt).toLocaleString(undefined, {
-                                                    month: 'short',
-                                                    day: 'numeric',
-                                                    hour: 'numeric',
-                                                    minute: '2-digit'
-                                                })}
-                                            </span>
-                                        )}
-
+                                    <div className="flex items-center justify-between w-full mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none">
                                         <div className="flex items-center gap-1">
-                                            {/* Only rendered when parent passes onEdit — enforced at the last user message level */}
                                             {versionCount > 1 && (
-                                                <div className="flex items-center gap-1.5 mr-2 px-1.5 py-0.5 bg-muted/40 border border-border/40 rounded-lg text-[10px] font-mono text-muted-foreground/80">
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <button
-                                                                onClick={() => onVersionChange?.('prev')}
-                                                                className="hover:text-foreground disabled:opacity-30 transition-colors"
-                                                                disabled={currentVersion <= 1}
-                                                            >
-                                                                <IconChevronLeft className="size-3" />
-                                                            </button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="bottom"><p>Previous version</p></TooltipContent>
-                                                    </Tooltip>
+                                                <div className="flex items-center gap-1 text-xs text-muted-foreground rounded-md px-1 select-none">
+                                                    <TooltipProvider delayDuration={400}>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-5 w-5 hover:bg-sidebar-accent/50 transition-colors"
+                                                                    onClick={() => onVersionChange?.('prev')}
+                                                                    disabled={currentVersion <= 1}
+                                                                >
+                                                                    <IconChevronLeft className="size-3" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="bottom"><p className="text-[10px]">Previous version</p></TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
 
-                                                    <span className="min-w-[24px] text-center">{currentVersion}/{versionCount}</span>
+                                                    <span className="px-1 min-w-[30px] text-center font-mono opacity-60">
+                                                        {currentVersion} / {versionCount}
+                                                    </span>
 
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <button
-                                                                onClick={() => onVersionChange?.('next')}
-                                                                className="hover:text-foreground disabled:opacity-30 transition-colors"
-                                                                disabled={currentVersion >= versionCount}
-                                                            >
-                                                                <IconChevronRight className="size-3" />
-                                                            </button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="bottom"><p>Next version</p></TooltipContent>
-                                                    </Tooltip>
+                                                    <TooltipProvider delayDuration={400}>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-5 w-5 hover:bg-sidebar-accent/50 transition-colors"
+                                                                    onClick={() => onVersionChange?.('next')}
+                                                                    disabled={currentVersion >= versionCount}
+                                                                >
+                                                                    <IconChevronRight className="size-3" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="bottom"><p className="text-[10px]">Next version</p></TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
                                                 </div>
                                             )}
-                                            {onEdit && (
-                                                <ActionButton
-                                                    icon={IconEdit}
-                                                    label="Edit"
-                                                    onClick={() => {
-                                                        setEditContent(parseUserContent(message.content).text);
-                                                        setIsEditingPrompt(true);
-                                                    }}
-                                                />
+                                        </div>
+
+                                        <div className="flex items-center gap-3">
+                                            {/* Timestamp - Explicitly to the left of buttons */}
+                                            {message.createdAt && (
+                                                <span className="text-[10px] text-muted-foreground/60 select-none">
+                                                    {new Date(message.createdAt).toLocaleString(undefined, {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        hour: 'numeric',
+                                                        minute: '2-digit'
+                                                    })}
+                                                </span>
                                             )}
-                                            <ActionButton
-                                                icon={copied ? IconCheck : IconCopy}
-                                                label="Copy"
-                                                onClick={handleCopy}
-                                            />
-                                            {message.content && /Stopped by user/i.test(message.content) && (
+
+                                            <div className="flex items-center gap-1">
+                                                {onEdit && (
+                                                    <ActionButton
+                                                        icon={IconEdit}
+                                                        label="Edit"
+                                                        onClick={() => {
+                                                            setEditContent(parseUserContent(message.content).text);
+                                                            setIsEditingPrompt(true);
+                                                        }}
+                                                    />
+                                                )}
                                                 <ActionButton
-                                                    icon={IconArrowRight}
-                                                    label="Continue"
-                                                    onClick={() => onRegenerate?.('continue')}
-                                                    delayDuration={700}
+                                                    icon={copied ? IconCheck : IconCopy}
+                                                    label="Copy"
+                                                    onClick={handleCopy}
                                                 />
-                                            )}
+                                                {message.content && /Stopped by user/i.test(message.content) && (
+                                                    <ActionButton
+                                                        icon={IconArrowRight}
+                                                        label="Continue"
+                                                        onClick={() => onRegenerate?.('continue')}
+                                                        delayDuration={700}
+                                                    />
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </>
@@ -725,37 +739,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             <p>Dislike</p>
                                         </TooltipContent>
                                     </Tooltip>
-                                    {versionCount > 1 && (
-                                        <div className="flex items-center gap-1.5 mr-auto">
-                                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-border/40 bg-muted/20 text-[10px] font-mono text-muted-foreground/70">
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <button
-                                                            onClick={() => onVersionChange?.('prev')}
-                                                            className="hover:text-foreground disabled:opacity-20 transition-colors p-0.5"
-                                                            disabled={currentVersion <= 1}
-                                                        >
-                                                            <IconChevronLeft className="size-3" />
-                                                        </button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="bottom"><p>Previous version</p></TooltipContent>
-                                                </Tooltip>
-                                                <span className="min-w-[2.5ch] text-center select-none">{currentVersion} / {versionCount}</span>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <button
-                                                            onClick={() => onVersionChange?.('next')}
-                                                            className="hover:text-foreground disabled:opacity-20 transition-colors p-0.5"
-                                                            disabled={currentVersion >= versionCount}
-                                                        >
-                                                            <IconChevronRight className="size-3" />
-                                                        </button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent side="bottom"><p>Next version</p></TooltipContent>
-                                                </Tooltip>
-                                            </div>
-                                        </div>
-                                    )}
+                                    {/* Duplicate version navigation removed */}
 
                                     <ActionButton
                                         icon={copied ? IconCheck : IconCopy}
@@ -902,28 +886,44 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
 
                                 {/* Right Actions - Version Navigation */}
                                 {versionCount > 1 && (
-                                    <div className="flex items-center gap-1 text-xs text-muted-foreground rounded-md px-1">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-5 w-5"
-                                            onClick={() => onVersionChange?.('prev')}
-                                            disabled={currentVersion <= 1}
-                                        >
-                                            <IconChevronLeft className="size-3" />
-                                        </Button>
-                                        <span className="px-1 min-w-[30px] text-center font-mono">
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground rounded-md px-1 select-none">
+                                        <TooltipProvider delayDuration={400}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-5 w-5 hover:bg-sidebar-accent/50 transition-colors"
+                                                        onClick={() => onVersionChange?.('prev')}
+                                                        disabled={currentVersion <= 1}
+                                                    >
+                                                        <IconChevronLeft className="size-3" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom"><p className="text-[10px]">Previous version</p></TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+
+                                        <span className="px-1 min-w-[30px] text-center font-mono opacity-60">
                                             {currentVersion} / {versionCount}
                                         </span>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-5 w-5"
-                                            onClick={() => onVersionChange?.('next')}
-                                            disabled={currentVersion >= versionCount}
-                                        >
-                                            <IconChevronRight className="size-3" />
-                                        </Button>
+
+                                        <TooltipProvider delayDuration={400}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-5 w-5 hover:bg-sidebar-accent/50 transition-colors"
+                                                        onClick={() => onVersionChange?.('next')}
+                                                        disabled={currentVersion >= versionCount}
+                                                    >
+                                                        <IconChevronRight className="size-3" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom"><p className="text-[10px]">Next version</p></TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </div>
                                 )}
                             </div>

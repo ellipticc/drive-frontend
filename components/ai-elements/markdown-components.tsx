@@ -546,7 +546,7 @@ export const HorizontalRule: React.FC<{
 }> = ({ className }) => (
   <hr
     className={cn(
-      'block w-1/2 mx-auto my-16 border-0 border-t border-border dark:border-border/90',
+      'block w-full mx-auto my-16 border-0 border-t-2 border-border/80 dark:border-border',
       className
     )}
   />

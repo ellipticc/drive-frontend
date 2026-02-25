@@ -528,7 +528,7 @@ export default function AssistantPage() {
         };
     }, [conversationId, pagination.hasMore, pagination.offset, pagination.limit]);
 
-    const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, searchMode: boolean = false, parentIdOverwrite?: string | null) => {
+    const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, searchMode: boolean = false, parentIdOverwrite?: string | null, isEdit: boolean = false) => {
         if (!value.trim() && attachments.length === 0 && contextItems.length === 0) return;
 
         if (!isReady || !kyberPublicKey) {
@@ -553,52 +553,75 @@ export default function AssistantPage() {
             setContextItems([]);
         }
 
-        // Optimistic Update
-        // Generate a temporary ID for the user message
-        const tempId = crypto.randomUUID();
-        const optimisticUserMessage: Message = {
-            id: tempId,
-            role: 'user',
-            content: finalContent,
-            createdAt: Date.now(),
-        };
+        const assistantMessageId = crypto.randomUUID();
+        let optimisticUserMessageId = crypto.randomUUID();
 
-        setMessages(prev => [...prev, optimisticUserMessage]);
-        // optimistic chat timestamp for ordering
-        if (conversationId) {
-            updateChatTimestamp(conversationId, new Date().toISOString());
+        if (!isEdit) {
+            // Optimistic Update for new messages
+            const optimisticUserMessage: Message = {
+                id: optimisticUserMessageId,
+                role: 'user',
+                content: finalContent,
+                createdAt: Date.now(),
+            };
+            setMessages(prev => [...prev, optimisticUserMessage, { id: assistantMessageId, role: 'assistant', content: '', isThinking: true, reasoning: '', model }]);
+        } else {
+            // Instant update for edits
+            setMessages(prev => {
+                const newMessages = [...prev];
+                // Find the assistant message that follows the last user message
+                const lastUserIdx = newMessages.reduce((last, m, i) => (m.role === 'user' ? i : last), -1);
+                if (lastUserIdx !== -1) {
+                    optimisticUserMessageId = newMessages[lastUserIdx].id || optimisticUserMessageId;
+                    const aideIdx = lastUserIdx + 1;
+                    if (newMessages[aideIdx] && newMessages[aideIdx].role === 'assistant') {
+                        const msg = { ...newMessages[aideIdx] };
+                        // Initialize versions if missing
+                        if (!msg.versions) {
+                            msg.versions = [{
+                                id: msg.id || 'initial',
+                                content: msg.content,
+                                toolCalls: msg.toolCalls,
+                                createdAt: Number(msg.createdAt) || Date.now(),
+                                feedback: msg.feedback,
+                                total_time: msg.total_time,
+                                ttft: msg.ttft,
+                                tps: msg.tps,
+                                model: msg.model,
+                                suggestions: msg.suggestions,
+                                sources: msg.sources,
+                                reasoning: msg.reasoning,
+                                reasoningDuration: msg.reasoningDuration
+                            }];
+                            msg.currentVersionIndex = 0;
+                        }
+
+                        // Add new version slot
+                        const newVersionIndex = msg.versions.length;
+                        msg.versions.push({
+                            id: assistantMessageId,
+                            content: "",
+                            createdAt: Date.now()
+                        });
+                        msg.currentVersionIndex = newVersionIndex;
+
+                        // Reset display
+                        msg.content = "";
+                        msg.isThinking = true;
+                        msg.reasoning = "";
+                        msg.suggestions = [];
+                        msg.sources = [];
+
+                        newMessages[aideIdx] = msg;
+                    } else {
+                        // Fallback: append if assistant message not found
+                        newMessages.push({ id: assistantMessageId, role: 'assistant', content: '', isThinking: true, reasoning: '', model });
+                    }
+                }
+                return newMessages;
+            });
         }
 
-        // Disable auto-scroll-to-bottom so user message stays at top of viewport
-        shouldAutoScrollRef.current = false;
-
-        // Mark this message for scrolling and handle completely deterministically 
-        // decoupled from React render cycle to prevent race conditions or cancelled timeouts.
-        let scrollAttempts = 0;
-        const attemptScroll = () => {
-            const element = document.getElementById(`message-${tempId}`);
-            if (element) {
-                // Double rAF ensures layout calculation handles dynamic content (like user message edits)
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        // Rely on native scrollIntoView and CSS scroll-margin-top (scroll-mt-24 on ChatMessage)
-                        // for perfectly robust and hardware-accelerated viewport clearing
-                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    });
-                });
-            } else if (scrollAttempts < 30) {
-                scrollAttempts++;
-                setTimeout(attemptScroll, 50);
-            }
-        };
-        setTimeout(attemptScroll, 10);
-
-        // Reset metrics for new stream
-        currentMetricsRef.current = {};
-
-        // Add Thinking State
-        const assistantMessageId = crypto.randomUUID();
-        setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '', isThinking: true, reasoning: '', model }]);
         setIsLoading(true);
 
         try {
@@ -669,8 +692,6 @@ export default function AssistantPage() {
             const controller = new AbortController();
             abortControllerRef.current = controller;
 
-            const assistantMessageId = crypto.randomUUID();
-
             const response = await apiClient.chatAI(
                 fullPayload,
                 conversationId || lastCreatedConversationId.current || "", // Use new ID if we just created one
@@ -681,7 +702,7 @@ export default function AssistantPage() {
                 thinkingMode,
                 parentIdOverwrite !== undefined ? parentIdOverwrite : (trimmedMessages[trimmedMessages.length - 1]?.id || null),
                 controller.signal,
-                optimisticUserMessage.id,
+                optimisticUserMessageId,
                 assistantMessageId
             );
 
@@ -1629,7 +1650,7 @@ export default function AssistantPage() {
         const parentId = oldMessage.parent_id || null;
 
         // Re-submit with edited content and explicit parentId to trigger sibling branching
-        handleSubmit(trimmed, [], false, false, parentId);
+        handleSubmit(trimmed, [], false, false, parentId, true);
     };
 
     const handleCopy = (content: string) => {

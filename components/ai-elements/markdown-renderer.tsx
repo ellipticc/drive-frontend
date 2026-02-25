@@ -113,8 +113,8 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
     // Normalize multiple equals signs or hyphens on their own line to standard horizontal rules (---)
     // This handles non-standard separators like "=========================="
-    normalized = normalized.replace(/^={3,}\s*$/gm, '---');
-    normalized = normalized.replace(/^-{3,}\s*$/gm, '---');
+    normalized = normalized.replace(/^\s*={3,}\s*$/gm, '---');
+    normalized = normalized.replace(/^\s*-{3,}\s*$/gm, '---');
 
     return normalized;
   }, [content]);
