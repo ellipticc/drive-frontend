@@ -109,7 +109,34 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     mathBlocks.forEach((block, idx) => {
       normalized = normalized.replace(placeholder + idx + '\u0000', block);
     });
-    normalized = normalized.replace(/^([ \t]*[=-]{3,}[ \t]*)$/gm, '\n\n---\n\n');
+
+    // 1. More robust Setext heading detection (H1: ===, H2: ---)
+    // We do this BEFORE generic dash normalization to avoid breaking headings.
+    // Handles trailing spaces and ensures we don't accidentally match leading dashes in a list.
+    normalized = normalized.replace(
+      /^([^\n]+)\n[ \t]*={3,}[ \t]*$/gm,
+      (_, headingText) => `# ${headingText.trim()}`
+    ).replace(
+      /^([^\n]+)\n[ \t]*-{3,}[ \t]*$/gm,
+      (_, headingText) => `## ${headingText.trim()}`
+    );
+
+    // 2. Normalize standalone horizontal rules (lines of 3+ dashes/equals)
+    // ONLY if they are not preceded immediately by text (to avoid eating Setext headings we might have missed)
+    // We add double newlines to guarantee react-markdown treats them as thematic breaks.
+    normalized = normalized.replace(/^([ \t]*[=-]{3,}[ \t]*)$/gm, (match, p1, offset, string) => {
+      // Check if the previous line ended with text (non-whitespace)
+      const before = string.slice(0, offset);
+      const lines = before.split('\n');
+      const lastLine = lines[lines.length - 2]; // lines.length - 1 is the current empty string or partial line
+
+      if (lastLine && lastLine.trim().length > 0) {
+        // If there's text on the line before, this might be a Setext underline we missed
+        // or a continuation. We'll leave it to the markdown parser unless it's a clear HR.
+        return match;
+      }
+      return '\n\n---\n\n';
+    });
 
     return normalized;
   }, [content]);
