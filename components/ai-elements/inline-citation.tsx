@@ -3,7 +3,6 @@
 import type { CarouselApi } from "@/components/ui/carousel";
 import type { ComponentProps } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import {
   Carousel,
   CarouselContent,
@@ -15,7 +14,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
-import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
+import { IconArrowRight, IconArrowLeft } from "@tabler/icons-react";
 import {
   createContext,
   useCallback,
@@ -51,35 +50,61 @@ export const InlineCitationText = ({
 export type InlineCitationCardProps = ComponentProps<typeof HoverCard>;
 
 export const InlineCitationCard = (props: InlineCitationCardProps) => (
-  <HoverCard closeDelay={0} openDelay={0} {...props} />
+  <HoverCard closeDelay={300} openDelay={100} {...props} />
 );
 
-export type InlineCitationCardTriggerProps = ComponentProps<typeof Badge> & {
-  sources: string[];
+export type InlineCitationCardTriggerProps = ComponentProps<"span"> & {
+  sources: { title: string; url: string; content?: string }[];
 };
 
 export const InlineCitationCardTrigger = ({
   sources,
   className,
   ...props
-}: InlineCitationCardTriggerProps) => (
-  <HoverCardTrigger asChild>
-    <Badge
-      className={cn("ml-1 rounded-full", className)}
-      variant="secondary"
-      {...props}
-    >
-      {sources[0] ? (
-        <>
-          {new URL(sources[0]).hostname}{" "}
-          {sources.length > 1 && `+${sources.length - 1}`}
-        </>
-      ) : (
-        "unknown"
-      )}
-    </Badge>
-  </HoverCardTrigger>
-);
+}: InlineCitationCardTriggerProps) => {
+  const getFavicon = (url: string) => {
+    try {
+      const hostname = new URL(url).hostname;
+      return `https://www.google.com/s2/favicons?sz=64&domain=${hostname}`;
+    } catch {
+      return null;
+    }
+  };
+
+  const firstDomain = sources[0] ? new URL(sources[0].url).hostname.replace('www.', '') : '';
+
+  return (
+    <HoverCardTrigger asChild>
+      <span
+        role="button"
+        className={cn(
+          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/60 hover:bg-muted/90 transition-all border border-border/40 ml-1 align-baseline cursor-pointer select-none ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 active:scale-95",
+          className
+        )}
+        {...props}
+      >
+        <div className="flex -space-x-1.5 overflow-hidden">
+          {sources.slice(0, 1).map((s, i) => (
+            <div key={i} className="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-background bg-background overflow-hidden shrink-0">
+              <img
+                src={getFavicon(s.url) || ""}
+                alt=""
+                className="h-full w-full object-cover"
+                onError={(e) => (e.currentTarget.style.display = 'none')}
+              />
+            </div>
+          ))}
+        </div>
+        <span className="text-[10px] font-semibold text-foreground/80 whitespace-nowrap">
+          {firstDomain}
+          {sources.length > 1 && (
+            <span className="ml-1 text-muted-foreground/70">+{sources.length - 1}</span>
+          )}
+        </span>
+      </span>
+    </HoverCardTrigger>
+  );
+};
 
 export type InlineCitationCardBodyProps = ComponentProps<"div">;
 
@@ -87,7 +112,13 @@ export const InlineCitationCardBody = ({
   className,
   ...props
 }: InlineCitationCardBodyProps) => (
-  <HoverCardContent className={cn("relative w-80 p-0", className)} {...props} />
+  <HoverCardContent
+    className={cn("relative w-[320px] p-0 overflow-hidden rounded-2xl border-border/60 shadow-2xl bg-popover/95 backdrop-blur-md", className)}
+    side="top"
+    align="center"
+    sideOffset={8}
+    {...props}
+  />
 );
 
 const CarouselApiContext = createContext<CarouselApi | undefined>(undefined);
@@ -128,7 +159,7 @@ export const InlineCitationCarouselItem = ({
   ...props
 }: InlineCitationCarouselItemProps) => (
   <CarouselItem
-    className={cn("w-full space-y-2 p-4 pl-8", className)}
+    className={cn("w-full space-y-2 p-4 pl-4", className)}
     {...props}
   />
 );
@@ -137,16 +168,50 @@ export type InlineCitationCarouselHeaderProps = ComponentProps<"div">;
 
 export const InlineCitationCarouselHeader = ({
   className,
+  sources = [],
   ...props
-}: InlineCitationCarouselHeaderProps) => (
-  <div
-    className={cn(
-      "flex items-center justify-between gap-2 rounded-t-md bg-secondary p-2",
-      className
-    )}
-    {...props}
-  />
-);
+}: InlineCitationCarouselHeaderProps & { sources?: { url: string }[] }) => {
+  const getFavicon = (url: string) => {
+    try {
+      const hostname = new URL(url).hostname;
+      return `https://www.google.com/s2/favicons?sz=64&domain=${hostname}`;
+    } catch {
+      return null;
+    }
+  };
+
+  return (
+    <div className="space-y-0">
+      <div
+        className={cn(
+          "flex items-center justify-between px-3 py-2 bg-muted/30",
+          className
+        )}
+        {...props}
+      >
+        <div className="flex items-center gap-2">
+          <InlineCitationCarouselPrev className="hover:text-foreground transition-colors" />
+          <InlineCitationCarouselIndex className="p-0 text-foreground font-medium" />
+          <InlineCitationCarouselNext className="hover:text-foreground transition-colors" />
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <div className="flex -space-x-1.5 overflow-hidden">
+            {sources.slice(0, 3).map((s, i) => (
+              <div key={i} className="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-background bg-background overflow-hidden shrink-0">
+                <img src={getFavicon(s.url) || ""} alt="" className="h-full w-full object-cover" />
+              </div>
+            ))}
+          </div>
+          <span className="text-[10px] text-muted-foreground font-medium">
+            {sources.length} sources
+          </span>
+        </div>
+      </div>
+      <div className="h-[1px] w-full bg-border/40" />
+    </div>
+  );
+};
 
 export type InlineCitationCarouselIndexProps = ComponentProps<"div">;
 
@@ -181,7 +246,7 @@ export const InlineCitationCarouselIndex = ({
   return (
     <div
       className={cn(
-        "flex flex-1 items-center justify-end px-3 py-1 text-muted-foreground text-xs",
+        "flex items-center px-2 py-1 text-muted-foreground text-xs font-mono",
         className
       )}
       {...props}
@@ -213,7 +278,7 @@ export const InlineCitationCarouselPrev = ({
       type="button"
       {...props}
     >
-      <ArrowLeftIcon className="size-4 text-muted-foreground" />
+      <IconArrowLeft className="size-3.5 text-muted-foreground" />
     </button>
   );
 };
@@ -240,7 +305,7 @@ export const InlineCitationCarouselNext = ({
       type="button"
       {...props}
     >
-      <ArrowRightIcon className="size-4 text-muted-foreground" />
+      <IconArrowRight className="size-3.5 text-muted-foreground" />
     </button>
   );
 };
@@ -258,22 +323,48 @@ export const InlineCitationSource = ({
   className,
   children,
   ...props
-}: InlineCitationSourceProps) => (
-  <div className={cn("space-y-1", className)} {...props}>
-    {title && (
-      <h4 className="truncate font-medium text-sm leading-tight">{title}</h4>
-    )}
-    {url && (
-      <p className="truncate break-all text-muted-foreground text-xs">{url}</p>
-    )}
-    {description && (
-      <p className="line-clamp-3 text-muted-foreground text-sm leading-relaxed">
-        {description}
-      </p>
-    )}
-    {children}
-  </div>
-);
+}: InlineCitationSourceProps) => {
+  const getFavicon = (url?: string) => {
+    if (!url) return null;
+    try {
+      const hostname = new URL(url).hostname;
+      return `https://www.google.com/s2/favicons?sz=64&domain=${hostname}`;
+    } catch {
+      return null;
+    }
+  };
+
+  const domain = url ? new URL(url).hostname.replace('www.', '') : '';
+
+  return (
+    <div className={cn("space-y-3", className)} {...props}>
+      <div className="flex items-center gap-2">
+        <div className="h-4 w-4 rounded-full overflow-hidden bg-muted shrink-0">
+          <img src={getFavicon(url) || ""} alt="" className="h-full w-full object-cover" />
+        </div>
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-tight">{domain}</span>
+      </div>
+
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block group/title"
+      >
+        <h4 className="text-base font-bold leading-snug text-foreground group-hover/title:text-primary transition-colors line-clamp-2">
+          {title}
+        </h4>
+      </a>
+
+      {description && (
+        <p className="line-clamp-4 text-sm leading-relaxed text-muted-foreground/90">
+          {description}
+        </p>
+      )}
+      {children}
+    </div>
+  );
+};
 
 export type InlineCitationQuoteProps = ComponentProps<"blockquote">;
 

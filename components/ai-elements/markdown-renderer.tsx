@@ -190,7 +190,12 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       h6: H6 as any,
 
       // Text
-      p: Text as any,
+      p: (props: any) => {
+        if (compact) {
+          return <span className={cn("inline leading-relaxed", props.className)}>{props.children}</span>;
+        }
+        return <Text {...props} />;
+      },
 
       // Lists
       ul: UnorderedList as any,

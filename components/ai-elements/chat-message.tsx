@@ -129,21 +129,23 @@ function parseUserContent(rawContent: string): ParsedUserMessage {
 
 // Helper component to render content with inline citations using ai-elements
 function InlineCitationRenderer({ content, sources = [], isStreaming = false }: { content: string; sources: { title: string; url: string; content?: string }[]; isStreaming?: boolean }) {
-    if (!sources.length) {
+    if (!sources || sources.length === 0) {
         return <MarkdownRenderer content={content} compact={false} isStreaming={isStreaming} />;
     }
 
     // Split content by citation markers [N] or 【N】
-    const citationRegex = /(?:\[(\d+)\]|【(\d+)】)/g;
+    // We want to find clusters of citations like [1][2][3]
+    const citationRegex = /(?:(?:\[\d+\]|【\d+】)\s*)+/g;
+    const individualRegex = /(?:\[(\d+)\]|【(\d+)】)/g;
+
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
     let match;
 
     while ((match = citationRegex.exec(content)) !== null) {
-        const citationNum = parseInt(match[1] || match[2], 10);
-        const source = sources[citationNum - 1];
+        const fullMatch = match[0];
 
-        // Add text before citation
+        // Add text before citation group
         if (match.index > lastIndex) {
             parts.push(
                 <MarkdownRenderer
@@ -155,42 +157,46 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
             );
         }
 
-        // Add citation with hover card
-        if (source) {
+        // Extract individual citation numbers from the group
+        const groupCitations: { number: number, source: any }[] = [];
+        let indMatch;
+        while ((indMatch = individualRegex.exec(fullMatch)) !== null) {
+            const num = parseInt(indMatch[1] || indMatch[2], 10);
+            const source = sources[num - 1];
+            if (source) {
+                groupCitations.push({ number: num, source });
+            }
+        }
+
+        if (groupCitations.length > 0) {
             parts.push(
-                <InlineCitationCard key={`citation-${citationNum}`}>
-                    <InlineCitation>
-                        <InlineCitationText>
-                            <MarkdownRenderer content={`[${citationNum}]`} compact={true} />
-                        </InlineCitationText>
-                        <InlineCitationCardTrigger sources={[source.url]} />
+                <InlineCitationCard key={`group-${match.index}`} openDelay={100} closeDelay={300}>
+                    <InlineCitation className="inline-flex">
+                        <InlineCitationCardTrigger sources={groupCitations.map(c => c.source)} />
                     </InlineCitation>
+
                     <InlineCitationCardBody>
                         <InlineCitationCarousel>
                             <InlineCitationCarouselContent>
-                                <InlineCitationCarouselItem>
-                                    <InlineCitationSource
-                                        title={source.title}
-                                        url={source.url}
-                                        description={source.content}
-                                    />
-                                </InlineCitationCarouselItem>
+                                {groupCitations.map((c, i) => (
+                                    <InlineCitationCarouselItem key={i} className="pl-6 pr-6 py-4">
+                                        <InlineCitationSource
+                                            title={c.source.title}
+                                            url={c.source.url}
+                                            description={c.source.content}
+                                        />
+                                    </InlineCitationCarouselItem>
+                                ))}
                             </InlineCitationCarouselContent>
-                            <InlineCitationCarouselHeader>
-                                <div />
-                                <InlineCitationCarouselIndex />
-                                <div className="flex gap-1">
-                                    <InlineCitationCarouselPrev />
-                                    <InlineCitationCarouselNext />
-                                </div>
-                            </InlineCitationCarouselHeader>
+
+                            <InlineCitationCarouselHeader sources={groupCitations.map(c => c.source)} />
                         </InlineCitationCarousel>
                     </InlineCitationCardBody>
                 </InlineCitationCard>
             );
         }
 
-        lastIndex = match.index + match[0].length;
+        lastIndex = match.index + fullMatch.length;
     }
 
     // Add remaining text
@@ -205,7 +211,11 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
         );
     }
 
-    return <div className="space-y-2">{parts}</div>;
+    return (
+        <div className="space-y-2 inline-block w-full">
+            <div className="inline leading-relaxed">{parts}</div>
+        </div>
+    );
 }
 
 
