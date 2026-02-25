@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useUser } from "@/components/user-context"
-import { IconEdit, IconTrash, IconChevronDown, IconPin, IconPinFilled, IconDownload, IconPencil, IconArrowDown, IconRotateClockwise, IconBookmark, IconCaretLeftRightFilled, IconDots, IconStackPush, IconBrain, IconShare } from "@tabler/icons-react";
+import { IconEdit, IconTrash, IconChevronDown, IconPin, IconPinFilled, IconDownload, IconPencil, IconArrowDown, IconRotateClockwise, IconBookmark, IconCaretLeftRightFilled, IconDotsVertical, IconStackPush, IconBrain, IconShare } from "@tabler/icons-react";
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint"
 import apiClient from "@/lib/api"
 
@@ -1966,7 +1966,7 @@ export default function AssistantPage() {
                     <TooltipTrigger asChild>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors">
-                                <IconDots className="size-4" />
+                                <IconDotsVertical className="size-4" />
                             </Button>
                         </DropdownMenuTrigger>
                     </TooltipTrigger>
