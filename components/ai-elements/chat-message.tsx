@@ -540,50 +540,6 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
 
                                     {/* Actions Row - Below message */}
                                     <div className="flex items-center justify-between w-full mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none">
-                                        <div className="flex items-center gap-1">
-                                            {versionCount > 1 && (
-                                                <div className="flex items-center gap-1 text-xs text-muted-foreground rounded-md px-1 select-none">
-                                                    <TooltipProvider delayDuration={400}>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-5 w-5 hover:bg-sidebar-accent/50 transition-colors"
-                                                                    onClick={() => onVersionChange?.('prev')}
-                                                                    disabled={currentVersion <= 1}
-                                                                >
-                                                                    <IconChevronLeft className="size-3" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent side="bottom"><p className="text-[10px]">Previous version</p></TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-
-                                                    <span className="px-1 min-w-[30px] text-center font-mono opacity-60">
-                                                        {currentVersion} / {versionCount}
-                                                    </span>
-
-                                                    <TooltipProvider delayDuration={400}>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-5 w-5 hover:bg-sidebar-accent/50 transition-colors"
-                                                                    onClick={() => onVersionChange?.('next')}
-                                                                    disabled={currentVersion >= versionCount}
-                                                                >
-                                                                    <IconChevronRight className="size-3" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent side="bottom"><p className="text-[10px]">Next version</p></TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                </div>
-                                            )}
-                                        </div>
-
                                         <div className="flex items-center gap-3">
                                             {/* Timestamp - Explicitly to the left of buttons */}
                                             {message.createdAt && (
@@ -620,6 +576,49 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                                         onClick={() => onRegenerate?.('continue')}
                                                         delayDuration={700}
                                                     />
+                                                )}
+
+                                                {/* User Version navigation - Repositioned to the right of Copy */}
+                                                {versionCount > 1 && (
+                                                    <div className="flex items-center gap-1 text-xs text-muted-foreground rounded-md px-1 select-none ml-1">
+                                                        <TooltipProvider delayDuration={400}>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-5 w-5 hover:bg-sidebar-accent/50 transition-colors"
+                                                                        onClick={() => onVersionChange?.('prev')}
+                                                                        disabled={currentVersion <= 1}
+                                                                    >
+                                                                        <IconChevronLeft className="size-3" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="bottom"><p className="text-[10px]">Previous version</p></TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+
+                                                        <span className="px-1 min-w-[24px] text-center font-mono opacity-60 text-[10px]">
+                                                            {currentVersion}/{versionCount}
+                                                        </span>
+
+                                                        <TooltipProvider delayDuration={400}>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-5 w-5 hover:bg-sidebar-accent/50 transition-colors"
+                                                                        onClick={() => onVersionChange?.('next')}
+                                                                        disabled={currentVersion >= versionCount}
+                                                                    >
+                                                                        <IconChevronRight className="size-3" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="bottom"><p className="text-[10px]">Next version</p></TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
@@ -758,7 +757,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             </TooltipTrigger>
                                             <TooltipContent side="bottom"><p>Regenerate</p></TooltipContent>
                                         </Tooltip>
-                                        <DropdownMenuContent align="start" side="top" className="w-[240px] p-1.5 shadow-xl border border-border/50">
+                                        <DropdownMenuContent align="end" side="top" className="w-[210px] p-2 shadow-xl border border-border/50">
                                             <div className="flex items-center gap-1.5 mb-1.5 px-0.5">
                                                 <div className="relative flex-1">
                                                     <Input
@@ -786,32 +785,31 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
 
                                             <DropdownMenuSeparator className="mx-0.5 my-1 opacity-50" />
 
-                                            <div className="space-y-0.5">
+                                            <div className="space-y-1">
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
+                                                    <IconRefresh className="mr-2.5 size-4 opacity-70" /> Retry
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('details')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
+                                                    <IconListDetails className="mr-2.5 size-4 opacity-70" /> Add details
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleRegenerateOption('concise')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
+                                                    <IconViewportShort className="mr-2.5 size-4 opacity-70" /> More concise
+                                                </DropdownMenuItem>
 
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-xs cursor-pointer py-1 px-2 focus:bg-sidebar-accent/50 rounded-md">
-                                                    <IconRefresh className="mr-2 size-3.5 opacity-60" /> Retry
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('details')} className="text-xs cursor-pointer py-1 px-2 focus:bg-sidebar-accent/50 rounded-md">
-                                                    <IconListDetails className="mr-2 size-3.5 opacity-60" /> Add details
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('concise')} className="text-xs cursor-pointer py-1 px-2 focus:bg-sidebar-accent/50 rounded-md">
-                                                    <IconViewportShort className="mr-2 size-3.5 opacity-60" /> More concise
-                                                </DropdownMenuItem>
-
-                                                <DropdownMenuSeparator className="mx-0.5 my-1 opacity-50" />
+                                                <DropdownMenuSeparator className="mx-0.5 my-1.5 opacity-50" />
 
                                                 {!usedThinking && (
-                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-xs cursor-pointer py-1 px-2 focus:bg-sidebar-accent/50 rounded-md">
-                                                        <IconBulb className="mr-2 size-3.5 opacity-60" /> Think Longer
+                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
+                                                        <IconBulb className="mr-2.5 size-4 opacity-70" /> Think Longer
                                                     </DropdownMenuItem>
                                                 )}
                                                 {usedWebSearch ? (
-                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('no-search')} className="text-xs cursor-pointer py-1 px-2 focus:bg-sidebar-accent/50 rounded-md">
-                                                        <IconWorldOff className="mr-2 size-3.5 opacity-60" /> No web search
+                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('no-search')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
+                                                        <IconWorldOff className="mr-2.5 size-4 opacity-70" /> No web search
                                                     </DropdownMenuItem>
                                                 ) : (
-                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('search')} className="text-xs cursor-pointer py-1 px-2 focus:bg-sidebar-accent/50 rounded-md">
-                                                        <IconWorld className="mr-2 size-3.5 opacity-60" /> Search web
+                                                    <DropdownMenuItem onClick={() => handleRegenerateOption('search')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
+                                                        <IconWorld className="mr-2.5 size-4 opacity-70" /> Search web
                                                     </DropdownMenuItem>
                                                 )}
                                             </div>
