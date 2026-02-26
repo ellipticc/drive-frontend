@@ -12,7 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 import { IconBulb, IconBulbFilled, IconChevronDown, IconChevronRight, IconDots, IconSearch, IconCode } from "@tabler/icons-react";
 import { createContext, memo, useContext, useMemo } from "react";
-import { ShikiCodeBlock } from "./shiki-code-block";
+import { CodeBlock } from "./markdown-components";
 
 interface ChainOfThoughtContextValue {
   isOpen: boolean;
@@ -185,17 +185,8 @@ export const ChainOfThoughtStep = memo(
                   {content}
                 </div>
               )}
-              {code && (
-                <div className="rounded-lg overflow-hidden border border-border/50 shadow-sm">
-                  <ShikiCodeBlock code={code} language="python" />
-                </div>
-              )}
-              {stdout && (
-                <div className="rounded-lg bg-muted/30 p-2.5 font-mono text-xs border border-border/50 overflow-x-auto">
-                  <div className="text-muted-foreground/50 mb-1.5 font-sans uppercase text-[10px] tracking-wider font-bold">Output</div>
-                  <pre className="text-foreground/90 whitespace-pre-wrap break-all">{stdout}</pre>
-                </div>
-              )}
+              {code && <CodeBlock code={code} language="python" />}
+              {stdout && <CodeBlock code={stdout} language="plain" />}
               {children}
             </div>
           )}
