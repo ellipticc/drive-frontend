@@ -198,13 +198,16 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
 
         lastIndex = match.index + fullMatch.length;
 
-        // CAPTURE TRAILING PUNCTUATION: If the next characters are punctuation, 
-        // pull them into an inline span immediately after the citation to prevent wrapping.
+        // HANDLE PUNCTUATION SWAP: Look ahead for trailing punctuation and insert it BEFORE the citation cluster
+        // in the parts array if it exists.
         const remaining = content.slice(lastIndex);
         const punctMatch = remaining.match(/^[.,!?;:]+/);
         if (punctMatch) {
             const punctuation = punctMatch[0];
+            // Remove the last added group and insert punctuation before it
+            const lastPart = parts.pop();
             parts.push(<span key={`punct-${lastIndex}`} className="inline font-medium">{punctuation}</span>);
+            if (lastPart) parts.push(lastPart);
             lastIndex += punctuation.length;
         }
     }
@@ -689,26 +692,8 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                             )}
                         </div>
 
-                        {/* References Footer */}
-                        {displayRes.sources && displayRes.sources.length > 0 && (
-                            <div className="mt-2 pt-2 border-t border-border/50">
-                                <p className="text-xs font-semibold text-muted-foreground mb-1">Sources</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {displayRes.sources.map((source, idx) => (
-                                        <a
-                                            key={idx}
-                                            href={source.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-xs bg-muted hover:bg-muted/80 px-2 py-1 rounded transition-colors flex items-center gap-1 text-foreground no-underline"
-                                        >
-                                            <span className="opacity-50 font-mono">[{idx + 1}]</span>
-                                            <span className="truncate max-w-[150px]">{source.title}</span>
-                                        </a>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                        {/* Legacy References Footer Removed */}
+
 
                         {/* Actions Footer - rendered only when not thinking/streaming */}
                         {isAssistant && !message.isThinking && (
@@ -833,6 +818,82 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             <span>Interrupted</span>
                                         </div>
                                     ) : null}
+
+                                    {displayRes.sources && displayRes.sources.length > 0 && (
+                                        <Sheet modal={true}>
+                                            <SheetTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    className="flex items-center gap-2 h-7 px-2 rounded-full bg-muted/50 hover:bg-muted text-muted-foreground transition-all ml-1 group/sources"
+                                                >
+                                                    <div className="flex -space-x-1.5 overflow-hidden">
+                                                        {displayRes.sources.slice(0, 3).map((s, i) => (
+                                                            <div key={i} className="inline-block h-4 w-4 rounded-full ring-2 ring-background bg-background overflow-hidden shrink-0 border border-border/10">
+                                                                <img
+                                                                    src={`https://www.google.com/s2/favicons?sz=64&domain=${new URL(s.url).hostname}`}
+                                                                    alt=""
+                                                                    className="h-full w-full object-cover"
+                                                                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <span className="text-[11px] font-semibold group-hover/sources:text-foreground">
+                                                        {displayRes.sources.length} sources
+                                                    </span>
+                                                </Button>
+                                            </SheetTrigger>
+                                            <SheetContent side="right" className="w-[350px] sm:w-[450px] p-0 flex flex-col gap-0 border-l border-border/40 shadow-2xl">
+                                                <SheetHeader className="px-6 py-5 border-b border-border/40 shrink-0 bg-muted/10">
+                                                    <SheetTitle className="text-xl font-bold flex items-center gap-2">
+                                                        <span>{displayRes.sources.length}</span>
+                                                        <span className="text-foreground/80">Sources</span>
+                                                    </SheetTitle>
+                                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">Sources for "{displayContent.substring(0, 50)}..."</p>
+                                                </SheetHeader>
+                                                <ScrollArea className="flex-1 w-full">
+                                                    <div className="divide-y divide-border/30">
+                                                        {displayRes.sources.map((source, idx) => (
+                                                            <div key={idx} className="p-6 hover:bg-muted/20 transition-colors group/source-item">
+                                                                <div className="flex items-start gap-4">
+                                                                    <div className="text-[10px] font-mono text-muted-foreground/40 mt-1 shrink-0 bg-muted px-1.5 py-0.5 rounded">
+                                                                        {idx + 1}
+                                                                    </div>
+                                                                    <div className="space-y-3 flex-1 min-w-0">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <img
+                                                                                src={`https://www.google.com/s2/favicons?sz=64&domain=${new URL(source.url).hostname}`}
+                                                                                alt=""
+                                                                                className="size-4 rounded-full"
+                                                                            />
+                                                                            <span className="text-xs font-medium text-muted-foreground truncate uppercase tracking-wider">
+                                                                                {new URL(source.url).hostname.replace('www.', '').toLowerCase()}
+                                                                            </span>
+                                                                        </div>
+                                                                        <a
+                                                                            href={source.url}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="block group/title"
+                                                                        >
+                                                                            <h4 className="text-[15px] font-bold leading-snug text-foreground/90 group-hover/title:text-primary transition-colors line-clamp-2">
+                                                                                {source.title}
+                                                                            </h4>
+                                                                        </a>
+                                                                        {source.content && (
+                                                                            <p className="text-[13px] leading-relaxed text-muted-foreground/80 line-clamp-3">
+                                                                                {source.content}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </ScrollArea>
+                                            </SheetContent>
+                                        </Sheet>
+                                    )}
 
                                     {/* display model badge on every assistant response */}
                                     {displayRes.model && (

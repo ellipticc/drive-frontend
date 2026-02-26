@@ -78,7 +78,7 @@ export const InlineCitationCardTrigger = ({
       <span
         role="button"
         className={cn(
-          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/60 hover:bg-muted/90 transition-all border border-border/40 ml-1 align-baseline cursor-pointer select-none ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 active:scale-95",
+          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/30 hover:bg-muted/80 transition-all border border-border/40 ml-1 align-baseline cursor-pointer select-none ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 active:scale-95",
           className
         )}
         {...props}
