@@ -14,6 +14,15 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Reasoning, ReasoningTrigger, ReasoningContent, detectThinkingTagType } from "@/components/ai-elements/reasoning"
 import { MarkdownRenderer } from "@/components/ai-elements/markdown-renderer"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
+import {
+    ChainOfThought,
+    ChainOfThoughtHeader,
+    ChainOfThoughtContent,
+    ChainOfThoughtStep,
+    ChainOfThoughtSearchResults,
+    ChainOfThoughtSearchResult,
+    ChainOfThoughtImage,
+} from "@/components/ai-elements/chain-of-thought"
 
 export interface ToolCall {
     id: string;
@@ -39,6 +48,7 @@ export interface MessageVersion {
     sources?: { title: string; url: string; content?: string }[];
     reasoning?: string;
     reasoningDuration?: number;
+    steps?: any[];
 }
 
 export interface Message {
@@ -62,6 +72,7 @@ export interface Message {
     total_time?: number | string;
     model?: string;
     parent_id?: string | null;
+    steps?: any[];
 }
 
 interface ChatMessageProps {
@@ -250,7 +261,8 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
             suggestions: v.suggestions || message.suggestions,
             sources: v.sources || message.sources,
             reasoning: v.reasoning || message.reasoning,
-            reasoningDuration: v.reasoningDuration !== undefined ? v.reasoningDuration : message.reasoningDuration
+            reasoningDuration: v.reasoningDuration !== undefined ? v.reasoningDuration : message.reasoningDuration,
+            steps: v.steps || message.steps
         };
     }, [message, currentVersionIndex]);
 
@@ -571,6 +583,60 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                 <IconBulbFilled className="size-3 mr-2" />
                                 Thought for {displayRes.reasoningDuration}s
                             </div>
+                        )}
+
+                        {/* Unified Chain of Thought Section */}
+                        {displayRes.steps && displayRes.steps.length > 0 && (
+                            <ChainOfThought className="mb-4" defaultOpen={true}>
+                                <ChainOfThoughtHeader>
+                                    {displayRes.isThinking ? "Thinking..." : "Thought process"}
+                                </ChainOfThoughtHeader>
+                                <ChainOfThoughtContent>
+                                    {displayRes.steps.map((step: any, idx: number) => (
+                                        <ChainOfThoughtStep
+                                            key={step.id || idx}
+                                            stepType={step.stepType}
+                                            label={step.label}
+                                            status={step.status || "complete"}
+                                        >
+                                            {step.stepType === 'search' && step.results && (
+                                                <ChainOfThoughtSearchResults>
+                                                    {step.results.map((res: any, rIdx: number) => (
+                                                        <ChainOfThoughtSearchResult key={rIdx}>
+                                                            <a href={res.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                                                {res.title}
+                                                            </a>
+                                                        </ChainOfThoughtSearchResult>
+                                                    ))}
+                                                </ChainOfThoughtSearchResults>
+                                            )}
+                                            {step.stepType === 'code' && (
+                                                <div className="space-y-2 mt-1">
+                                                    {step.stdout && (
+                                                        <pre className="text-[11px] font-mono bg-muted/50 p-2 rounded-md overflow-x-auto max-w-full">
+                                                            {step.stdout}
+                                                        </pre>
+                                                    )}
+                                                    {step.error && (
+                                                        <pre className="text-[11px] font-mono bg-destructive/10 text-destructive p-2 rounded-md overflow-x-auto max-w-full">
+                                                            {step.error}
+                                                        </pre>
+                                                    )}
+                                                    {step.images && step.images.length > 0 && (
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {step.images.map((img: string, iIdx: number) => (
+                                                                <ChainOfThoughtImage key={iIdx}>
+                                                                    <img src={`data:image/png;base64,${img}`} alt={`Plot ${iIdx + 1}`} className="max-w-full h-auto" />
+                                                                </ChainOfThoughtImage>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </ChainOfThoughtStep>
+                                    ))}
+                                </ChainOfThoughtContent>
+                            </ChainOfThought>
                         )}
 
                         <div className="w-full max-w-full break-words overflow-hidden">

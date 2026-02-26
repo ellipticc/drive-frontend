@@ -73,6 +73,7 @@ interface MessageVersion {
     sources?: { title: string; url: string; content?: string }[];
     reasoning?: string;
     reasoningDuration?: number;
+    steps?: any[];
 }
 
 interface Message {
@@ -96,6 +97,7 @@ interface Message {
     total_time?: number | string;
     model?: string;
     parent_id?: string | null;
+    steps?: any[];
 }
 
 
@@ -885,68 +887,57 @@ export default function AssistantPage() {
                             continue;
                         }
 
-                        // Handle sources events (citations from web search)
-                        if (eventType === 'sources' && dataStr) {
+                        // Handle unified Chain of Thought steps (search, code, etc.)
+                        if (eventType === 'step' && dataStr) {
                             try {
                                 const data = JSON.parse(dataStr);
-                                let sourcesData = null;
+                                let stepData = null;
 
-                                // Support encrypted sources payloads
-                                if (data.encrypted_sources && data.sources_iv) {
+                                // Support encrypted step payloads
+                                if (data.encrypted_step && data.step_iv) {
                                     const { decrypted, sessionKey } = await decryptStreamChunk(
-                                        data.encrypted_sources,
-                                        data.sources_iv,
+                                        data.encrypted_step,
+                                        data.step_iv,
                                         data.encapsulated_key,
                                         currentSessionKey
                                     );
                                     currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
-                                    sourcesData = JSON.parse(decrypted);
-                                } else if (data.sources) {
-                                    sourcesData = data.sources || data;
+                                    stepData = JSON.parse(decrypted);
+                                } else {
+                                    stepData = data;
                                 }
 
-                                if (sourcesData && Array.isArray(sourcesData.sources)) {
-                                    messageSources = sourcesData.sources.map((s: any, idx: number) => ({
-                                        title: s.title,
-                                        url: s.url,
-                                        content: s.description || s.content || ''
-                                    }));
-
-                                    // Update message with sources
+                                if (stepData) {
                                     setMessages(prev => {
                                         const newMessages = [...prev];
                                         const lastIdx = newMessages.length - 1;
                                         const lastMessage = newMessages[lastIdx];
                                         if (lastMessage && lastMessage.role === 'assistant') {
-                                            newMessages[lastIdx] = {
-                                                ...lastMessage,
-                                                sources: messageSources
-                                            };
-                                        }
-                                        return newMessages;
-                                    });
-                                } else if (Array.isArray(sourcesData)) {
-                                    messageSources = sourcesData.map((s: any) => ({
-                                        title: s.title,
-                                        url: s.url,
-                                        content: s.description || s.content || ''
-                                    }));
+                                            const existingSteps = lastMessage.steps || [];
+                                            // Deduplicate by ID if necessary, or just append
+                                            const newSteps = [...existingSteps, stepData];
 
-                                    setMessages(prev => {
-                                        const newMessages = [...prev];
-                                        const lastIdx = newMessages.length - 1;
-                                        const lastMessage = newMessages[lastIdx];
-                                        if (lastMessage && lastMessage.role === 'assistant') {
+                                            // Also update sources if this was a search step for legacy compatibility/backup
+                                            let updatedSources = lastMessage.sources;
+                                            if (stepData.stepType === 'search' && Array.isArray(stepData.results)) {
+                                                updatedSources = stepData.results.map((r: any) => ({
+                                                    title: r.title,
+                                                    url: r.url,
+                                                    content: r.content || ''
+                                                }));
+                                            }
+
                                             newMessages[lastIdx] = {
                                                 ...lastMessage,
-                                                sources: messageSources
+                                                steps: newSteps,
+                                                sources: updatedSources
                                             };
                                         }
                                         return newMessages;
                                     });
                                 }
                             } catch (e) {
-                                console.warn('Failed to parse sources event', dataStr, e);
+                                console.warn('Failed to parse step event', dataStr, e);
                             }
                             continue;
                         }
