@@ -147,10 +147,14 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
 
         // Add text before citation group
         if (match.index > lastIndex) {
+            let textBefore = content.substring(lastIndex, match.index);
+            // Trim trailing space before citations to prevent line breaks and keep them tight to the word
+            // textBefore = textBefore.trimEnd(); 
+
             parts.push(
                 <MarkdownRenderer
                     key={`text-${lastIndex}`}
-                    content={content.substring(lastIndex, match.index)}
+                    content={textBefore}
                     compact={true}
                     isStreaming={isStreaming}
                 />
@@ -172,7 +176,10 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
             parts.push(
                 <InlineCitationCard key={`group-${match.index}`} openDelay={100} closeDelay={300}>
                     <InlineCitation className="inline-flex">
-                        <InlineCitationCardTrigger sources={groupCitations.map(c => c.source)} />
+                        <InlineCitationCardTrigger
+                            sources={groupCitations.map(c => c.source)}
+                            indices={groupCitations.map(c => c.number)}
+                        />
                     </InlineCitation>
 
                     <InlineCitationCardBody>
@@ -198,24 +205,12 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
 
         lastIndex = match.index + fullMatch.length;
 
-        // HANDLE PUNCTUATION SWAP: Look ahead for trailing punctuation and insert it BEFORE the citation cluster
-        // in the parts array if it exists.
+        // HANDLE PUNCTUATION: Look ahead for trailing punctuation and keep it tight
         const remaining = content.slice(lastIndex);
         const punctMatch = remaining.match(/^[.,!?;:]+/);
         if (punctMatch) {
             const punctuation = punctMatch[0];
-            // Remove the last added group and insert punctuation before it
-            const lastPart = parts.pop();
             parts.push(<span key={`punct-${lastIndex}`} className="inline font-medium">{punctuation}</span>);
-
-            // WRAP citation in a span with whitespace-nowrap to prevent line breaks between punct and citation
-            if (lastPart) {
-                parts.push(
-                    <span key={`wrap-${match.index}`} className="inline-flex whitespace-nowrap items-baseline">
-                        {lastPart}
-                    </span>
-                );
-            }
             lastIndex += punctuation.length;
         }
     }

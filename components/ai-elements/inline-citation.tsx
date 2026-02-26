@@ -55,10 +55,12 @@ export const InlineCitationCard = (props: InlineCitationCardProps) => (
 
 export type InlineCitationCardTriggerProps = ComponentProps<"span"> & {
   sources: { title: string; url: string; content?: string }[];
+  indices?: number[];
 };
 
 export const InlineCitationCardTrigger = ({
   sources,
+  indices,
   className,
   ...props
 }: InlineCitationCardTriggerProps) => {
@@ -71,6 +73,35 @@ export const InlineCitationCardTrigger = ({
     }
   };
 
+  // If we have specific indices, render them as small numbered bubbles
+  if (indices && indices.length > 0) {
+    return (
+      <HoverCardTrigger asChild>
+        <span
+          role="button"
+          className={cn(
+            "inline-flex items-center gap-0.5 ml-0.5 cursor-pointer select-none align-baseline",
+            className
+          )}
+          {...props}
+        >
+          {indices.map((idx, i) => (
+            <span
+              key={i}
+              className={cn(
+                "inline-flex items-center justify-center rounded-full bg-muted/40 hover:bg-muted/60 transition-colors border border-border/30 text-[10px] font-bold text-foreground/70 h-3.5 min-w-[14px] px-1",
+                i > 0 && "-ml-0.5"
+              )}
+            >
+              {idx}
+            </span>
+          ))}
+        </span>
+      </HoverCardTrigger>
+    );
+  }
+
+  // Fallback to the legacy domain-pill style if no indices provided (unlikely now)
   const firstDomain = sources[0] ? new URL(sources[0].url).hostname.replace('www.', '').toLowerCase() : '';
 
   return (
