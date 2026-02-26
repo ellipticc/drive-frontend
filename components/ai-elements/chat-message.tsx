@@ -207,7 +207,15 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
             // Remove the last added group and insert punctuation before it
             const lastPart = parts.pop();
             parts.push(<span key={`punct-${lastIndex}`} className="inline font-medium">{punctuation}</span>);
-            if (lastPart) parts.push(lastPart);
+
+            // WRAP citation in a span with whitespace-nowrap to prevent line breaks between punct and citation
+            if (lastPart) {
+                parts.push(
+                    <span key={`wrap-${match.index}`} className="inline-flex whitespace-nowrap items-baseline">
+                        {lastPart}
+                    </span>
+                );
+            }
             lastIndex += punctuation.length;
         }
     }
@@ -299,7 +307,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
         const exportedAt = new Date();
         const header = [
             `# Message export`,
-            `This message was downloaded from Ellipticc (https://ellipticc.com). AI chats may display inaccurate or offensive information (see https://ellipticc.com/privacy-policy for more info).`,
+            `This message was downloaded from Comet (https://comet.ai). AI chats may display inaccurate or offensive information (see https://comet.ai/privacy-policy for more info).`,
             `Message ID: ${message.id || 'N/A'}`,
             `Exported: ${exportedAt.toLocaleString()}`,
             `Message timestamp: ${ts.toLocaleString()}`,
@@ -307,7 +315,16 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
             ''
         ].join('\n');
 
-        const body = `${header}\n**${message.role.toUpperCase()}** — ${ts.toLocaleString()}\n\n${message.content}\n`;
+        let body = `${header}\n# ${message.role === 'user' ? 'User Question' : 'AI Assistant Response'}\n\n${message.content}\n`;
+
+        // ADD FOOTNOTES
+        if (displayRes.sources && displayRes.sources.length > 0) {
+            body += `\n<div align="center">⁂</div>\n\n`;
+            displayRes.sources.forEach((source, idx) => {
+                body += `[^${idx + 1}]: ${source.url}\n`;
+            });
+        }
+
         const blob = new Blob([body], { type: 'text/markdown' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -819,82 +836,6 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                         </div>
                                     ) : null}
 
-                                    {displayRes.sources && displayRes.sources.length > 0 && (
-                                        <Sheet modal={true}>
-                                            <SheetTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    className="flex items-center gap-2 h-7 px-2 rounded-full bg-muted/50 hover:bg-muted text-muted-foreground transition-all ml-1 group/sources"
-                                                >
-                                                    <div className="flex -space-x-1.5 overflow-hidden">
-                                                        {displayRes.sources.slice(0, 3).map((s, i) => (
-                                                            <div key={i} className="inline-block h-4 w-4 rounded-full ring-2 ring-background bg-background overflow-hidden shrink-0 border border-border/10">
-                                                                <img
-                                                                    src={`https://www.google.com/s2/favicons?sz=64&domain=${new URL(s.url).hostname}`}
-                                                                    alt=""
-                                                                    className="h-full w-full object-cover"
-                                                                    onError={(e) => (e.currentTarget.style.display = 'none')}
-                                                                />
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                    <span className="text-[11px] font-semibold group-hover/sources:text-foreground">
-                                                        {displayRes.sources.length} sources
-                                                    </span>
-                                                </Button>
-                                            </SheetTrigger>
-                                            <SheetContent side="right" className="w-[350px] sm:w-[450px] p-0 flex flex-col gap-0 border-l border-border/40 shadow-2xl">
-                                                <SheetHeader className="px-6 py-5 border-b border-border/40 shrink-0 bg-muted/10">
-                                                    <SheetTitle className="text-xl font-bold flex items-center gap-2">
-                                                        <span>{displayRes.sources.length}</span>
-                                                        <span className="text-foreground/80">Sources</span>
-                                                    </SheetTitle>
-                                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">Sources for "{displayContent.substring(0, 50)}..."</p>
-                                                </SheetHeader>
-                                                <ScrollArea className="flex-1 w-full">
-                                                    <div className="divide-y divide-border/30">
-                                                        {displayRes.sources.map((source, idx) => (
-                                                            <div key={idx} className="p-6 hover:bg-muted/20 transition-colors group/source-item">
-                                                                <div className="flex items-start gap-4">
-                                                                    <div className="text-[10px] font-mono text-muted-foreground/40 mt-1 shrink-0 bg-muted px-1.5 py-0.5 rounded">
-                                                                        {idx + 1}
-                                                                    </div>
-                                                                    <div className="space-y-3 flex-1 min-w-0">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <img
-                                                                                src={`https://www.google.com/s2/favicons?sz=64&domain=${new URL(source.url).hostname}`}
-                                                                                alt=""
-                                                                                className="size-4 rounded-full"
-                                                                            />
-                                                                            <span className="text-xs font-medium text-muted-foreground truncate uppercase tracking-wider">
-                                                                                {new URL(source.url).hostname.replace('www.', '').toLowerCase()}
-                                                                            </span>
-                                                                        </div>
-                                                                        <a
-                                                                            href={source.url}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="block group/title"
-                                                                        >
-                                                                            <h4 className="text-[15px] font-bold leading-snug text-foreground/90 group-hover/title:text-primary transition-colors line-clamp-2">
-                                                                                {source.title}
-                                                                            </h4>
-                                                                        </a>
-                                                                        {source.content && (
-                                                                            <p className="text-[13px] leading-relaxed text-muted-foreground/80 line-clamp-3">
-                                                                                {source.content}
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </ScrollArea>
-                                            </SheetContent>
-                                        </Sheet>
-                                    )}
-
                                     {/* display model badge on every assistant response */}
                                     {displayRes.model && (
                                         <Tooltip>
@@ -913,36 +854,113 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                         const totalTime = Number(displayRes.total_time);
                                         const ttft = Number(displayRes.ttft);
                                         const tps = Number(displayRes.tps);
-                                        // Show TTFT as the visible label, fallback to total time
                                         const displayValue = ttft > 0 ? ttft : totalTime;
                                         const displayText = displayValue < 1000
                                             ? `${Math.round(displayValue)}ms`
                                             : `${(displayValue / 1000).toFixed(1)}s`;
                                         return (
-                                            <HoverCard>
-                                                <HoverCardTrigger className="flex items-center text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md hover:bg-sidebar-accent/10 dark:hover:bg-sidebar-accent/20 transition-colors cursor-default select-none">
-                                                    {displayText}
-                                                </HoverCardTrigger>
-                                                <HoverCardContent side="right" align="center" className="flex flex-col gap-1.5 p-3 text-sm min-w-[180px] w-auto">
-                                                    <div className="font-medium text-xs text-muted-foreground pb-1 border-b">Timing Metrics</div>
-                                                    {ttft > 0 && (
+                                            <div className="flex items-center gap-1">
+                                                <HoverCard>
+                                                    <HoverCardTrigger className="flex items-center text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md hover:bg-sidebar-accent/10 dark:hover:bg-sidebar-accent/20 transition-colors cursor-default select-none">
+                                                        {displayText}
+                                                    </HoverCardTrigger>
+                                                    <HoverCardContent side="bottom" align="center" className="flex flex-col gap-1.5 p-3 text-sm min-w-[180px] w-auto">
+                                                        <div className="font-medium text-xs text-muted-foreground pb-1 border-b">Timing Metrics</div>
+                                                        {ttft > 0 && (
+                                                            <div className="flex justify-between gap-4 text-xs">
+                                                                <span className="text-muted-foreground">Time to First Token:</span>
+                                                                <span className="font-mono">{ttft < 1000 ? `${Math.round(ttft)}ms` : `${(ttft / 1000).toFixed(2)}s`}</span>
+                                                            </div>
+                                                        )}
                                                         <div className="flex justify-between gap-4 text-xs">
-                                                            <span className="text-muted-foreground">Time to First Token:</span>
-                                                            <span className="font-mono">{ttft < 1000 ? `${Math.round(ttft)}ms` : `${(ttft / 1000).toFixed(2)}s`}</span>
+                                                            <span className="text-muted-foreground">Response Time:</span>
+                                                            <span className="font-mono">{totalTime < 1000 ? `${Math.round(totalTime)}ms` : `${(totalTime / 1000).toFixed(2)}s`}</span>
                                                         </div>
-                                                    )}
-                                                    <div className="flex justify-between gap-4 text-xs">
-                                                        <span className="text-muted-foreground">Response Time:</span>
-                                                        <span className="font-mono">{totalTime < 1000 ? `${Math.round(totalTime)}ms` : `${(totalTime / 1000).toFixed(2)}s`}</span>
-                                                    </div>
-                                                    {tps > 0 && (
-                                                        <div className="flex justify-between gap-4 text-xs">
-                                                            <span className="text-muted-foreground">Speed:</span>
-                                                            <span className="font-mono">{tps.toFixed(1)} tok/s</span>
-                                                        </div>
-                                                    )}
-                                                </HoverCardContent>
-                                            </HoverCard>
+                                                        {tps > 0 && (
+                                                            <div className="flex justify-between gap-4 text-xs">
+                                                                <span className="text-muted-foreground">Speed:</span>
+                                                                <span className="font-mono">{tps.toFixed(1)} tok/s</span>
+                                                            </div>
+                                                        )}
+                                                    </HoverCardContent>
+                                                </HoverCard>
+
+                                                {displayRes.sources && displayRes.sources.length > 0 && (
+                                                    <Sheet modal={true}>
+                                                        <SheetTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                className="flex items-center gap-2 h-7 px-2 rounded-full bg-muted/20 hover:bg-muted/50 text-muted-foreground transition-all ml-1 group/sources"
+                                                            >
+                                                                <div className="flex -space-x-1 overflow-hidden">
+                                                                    {displayRes.sources.slice(0, 3).map((s, i) => (
+                                                                        <div key={i} className="inline-block h-3.5 w-3.5 rounded-full overflow-hidden shrink-0 border-none">
+                                                                            <img
+                                                                                src={`https://www.google.com/s2/favicons?sz=64&domain=${new URL(s.url).hostname}`}
+                                                                                alt=""
+                                                                                className="h-full w-full object-cover"
+                                                                                onError={(e) => (e.currentTarget.style.display = 'none')}
+                                                                            />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                                <span className="text-[10px] font-medium group-hover/sources:text-foreground">
+                                                                    {displayRes.sources.length} sources
+                                                                </span>
+                                                            </Button>
+                                                        </SheetTrigger>
+                                                        <SheetContent side="right" className="w-[350px] sm:w-[450px] p-0 flex flex-col gap-0 border-l border-border/40 shadow-2xl">
+                                                            <SheetHeader className="px-6 py-5 border-b border-border/40 shrink-0 bg-muted/10">
+                                                                <SheetTitle className="text-xl font-bold flex items-center gap-2">
+                                                                    <span>{displayRes.sources.length}</span>
+                                                                    <span className="text-foreground/80">Sources</span>
+                                                                </SheetTitle>
+                                                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">Sources for "{displayContent.substring(0, 50)}..."</p>
+                                                            </SheetHeader>
+                                                            <ScrollArea className="flex-1 w-full">
+                                                                <div className="divide-y divide-border/30">
+                                                                    {displayRes.sources.map((source, idx) => (
+                                                                        <div key={idx} className="p-6 hover:bg-muted/20 transition-colors group/source-item">
+                                                                            <div className="flex items-start gap-4">
+                                                                                <div className="text-[10px] font-mono text-muted-foreground/40 mt-1 shrink-0 bg-muted px-1.5 py-0.5 rounded">
+                                                                                    {idx + 1}
+                                                                                </div>
+                                                                                <div className="space-y-3 flex-1 min-w-0">
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <img
+                                                                                            src={`https://www.google.com/s2/favicons?sz=64&domain=${new URL(source.url).hostname}`}
+                                                                                            alt=""
+                                                                                            className="size-4 rounded-full"
+                                                                                        />
+                                                                                        <span className="text-xs font-medium text-muted-foreground truncate uppercase tracking-wider">
+                                                                                            {new URL(source.url).hostname.replace('www.', '').toLowerCase()}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <a
+                                                                                        href={source.url}
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        className="block group/title"
+                                                                                    >
+                                                                                        <h4 className="text-[15px] font-bold leading-snug text-foreground/90 group-hover/title:text-primary transition-colors line-clamp-2">
+                                                                                            {source.title}
+                                                                                        </h4>
+                                                                                    </a>
+                                                                                    {source.content && (
+                                                                                        <p className="text-[13px] leading-relaxed text-muted-foreground/80 line-clamp-3">
+                                                                                            {source.content}
+                                                                                        </p>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </ScrollArea>
+                                                        </SheetContent>
+                                                    </Sheet>
+                                                )}
+                                            </div>
                                         );
                                     })()}
                                 </div>
@@ -995,26 +1013,6 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                         {/* System message actions - hide when streaming */}
                         {isSystem && !message.isThinking && availableModels.length > 0 && (
                             <div className="flex items-center justify-end mt-2 select-none">
-                                {/* System rerun UI commented out for now */}
-                                {/*
-                                <Popover open={systemModelPopoverOpen} onOpenChange={setSystemModelPopoverOpen}>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                                            <IconRefresh className="size-3.5" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent side="bottom" align="start" className="w-56">
-                                        <div className="p-2 space-y-1">
-                                            <p className="text-xs text-muted-foreground">Rerun this prompt with another model (this will remove the current system response)</p>
-                                            <div className="pt-2">
-                                                {availableModels.map(m => (
-                                                    <button key={m.id} onClick={() => { onRerunSystemWithModel?.(message.id || '', m.id); setSystemModelPopoverOpen(false); }} className="w-full text-left px-2 py-1 rounded hover:bg-muted">{m.name}</button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </PopoverContent>
-                                </Popover>
-                                */}
                             </div>
                         )}
                         {/* Follow-up Suggestions - hide when streaming */}
@@ -1032,7 +1030,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                     </div>
                 )}
             </div>
-        </div >
+        </div>
     );
 }
 

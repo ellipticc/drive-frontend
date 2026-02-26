@@ -78,14 +78,14 @@ export const InlineCitationCardTrigger = ({
       <span
         role="button"
         className={cn(
-          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/30 hover:bg-muted/80 transition-all border border-border/40 ml-1 align-baseline cursor-pointer select-none ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 active:scale-95",
+          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/20 hover:bg-muted/50 transition-all border border-border/30 ml-1 align-baseline cursor-pointer select-none ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 active:scale-95",
           className
         )}
         {...props}
       >
-        <div className="flex -space-x-1.5 overflow-hidden">
+        <div className="flex -space-x-1 overflow-hidden">
           {sources.slice(0, 1).map((s, i) => (
-            <div key={i} className="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-background bg-background overflow-hidden shrink-0">
+            <div key={i} className="inline-block h-3.5 w-3.5 rounded-full overflow-hidden shrink-0">
               <img
                 src={getFavicon(s.url) || ""}
                 alt=""
@@ -95,10 +95,10 @@ export const InlineCitationCardTrigger = ({
             </div>
           ))}
         </div>
-        <span className="text-[10px] font-semibold text-foreground/80 whitespace-nowrap">
+        <span className="text-[10px] font-medium text-foreground/70 whitespace-nowrap">
           {firstDomain}
           {sources.length > 1 && (
-            <span className="ml-1 text-muted-foreground/70">+{sources.length - 1}</span>
+            <span className="ml-0.5 text-muted-foreground/60">+{sources.length - 1}</span>
           )}
         </span>
       </span>
@@ -114,11 +114,11 @@ export const InlineCitationCardBody = ({
 }: InlineCitationCardBodyProps) => (
   <HoverCardContent
     className={cn(
-      "relative w-[320px] p-0 overflow-hidden rounded-2xl border-border/60 shadow-2xl bg-popover/95 backdrop-blur-md",
+      "relative w-[320px] p-0 overflow-hidden rounded-2xl border-border/40 shadow-2xl bg-popover/95 backdrop-blur-md",
       "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
       className
     )}
-    side="top"
+    side="bottom"
     align="center"
     sideOffset={8}
     {...props}
@@ -188,31 +188,31 @@ export const InlineCitationCarouselHeader = ({
     <div className="space-y-0">
       <div
         className={cn(
-          "flex items-center justify-between px-3 py-2 bg-muted/30",
+          "flex items-center justify-between px-3 py-2 bg-muted/10",
           className
         )}
         {...props}
       >
         <div className="flex items-center gap-2">
-          <InlineCitationCarouselPrev className="hover:text-foreground transition-colors" />
-          <InlineCitationCarouselIndex className="p-0 text-foreground font-medium" />
-          <InlineCitationCarouselNext className="hover:text-foreground transition-colors" />
+          <InlineCitationCarouselPrev className="hover:bg-muted/60 p-1 rounded-full transition-colors" />
+          <InlineCitationCarouselIndex className="p-0 text-foreground/60 font-mono text-[10px]" />
+          <InlineCitationCarouselNext className="hover:bg-muted/60 p-1 rounded-full transition-colors" />
         </div>
 
         <div className="flex items-center gap-1.5">
-          <div className="flex -space-x-1.5 overflow-hidden">
+          <div className="flex -space-x-1 overflow-hidden">
             {sources.slice(0, 3).map((s, i) => (
-              <div key={i} className="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-background bg-background overflow-hidden shrink-0">
+              <div key={i} className="inline-block h-3.5 w-3.5 rounded-full overflow-hidden shrink-0 bg-transparent">
                 <img src={getFavicon(s.url) || ""} alt="" className="h-full w-full object-cover" />
               </div>
             ))}
           </div>
-          <span className="text-[10px] text-muted-foreground font-medium">
+          <span className="text-[10px] text-muted-foreground/60 font-medium">
             {sources.length} sources
           </span>
         </div>
       </div>
-      <div className="h-[1px] w-full bg-border/40" />
+      <div className="h-px w-full bg-border/30" />
     </div>
   );
 };
