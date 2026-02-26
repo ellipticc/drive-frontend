@@ -148,6 +148,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
     const [copied, setCopied] = React.useState(false);
     const [feedbackGiven, setFeedbackGiven] = React.useState(!!message.feedback);
     const [isEditingPrompt, setIsEditingPrompt] = React.useState(false);
+    const [isCotOpen, setIsCotOpen] = React.useState(false);
     const [editContent, setEditContent] = React.useState(message.content);
     const [regenInput, setRegenInput] = React.useState("");
     const [isRegenOpen, setIsRegenOpen] = React.useState(false);
@@ -265,6 +266,19 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
             steps: v.steps || message.steps
         };
     }, [message, currentVersionIndex]);
+
+    // Intelligent CoT Collapse/Expand logic
+    React.useEffect(() => {
+        if (displayRes.isThinking) {
+            setIsCotOpen(true);
+        } else {
+            // Streaming finished, smooth collapse after delay
+            const timer = setTimeout(() => {
+                setIsCotOpen(false);
+            }, 250);
+            return () => clearTimeout(timer);
+        }
+    }, [displayRes.isThinking]);
 
     const displayContent = displayRes.content;
     const feedbackValue = displayRes.feedback;
@@ -587,10 +601,12 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
 
                         {/* Unified Chain of Thought Section */}
                         {displayRes.steps && displayRes.steps.length > 0 && (
-                            <ChainOfThought className="mb-4" defaultOpen={true}>
-                                <ChainOfThoughtHeader>
-                                    {displayRes.isThinking ? "Thinking..." : "Thought process"}
-                                </ChainOfThoughtHeader>
+                            <ChainOfThought
+                                className="mb-4"
+                                open={isCotOpen}
+                                onOpenChange={setIsCotOpen}
+                            >
+                                <ChainOfThoughtHeader label={displayRes.isThinking ? "Thinking..." : "Thought process"} />
                                 <ChainOfThoughtContent>
                                     {displayRes.steps.map((step: any, idx: number) => (
                                         <ChainOfThoughtStep
@@ -598,7 +614,11 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             stepType={step.stepType}
                                             label={step.label}
                                             status={step.status || "complete"}
+                                            content={step.content}
+                                            code={step.code}
+                                            stdout={step.stdout}
                                         >
+                                            {/* Results rendering for search and images */}
                                             {step.stepType === 'search' && step.results && (
                                                 <ChainOfThoughtSearchResults>
                                                     {step.results.map((res: any, rIdx: number) => (
@@ -610,27 +630,18 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                                     ))}
                                                 </ChainOfThoughtSearchResults>
                                             )}
-                                            {step.stepType === 'code' && (
-                                                <div className="space-y-2 mt-1">
-                                                    {step.stdout && (
-                                                        <pre className="text-[11px] font-mono bg-muted/50 p-2 rounded-md overflow-x-auto max-w-full">
-                                                            {step.stdout}
-                                                        </pre>
-                                                    )}
-                                                    {step.error && (
-                                                        <pre className="text-[11px] font-mono bg-destructive/10 text-destructive p-2 rounded-md overflow-x-auto max-w-full">
-                                                            {step.error}
-                                                        </pre>
-                                                    )}
-                                                    {step.images && step.images.length > 0 && (
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {step.images.map((img: string, iIdx: number) => (
-                                                                <ChainOfThoughtImage key={iIdx}>
-                                                                    <img src={`data:image/png;base64,${img}`} alt={`Plot ${iIdx + 1}`} className="max-w-full h-auto" />
-                                                                </ChainOfThoughtImage>
-                                                            ))}
-                                                        </div>
-                                                    )}
+                                            {step.error && (
+                                                <pre className="text-[11px] font-mono bg-destructive/10 text-destructive p-2 rounded-md overflow-x-auto max-w-full">
+                                                    {step.error}
+                                                </pre>
+                                            )}
+                                            {step.images && step.images.length > 0 && (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {step.images.map((img: string, iIdx: number) => (
+                                                        <ChainOfThoughtImage key={iIdx}>
+                                                            <img src={`data:image/png;base64,${img}`} alt={`Plot ${iIdx + 1}`} className="max-w-full h-auto" />
+                                                        </ChainOfThoughtImage>
+                                                    ))}
                                                 </div>
                                             )}
                                         </ChainOfThoughtStep>

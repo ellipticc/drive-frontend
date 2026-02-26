@@ -10,8 +10,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from '@/lib/utils';
-import { IconBrain, IconChevronDown, IconChevronRight, IconDots, IconSearch, IconCode, IconBulb } from "@tabler/icons-react";
+import { IconBulb, IconBulbFilled, IconChevronDown, IconChevronRight, IconDots, IconSearch, IconCode } from "@tabler/icons-react";
 import { createContext, memo, useContext, useMemo } from "react";
+import { ShikiCodeBlock } from "./shiki-code-block";
 
 interface ChainOfThoughtContextValue {
   isOpen: boolean;
@@ -70,29 +71,35 @@ export const ChainOfThought = memo(
 
 export type ChainOfThoughtHeaderProps = ComponentProps<
   typeof CollapsibleTrigger
->;
+> & {
+  label?: ReactNode;
+};
 
 export const ChainOfThoughtHeader = memo(
-  ({ className, children, ...props }: ChainOfThoughtHeaderProps) => {
+  ({ className, children, label, ...props }: ChainOfThoughtHeaderProps) => {
     const { isOpen, setIsOpen } = useChainOfThought();
 
     return (
       <Collapsible onOpenChange={setIsOpen} open={isOpen}>
         <CollapsibleTrigger
           className={cn(
-            "flex w-full items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground",
+            "flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground group",
             className
           )}
           {...props}
         >
-          <IconBrain className="size-4" />
-          <span className="flex-1 text-left">
-            {children ?? "Chain of Thought"}
+          {isOpen ? (
+            <IconBulbFilled className="size-4 text-primary animate-pulse" />
+          ) : (
+            <IconBulb className="size-4" />
+          )}
+          <span className="font-medium">
+            {children ?? label ?? "Thought process"}
           </span>
           {isOpen ? (
-            <IconChevronDown className="size-4 transition-transform duration-200" />
+            <IconChevronDown className="size-3.5 opacity-70 group-hover:opacity-100 transition-transform" />
           ) : (
-            <IconChevronRight className="size-4 transition-transform duration-200" />
+            <IconChevronRight className="size-3.5 opacity-70 group-hover:opacity-100 transition-transform" />
           )}
         </CollapsibleTrigger>
       </Collapsible>
@@ -104,6 +111,9 @@ export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
   icon?: React.ComponentType<any>;
   label: ReactNode;
   description?: ReactNode;
+  content?: string;
+  code?: string;
+  stdout?: string;
   status?: "complete" | "active" | "pending";
   stepType?: "thinking" | "search" | "code" | "think" | "default";
 };
@@ -134,36 +144,64 @@ export const ChainOfThoughtStep = memo(
     icon: Icon,
     label,
     description,
+    content,
+    code,
+    stdout,
     status = "complete",
     stepType,
     children,
     ...props
   }: ChainOfThoughtStepProps) => {
     const DefaultIcon = Icon || getStepIcon(stepType);
-    
+
     return (
-    <div
-      className={cn(
-        "flex gap-2 text-sm",
-        stepStatusStyles[status],
-        "fade-in-0 slide-in-from-top-2 animate-in",
-        className
-      )}
-      {...props}
-    >
-      <div className="relative mt-0.5">
-        <DefaultIcon className="size-4" />
-        <div className="absolute top-7 bottom-0 left-1/2 -mx-px w-px bg-border" />
-      </div>
-      <div className="flex-1 space-y-2 overflow-hidden">
-        <div>{label}</div>
-        {description && (
-          <div className="text-muted-foreground text-xs">{description}</div>
+      <div
+        className={cn(
+          "flex gap-3 text-sm",
+          stepStatusStyles[status],
+          "fade-in-0 slide-in-from-top-1 animate-in duration-300",
+          className
         )}
-        {children}
+        {...props}
+      >
+        <div className="relative mt-0.5 flex flex-col items-center">
+          <div className={cn(
+            "p-1 rounded-full bg-muted/50 border border-border/50",
+            status === 'active' && "bg-primary/10 border-primary/20 text-primary"
+          )}>
+            <DefaultIcon className="size-3.5" />
+          </div>
+          <div className="flex-1 w-px bg-border/30 mt-1" />
+        </div>
+        <div className="flex-1 min-w-0 pb-4">
+          <div className="font-medium leading-tight">{label}</div>
+          {description && (
+            <div className="text-muted-foreground/80 text-xs mt-1 leading-relaxed">{description}</div>
+          )}
+          {(content || code || stdout || children) && (
+            <div className="mt-3 space-y-3">
+              {content && (
+                <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  {content}
+                </div>
+              )}
+              {code && (
+                <div className="rounded-lg overflow-hidden border border-border/50 shadow-sm">
+                  <ShikiCodeBlock code={code} language="python" />
+                </div>
+              )}
+              {stdout && (
+                <div className="rounded-lg bg-muted/30 p-2.5 font-mono text-xs border border-border/50 overflow-x-auto">
+                  <div className="text-muted-foreground/50 mb-1.5 font-sans uppercase text-[10px] tracking-wider font-bold">Output</div>
+                  <pre className="text-foreground/90 whitespace-pre-wrap break-all">{stdout}</pre>
+                </div>
+              )}
+              {children}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
   }
 );
 

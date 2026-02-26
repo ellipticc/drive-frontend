@@ -288,12 +288,27 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             ? codeChildren
             : String(codeChildren || '');
 
+          // UX Polish: Detect if this should be rendered as a "boxed inline" block instead of a full fenced block.
+          // Criteria: "Plain" language (or missing) AND (short line count OR matches structured hash patterns)
+          const isPlain = !language || language === 'plain' || language === 'text';
+          const lines = content.trim().split('\n');
+          const hasLongHexStrings = /[a-fA-F0-9]{32,}/.test(content);
+          const isStructuredList = lines.every(l => /^[\w-\s]+:/.test(l.trim())); // e.g. "Key: Value"
+
+          if (isPlain && (lines.length <= 4 || hasLongHexStrings || isStructuredList)) {
+            return (
+              <code className="inline-block w-full max-w-full my-2 px-2 py-1.5 rounded bg-muted font-mono text-[13px] whitespace-pre-wrap break-all border border-border/50 shadow-sm leading-relaxed">
+                {content.trim()}
+              </code>
+            );
+          }
+
           return (
-            <div className="w-full max-w-full overflow-hidden my-4 rounded-lg">
+            <div className="w-full max-w-full overflow-hidden my-4 rounded-lg bg-muted/5 border border-border/50">
               <CodeBlock
                 language={language || 'plain'}
                 code={content}
-                className="my-0 w-full max-w-full"
+                className="my-0 w-full max-w-full shadow-sm"
                 isStreaming={isStreaming}
               />
             </div>
