@@ -789,7 +789,8 @@ export default function AssistantPage() {
             let thinkingBuffer = ""; // Content inside <>thinking>...</thinking>
             let answerBuffer = ""; // Content outside thinking tags
             let assistantReasoningContent = ""; // Processed thinking (from backend reasoning event)
-            let messageSources: any[] = []; // Track sources for citations
+            const messageSources: any[] = []; // Track sources for citations
+            const messageSteps: any[] = []; // Track steps for the final state update
             let isInsideThinkingTag = false;
             let currentSessionKey: Uint8Array | undefined;
             let buffer = ""; // Buffer for incomplete SSE events
@@ -908,6 +909,7 @@ export default function AssistantPage() {
                                 }
 
                                 if (stepData) {
+                                    messageSteps.push(stepData);
                                     setMessages(prev => {
                                         const newMessages = [...prev];
                                         const lastIdx = newMessages.length - 1;
@@ -1267,6 +1269,7 @@ export default function AssistantPage() {
                             content: answerBuffer.trim(),
                             reasoning: finalReasoningContent,
                             sources: messageSources.length > 0 ? messageSources : lastMessage.sources,
+                            steps: messageSteps.length > 0 ? messageSteps : lastMessage.steps,
                             isThinking: false,
                             createdAt: lastMessage.createdAt,
                             feedback: lastMessage.feedback,

@@ -412,7 +412,8 @@ export function useAICrypto(): UseAICryptoReturn {
             const versions = kids.map(m => ({
                 id: m.id, content: m.content, toolCalls: m.toolCalls, feedback: m.feedback,
                 createdAt: m.createdAt, total_time: m.total_time, ttft: m.ttft, tps: m.tps,
-                model: m.model, suggestions: m.suggestions, sources: m.sources, reasoning: m.reasoning, reasoningDuration: m.reasoningDuration
+                model: m.model, suggestions: m.suggestions, sources: m.sources, reasoning: m.reasoning,
+                reasoningDuration: m.reasoningDuration, steps: m.steps
             }));
 
             const base = { ...picked };
@@ -502,6 +503,24 @@ export function useAICrypto(): UseAICryptoReturn {
                             }
                         }
 
+                        // Decrypt Steps (CoT)
+                        let decryptedSteps: any[] | undefined;
+                        if (msg.steps && msg.steps_iv) {
+                            try {
+                                const stepsDecryptedBytes = decryptData(msg.steps, sharedSecret, msg.steps_iv);
+                                const stepsJson = new TextDecoder().decode(stepsDecryptedBytes);
+                                decryptedSteps = JSON.parse(stepsJson);
+                            } catch (e) {
+                                console.warn("Failed to decrypt steps:", msg.id, e);
+                            }
+                        } else if (msg.steps) {
+                            try {
+                                decryptedSteps = typeof msg.steps === 'string' ? JSON.parse(msg.steps) : msg.steps;
+                            } catch {
+                                decryptedSteps = [];
+                            }
+                        }
+
                         return {
                             ...msg,
                             role: msg.role as any,
@@ -509,6 +528,7 @@ export function useAICrypto(): UseAICryptoReturn {
                             reasoning: parsedReasoning,
                             reasoningDuration: msg.reasoning_duration,
                             suggestions,
+                            steps: decryptedSteps,
                             total_time: msg.total_time,
                             ttft: msg.ttft,
                             tps: msg.tps,
