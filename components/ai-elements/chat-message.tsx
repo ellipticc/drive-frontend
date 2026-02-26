@@ -192,7 +192,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
         const exportedAt = new Date();
         const header = [
             `# Message export`,
-            `This message was downloaded from Comet (https://comet.ai). AI chats may display inaccurate or offensive information (see https://comet.ai/privacy-policy for more info).`,
+            `This message was downloaded from Ellipticc (https://ellipticc.com). AI chats may display inaccurate or offensive information (see https://ellipticc.com/privacy-policy for more info).`,
             `Message ID: ${message.id || 'N/A'}`,
             `Exported: ${exportedAt.toLocaleString()}`,
             `Message timestamp: ${ts.toLocaleString()}`,

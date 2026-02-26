@@ -235,14 +235,14 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     // normalization so the underlines are consumed and never turned into <hr>.
     //   H1: text line followed by 3+ '=' characters
     //   H2: text line followed by 3+ '-' characters
-    // The 'gm' flag lets ^ / $ match per-line; [^\n]+ captures a single line.
+    // Handle cases where the heading might be bolded or have other simple formatting.
     normalized = normalized.replace(
       /^([^\n]+)\n[ \t]*={3,}[ \t]*$/gm,
-      (_, headingText) => `# ${headingText.trim()}\n---\n\n`
+      (_, headingText) => `\n# ${headingText.trim()}\n\n`
     );
     normalized = normalized.replace(
       /^([^\n]+)\n[ \t]*-{3,}[ \t]*$/gm,
-      (_, headingText) => `## ${headingText.trim()}\n---\n\n`
+      (_, headingText) => `\n## ${headingText.trim()}\n\n`
     );
 
     // ── Standalone decorative lines → thematic breaks ───────────────────────
@@ -274,12 +274,19 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       // Extract the child <code> element, read its language + content, render CodeBlock
       pre: (props: any) => {
         const { children } = props;
-        // react-markdown renders <pre><code className="language-X">...</code></pre>
-        const codeChild = React.Children.toArray(children).find(
-          (child: any) => child?.type === 'code' || child?.props?.className
-        ) as React.ReactElement<any> | undefined;
 
-        if (codeChild?.props) {
+        // Find the code element among children (could be direct or nested)
+        const findCodeChild = (nodes: any): any => {
+          return React.Children.toArray(nodes).find((child: any) => {
+            if (child?.type === 'code') return true;
+            if (child?.props?.children) return findCodeChild(child.props.children);
+            return false;
+          });
+        };
+
+        const codeChild = findCodeChild(children);
+
+        if (codeChild) {
           const { className: codeClassName, children: codeChildren } = codeChild.props;
           const language = codeClassName
             ? codeClassName.match(/language-(\w+)/)?.[1]
@@ -297,8 +304,8 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           );
         }
 
-        // Fallback: render as-is if no code child found
-        return <pre>{children}</pre>;
+        // Fallback: render as-is
+        return <pre className="overflow-x-auto my-4">{children}</pre>;
       },
 
       // Headings — citations can appear inside headings
