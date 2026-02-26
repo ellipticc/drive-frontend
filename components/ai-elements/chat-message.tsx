@@ -197,6 +197,16 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
         }
 
         lastIndex = match.index + fullMatch.length;
+
+        // CAPTURE TRAILING PUNCTUATION: If the next characters are punctuation, 
+        // pull them into an inline span immediately after the citation to prevent wrapping.
+        const remaining = content.slice(lastIndex);
+        const punctMatch = remaining.match(/^[.,!?;:]+/);
+        if (punctMatch) {
+            const punctuation = punctMatch[0];
+            parts.push(<span key={`punct-${lastIndex}`} className="inline font-medium">{punctuation}</span>);
+            lastIndex += punctuation.length;
+        }
     }
 
     // Add remaining text
@@ -205,19 +215,18 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
             <MarkdownRenderer
                 key={`text-${lastIndex}`}
                 content={content.substring(lastIndex)}
-                compact={false}
+                compact={true}
                 isStreaming={isStreaming}
             />
         );
     }
 
     return (
-        <div className="space-y-2 inline-block w-full">
-            <div className="inline leading-relaxed">{parts}</div>
+        <div className="inline text-foreground leading-relaxed">
+            {parts}
         </div>
     );
-}
-
+};
 
 export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint, availableModels = [], onRerunSystemWithModel, onAddToChat, onSuggestionClick }: ChatMessageProps) {
     // Helper to display pretty model names

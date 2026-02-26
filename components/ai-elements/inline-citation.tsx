@@ -71,7 +71,7 @@ export const InlineCitationCardTrigger = ({
     }
   };
 
-  const firstDomain = sources[0] ? new URL(sources[0].url).hostname.replace('www.', '') : '';
+  const firstDomain = sources[0] ? new URL(sources[0].url).hostname.replace('www.', '').toLowerCase() : '';
 
   return (
     <HoverCardTrigger asChild>
@@ -113,7 +113,11 @@ export const InlineCitationCardBody = ({
   ...props
 }: InlineCitationCardBodyProps) => (
   <HoverCardContent
-    className={cn("relative w-[320px] p-0 overflow-hidden rounded-2xl border-border/60 shadow-2xl bg-popover/95 backdrop-blur-md", className)}
+    className={cn(
+      "relative w-[320px] p-0 overflow-hidden rounded-2xl border-border/60 shadow-2xl bg-popover/95 backdrop-blur-md",
+      "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+      className
+    )}
     side="top"
     align="center"
     sideOffset={8}
@@ -334,7 +338,7 @@ export const InlineCitationSource = ({
     }
   };
 
-  const domain = url ? new URL(url).hostname.replace('www.', '') : '';
+  const domain = url ? new URL(url).hostname.replace('www.', '').toLowerCase() : '';
 
   return (
     <div className={cn("space-y-3", className)} {...props}>
@@ -342,7 +346,7 @@ export const InlineCitationSource = ({
         <div className="h-4 w-4 rounded-full overflow-hidden bg-muted shrink-0">
           <img src={getFavicon(url) || ""} alt="" className="h-full w-full object-cover" />
         </div>
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-tight">{domain}</span>
+        <span className="text-xs font-medium text-muted-foreground tracking-tight">{domain}</span>
       </div>
 
       <a
