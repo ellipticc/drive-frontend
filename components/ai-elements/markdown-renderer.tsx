@@ -235,14 +235,14 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     // normalization so the underlines are consumed and never turned into <hr>.
     //   H1: text line followed by 3+ '=' characters
     //   H2: text line followed by 3+ '-' characters
-    // Handle cases where the heading might be bolded or have other simple formatting.
+    // Keep a --- under converted headings so the horizontal rule is preserved.
     normalized = normalized.replace(
       /^([^\n]+)\n[ \t]*={3,}[ \t]*$/gm,
-      (_, headingText) => `\n# ${headingText.trim()}\n\n`
+      (_, headingText) => `\n# ${headingText.trim()}\n\n---\n\n`
     );
     normalized = normalized.replace(
       /^([^\n]+)\n[ \t]*-{3,}[ \t]*$/gm,
-      (_, headingText) => `\n## ${headingText.trim()}\n\n`
+      (_, headingText) => `\n## ${headingText.trim()}\n\n---\n\n`
     );
 
     // ── Standalone decorative lines → thematic breaks ───────────────────────
@@ -265,8 +265,15 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   const components = useMemo(
     () => ({
       // Inline code only — bare `code` elements (backtick `code`)
+      // react-markdown passes `node` with tagName; when code is inside <pre>
+      // (fenced block), we must NOT render InlineCode.
       code: (props: any) => {
-        const { children } = props;
+        const { children, className, node } = props;
+        // If there's a language class, this is a fenced code block child —
+        // let the `pre` handler deal with it by returning a raw <code>.
+        if (className) {
+          return <code className={className}>{children}</code>;
+        }
         return <InlineCode>{children}</InlineCode>;
       },
 
@@ -275,33 +282,37 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       pre: (props: any) => {
         const { children } = props;
 
-        // Find the code element among children (could be direct or nested)
-        const findCodeChild = (nodes: any): any => {
-          return React.Children.toArray(nodes).find((child: any) => {
-            if (child?.type === 'code') return true;
-            if (child?.props?.children) return findCodeChild(child.props.children);
-            return false;
-          });
-        };
+        // react-markdown renders <pre><code className="language-X">...</code></pre>
+        // When our `code` override runs first, the child is an InlineCode or raw <code>.
+        // We need to find ANY child that looks like a code element.
+        const childArray = React.Children.toArray(children);
 
-        const codeChild = findCodeChild(children);
+        for (const child of childArray) {
+          if (!React.isValidElement(child)) continue;
+          const childProps = (child as any).props;
+          if (!childProps) continue;
 
-        if (codeChild) {
-          const { className: codeClassName, children: codeChildren } = codeChild.props;
+          // Extract language from className (if present)
+          const codeClassName = childProps.className || '';
           const language = codeClassName
             ? codeClassName.match(/language-(\w+)/)?.[1]
             : undefined;
+
+          // Get the text content
+          const codeChildren = childProps.children;
           const content = typeof codeChildren === 'string'
             ? codeChildren
             : String(codeChildren || '');
 
-          return (
-            <CodeBlock
-              language={language || 'plain'}
-              code={content}
-              isStreaming={isStreaming}
-            />
-          );
+          if (content) {
+            return (
+              <CodeBlock
+                language={language || 'plain'}
+                code={content}
+                isStreaming={isStreaming}
+              />
+            );
+          }
         }
 
         // Fallback: render as-is

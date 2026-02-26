@@ -200,7 +200,35 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
             ''
         ].join('\n');
 
-        let body = `${header}\n# ${message.role === 'user' ? 'User Question' : 'AI Assistant Response'}\n\n${message.content}\n`;
+        let body = `${header}\n# ${message.role === 'user' ? 'User Question' : 'AI Assistant Response'}\n\n`;
+
+        // Include reasoning/thinking if available
+        if (displayRes.reasoning) {
+            body += `<details>\n<summary>Thought process${displayRes.reasoningDuration ? ` (${displayRes.reasoningDuration}s)` : ''}</summary>\n\n${displayRes.reasoning}\n</details>\n\n`;
+        }
+
+        // Include Chain of Thought steps if available
+        if (displayRes.steps && displayRes.steps.length > 0) {
+            body += `<details>\n<summary>Chain of Thought (${displayRes.steps.length} step${displayRes.steps.length > 1 ? 's' : ''})</summary>\n\n`;
+            displayRes.steps.forEach((step: any, idx: number) => {
+                body += `### Step ${idx + 1}: ${step.label || step.stepType || 'Processing'}\n\n`;
+                if (step.content) body += `${step.content}\n\n`;
+                if (step.code) body += `\`\`\`python\n${step.code}\n\`\`\`\n\n`;
+                if (step.stdout) body += `**Output:**\n\`\`\`\n${step.stdout}\n\`\`\`\n\n`;
+                if (step.error) body += `**Error:**\n\`\`\`\n${step.error}\n\`\`\`\n\n`;
+                if (step.results && step.results.length > 0) {
+                    body += `**Search Results:**\n`;
+                    step.results.forEach((r: any) => {
+                        body += `- [${r.title}](${r.url})\n`;
+                    });
+                    body += `\n`;
+                }
+            });
+            body += `</details>\n\n`;
+        }
+
+        // Main message content
+        body += `${message.content}\n`;
 
         // ADD FOOTNOTES
         if (displayRes.sources && displayRes.sources.length > 0) {
