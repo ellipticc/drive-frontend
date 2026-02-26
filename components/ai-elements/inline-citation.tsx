@@ -73,63 +73,25 @@ export const InlineCitationCardTrigger = ({
     }
   };
 
-  // If we have specific indices, render them as small numbered bubbles
-  if (indices && indices.length > 0) {
-    return (
-      <HoverCardTrigger asChild>
-        <span
-          role="button"
-          className={cn(
-            "inline-flex items-center gap-0.5 ml-0.5 cursor-pointer select-none align-baseline",
-            className
-          )}
-          {...props}
-        >
-          {indices.map((idx, i) => (
-            <span
-              key={i}
-              className={cn(
-                "inline-flex items-center justify-center rounded-full bg-muted/40 hover:bg-muted/60 transition-colors border border-border/30 text-[10px] font-bold text-foreground/70 h-3.5 min-w-[14px] px-1",
-                i > 0 && "-ml-0.5"
-              )}
-            >
-              {idx}
-            </span>
-          ))}
-        </span>
-      </HoverCardTrigger>
-    );
-  }
-
-  // Fallback to the legacy domain-pill style if no indices provided (unlikely now)
-  const firstDomain = sources[0] ? new URL(sources[0].url).hostname.replace('www.', '').toLowerCase() : '';
+  // If we have specific indices, use them to calculate the display text (e.g., domain +N)
+  const firstDomain = sources[0]
+    ? new URL(sources[0].url).hostname.replace('www.', '').split('.')[0]
+    : '';
 
   return (
     <HoverCardTrigger asChild>
       <span
         role="button"
         className={cn(
-          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/20 hover:bg-muted/50 transition-all border border-border/30 ml-1 align-baseline cursor-pointer select-none ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 active:scale-95",
+          "inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded bg-[#f3f4f6] dark:bg-muted/40 hover:bg-[#e5e7eb] dark:hover:bg-muted/60 transition-colors border border-border/10 ml-1 mb-0.5 align-baseline cursor-pointer select-none",
           className
         )}
         {...props}
       >
-        <div className="flex -space-x-1 overflow-hidden">
-          {sources.slice(0, 1).map((s, i) => (
-            <div key={i} className="inline-block h-3.5 w-3.5 rounded-full overflow-hidden shrink-0">
-              <img
-                src={getFavicon(s.url) || ""}
-                alt=""
-                className="h-full w-full object-cover"
-                onError={(e) => (e.currentTarget.style.display = 'none')}
-              />
-            </div>
-          ))}
-        </div>
-        <span className="text-[10px] font-medium text-foreground/70 whitespace-nowrap">
+        <span className="text-[10px] font-mono font-medium text-foreground/60 whitespace-nowrap">
           {firstDomain}
           {sources.length > 1 && (
-            <span className="ml-0.5 text-muted-foreground/60">+{sources.length - 1}</span>
+            <span className="ml-0.5 opacity-70">+{sources.length - 1}</span>
           )}
         </span>
       </span>
@@ -145,13 +107,13 @@ export const InlineCitationCardBody = ({
 }: InlineCitationCardBodyProps) => (
   <HoverCardContent
     className={cn(
-      "relative w-[320px] p-0 overflow-hidden rounded-2xl border-border/40 shadow-2xl bg-popover/95 backdrop-blur-md",
+      "relative w-[340px] p-0 overflow-hidden rounded-2xl border-none shadow-[0_20px_50px_rgba(0,0,0,0.1)] bg-white dark:bg-popover/95 backdrop-blur-xl",
       "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
       className
     )}
     side="bottom"
     align="center"
-    sideOffset={8}
+    sideOffset={10}
     {...props}
   />
 );

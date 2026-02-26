@@ -148,8 +148,16 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
         // Add text before citation group
         if (match.index > lastIndex) {
             let textBefore = content.substring(lastIndex, match.index);
-            // Trim trailing space before citations to prevent line breaks and keep them tight to the word
-            // textBefore = textBefore.trimEnd(); 
+
+            // Punctuation Swap: If the citation is followed by punctuation (like a dot), 
+            // we want that punctuation to appear BEFORE the citation in the visual flow.
+            // Look ahead past the current citation group
+            const lookAhead = content.slice(match.index + fullMatch.length);
+            const punctMatch = lookAhead.match(/^[.,!?;:]+/);
+            if (punctMatch) {
+                textBefore += punctMatch[0];
+                // we will skip these characters in the next segment
+            }
 
             parts.push(
                 <MarkdownRenderer
@@ -159,6 +167,10 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
                     isStreaming={isStreaming}
                 />
             );
+
+            if (punctMatch) {
+                lastIndex += punctMatch[0].length;
+            }
         }
 
         // Extract individual citation numbers from the group
@@ -175,7 +187,7 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
         if (groupCitations.length > 0) {
             parts.push(
                 <InlineCitationCard key={`group-${match.index}`} openDelay={100} closeDelay={300}>
-                    <InlineCitation className="inline-flex">
+                    <InlineCitation className="inline">
                         <InlineCitationCardTrigger
                             sources={groupCitations.map(c => c.source)}
                             indices={groupCitations.map(c => c.number)}
@@ -203,16 +215,7 @@ function InlineCitationRenderer({ content, sources = [], isStreaming = false }: 
             );
         }
 
-        lastIndex = match.index + fullMatch.length;
-
-        // HANDLE PUNCTUATION: Look ahead for trailing punctuation and keep it tight
-        const remaining = content.slice(lastIndex);
-        const punctMatch = remaining.match(/^[.,!?;:]+/);
-        if (punctMatch) {
-            const punctuation = punctMatch[0];
-            parts.push(<span key={`punct-${lastIndex}`} className="inline font-medium">{punctuation}</span>);
-            lastIndex += punctuation.length;
-        }
+        lastIndex = Math.max(lastIndex, match.index + fullMatch.length);
     }
 
     // Add remaining text

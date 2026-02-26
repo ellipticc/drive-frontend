@@ -276,7 +276,8 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     <div
       className={cn(
         // Base wrapper with prose styling - increased text size from default
-        'prose dark:prose-invert prose-base max-w-none w-full overflow-hidden',
+        !compact && 'prose dark:prose-invert prose-base max-w-none w-full overflow-hidden',
+        compact && 'inline leading-relaxed',
         '[&_pre]:overflow-x-auto [&_pre]:max-w-full [&_pre]:w-full',
         '[&_code]:break-words',
 
