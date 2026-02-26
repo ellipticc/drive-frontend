@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { IconPlus, IconChevronDown, IconArrowUp, IconX, IconFileText, IconLoader2, IconCheck, IconArchive, IconBrain, IconWorld, IconSquareFilled, IconAlertCircle, IconWand, IconArrowBackUp, IconPaperclip } from "@tabler/icons-react";
+import { IconPlus, IconChevronDown, IconArrowUp, IconX, IconFileText, IconLoader2, IconCheck, IconArchive, IconWorld, IconSquareFilled, IconAlertCircle, IconWand, IconArrowBackUp, IconPaperclip, IconBulbFilled } from "@tabler/icons-react";
+import { Feather as FeatherIcon } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
@@ -17,6 +18,12 @@ import {
     DropdownMenuTrigger,
     DropdownMenuLabel,
     DropdownMenuSeparator,
+    DropdownMenuCheckboxItem,
+    DropdownMenuSub,
+    DropdownMenuSubTrigger,
+    DropdownMenuSubContent,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu"
 import { ModelSelectorLogo } from "@/components/ai-elements/model-selector"
 import {
@@ -30,7 +37,6 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 
 export const Icons = {
     Plus: IconPlus,
-    Thinking: IconBrain,
     SelectArrow: IconChevronDown,
     ArrowUp: IconArrowUp,
     X: IconX,
@@ -100,7 +106,7 @@ const FilePreviewCard: React.FC<FilePreviewCardProps> = ({ file, onRemove }) => 
 
 
 interface EnhancedPromptInputProps {
-    onSubmit: (value: string, attachments: File[], thinkingMode?: boolean, searchMode?: boolean) => Promise<void>;
+    onSubmit: (value: string, attachments: File[], thinkingMode?: boolean, searchMode?: boolean, style?: string) => Promise<void>;
     isLoading?: boolean;
     onStop?: () => void;
     model?: string;
@@ -143,6 +149,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     const [localModel, setLocalModel] = useState('auto');
     const [thinkingMode, setThinkingMode] = useState(false);
     const [searchMode, setSearchMode] = useState(false);
+    const [style, setStyle] = useState('Normal');
     const [tokenError, setTokenError] = useState(false);
     const [isImproving, setIsImproving] = useState(false);
     const [originalMessage, setOriginalMessage] = useState<string | null>(null);
@@ -305,7 +312,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
         if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
         try {
-            await onSubmit(messageToSend, currentFiles, shouldThink, shouldSearch);
+            await onSubmit(messageToSend, currentFiles, shouldThink, shouldSearch, style);
         } catch (error) {
             // On error, restore the message so user can retry
             setMessage(messageToSend);
@@ -434,186 +441,119 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                     <div className="flex gap-2 w-full items-center justify-between">
 
                         <div className={cn("flex items-center gap-1", isLoading && "pointer-events-none")}>
-                            {/* Attach File Button - Desktop only, Mobile uses dropdown */}
-                            {!isMobile && (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 transition-colors"
-                                            type="button"
-                                            aria-label="Attach file"
-                                        >
-                                            <Icons.Plus className="w-5 h-5" />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="text-xs">
-                                        Attach files
-                                    </TooltipContent>
-                                </Tooltip>
-                            )}
+                            {/* Plus menu dropdown (desktop & mobile) */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 transition-all">
+                                    <Icons.Plus className="w-4 h-4" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent side="top" align="start" className="w-max">
+                                    {/* Attach files */}
+                                    <DropdownMenuItem
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="cursor-pointer"
+                                    >
+                                        <IconPaperclip className="w-4 h-4 mr-2" />
+                                        <span>Add files or photos</span>
+                                    </DropdownMenuItem>
 
-                            {/* Desktop: Show Reasoning & Search inline */}
-                            {!isMobile && (
-                                <>
-                                    {/* Thinking Mode Button - With Label */}
+                                    <DropdownMenuSeparator />
+
+                                    {/* Web search toggle */}
+                                    <DropdownMenuCheckboxItem
+                                        checked={searchMode}
+                                        onCheckedChange={(val) => setSearchMode(!!val)}
+                                        className="cursor-pointer"
+                                    >
+                                        <IconWorld className="w-4 h-4 mr-2" />
+                                        <span>Web search</span>
+                                    </DropdownMenuCheckboxItem>
+
+                                    {/* Thinking mode toggle */}
+                                    <DropdownMenuCheckboxItem
+                                        checked={thinkingMode}
+                                        onCheckedChange={(val) => {
+                                            if (isThinkingSupported) setThinkingMode(!!val);
+                                        }}
+                                        disabled={!isThinkingSupported}
+                                        className="cursor-pointer"
+                                    >
+                                        <IconBulbFilled className="w-4 h-4 mr-2" />
+                                        <span>Thinking mode</span>
+                                    </DropdownMenuCheckboxItem>
+
+                                    <DropdownMenuSeparator />
+
+                                    {/* Style submenu */}
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger className="flex items-center gap-2">
+                                            <span>Use style</span>
+                                        </DropdownMenuSubTrigger>
+                                        <DropdownMenuSubContent>
+                                            <DropdownMenuRadioGroup value={style} onValueChange={setStyle}>
+                                                {['Normal', 'Learning', 'Concise', 'Explanatory', 'Formal'].map(s => (
+                                                    <DropdownMenuRadioItem key={s} value={s} className="flex items-center gap-2">
+                                                        <FeatherIcon className="w-4 h-4" />
+                                                        {s}
+                                                    </DropdownMenuRadioItem>
+                                                ))}
+                                            </DropdownMenuRadioGroup>
+                                        </DropdownMenuSubContent>
+                                    </DropdownMenuSub>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            {/* Improve / Revert buttons */}
+                            <>
+                                {isImproving ? (
+                                    <button
+                                        disabled
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium cursor-not-allowed opacity-50"
+                                        type="button"
+                                    >
+                                        <Icons.Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                        <span>Improving</span>
+                                    </button>
+                                ) : originalMessage !== null ? (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <button
-                                                onClick={() => {
-                                                    if (isThinkingSupported) setThinkingMode(!thinkingMode);
-                                                }}
-                                                disabled={!isThinkingSupported}
-                                                className={cn(
-                                                    'inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all',
-                                                    isThinkingSupported && thinkingMode
-                                                        ? 'bg-primary/15 text-primary'
-                                                        : isThinkingSupported
-                                                            ? 'text-muted-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 hover:text-foreground'
-                                                            : 'text-muted-foreground/50 cursor-not-allowed opacity-50'
-                                                )}
+                                                onClick={handleRevert}
+                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all text-muted-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 hover:text-foreground"
                                                 type="button"
                                             >
-                                                <IconBrain className="w-4 h-4" />
-                                                <span>Reasoning</span>
+                                                <IconArrowBackUp className="w-4 h-4" />
+                                                <span>Revert</span>
                                             </button>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" className="text-xs">
-                                            {isThinkingSupported
-                                                ? 'Deeper reasoning for complex questions'
-                                                : 'This model doesn\'t support reasoning'}
+                                            Revert to original prompt
                                         </TooltipContent>
                                     </Tooltip>
-
-                                    {/* Search Mode Button - With Label */}
+                                ) : (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <button
-                                                onClick={() => setSearchMode(!searchMode)}
+                                                onClick={handleImprove}
+                                                disabled={!message.trim() || isLoading}
                                                 className={cn(
                                                     'inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all',
-                                                    searchMode
-                                                        ? 'bg-primary/15 text-primary'
-                                                        : 'text-muted-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 hover:text-foreground'
+                                                    message.trim()
+                                                        ? 'text-muted-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 hover:text-foreground'
+                                                        : 'text-muted-foreground/50 cursor-not-allowed opacity-50'
                                                 )}
                                                 type="button"
                                             >
-                                                <IconWorld className="w-4 h-4" />
-                                                <span>Search</span>
+                                                <IconWand className="w-4 h-4" />
+                                                <span>Improve</span>
                                             </button>
                                         </TooltipTrigger>
                                         <TooltipContent side="top" className="text-xs">
-                                            Use web search for current information
+                                            AI Improve Prompt
                                         </TooltipContent>
                                     </Tooltip>
+                                )}
+                            </>
 
-                                    {/* Improve Button */}
-                                    {isImproving ? (
-                                        <button
-                                            disabled
-                                            className="inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium cursor-not-allowed opacity-50"
-                                            type="button"
-                                        >
-                                            <Icons.Loader2 className="w-4 h-4 animate-spin text-primary" />
-                                            <span>Improving</span>
-                                        </button>
-                                    ) : originalMessage !== null ? (
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    onClick={handleRevert}
-                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all text-muted-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 hover:text-foreground"
-                                                    type="button"
-                                                >
-                                                    <IconArrowBackUp className="w-4 h-4" />
-                                                    <span>Revert</span>
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top" className="text-xs">
-                                                Revert to original prompt
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    ) : (
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    onClick={handleImprove}
-                                                    disabled={!message.trim() || isLoading}
-                                                    className={cn(
-                                                        'inline-flex items-center gap-1.5 px-2.5 py-1 h-8 rounded-lg text-xs font-medium transition-all',
-                                                        message.trim()
-                                                            ? 'text-muted-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 hover:text-foreground'
-                                                            : 'text-muted-foreground/50 cursor-not-allowed opacity-50'
-                                                    )}
-                                                    type="button"
-                                                >
-                                                    <IconWand className="w-4 h-4" />
-                                                    <span>Improve</span>
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top" className="text-xs">
-                                                AI Improve Prompt
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    )}
-                                </>
-                            )}
-
-                            {/* Mobile: More dropdown with Reasoning, Search, Files & Improve */}
-                            {isMobile && (
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 transition-all">
-                                        <Icons.Plus className="w-4 h-4" />
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent side="top" align="start" className="w-max">
-                                        {/* Attach File Option */}
-                                        <DropdownMenuItem
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="cursor-pointer"
-                                        >
-                                            <IconPaperclip className="w-4 h-4 mr-2" />
-                                            <span>Attach Files</span>
-                                        </DropdownMenuItem>
-
-                                        <DropdownMenuSeparator />
-
-                                        {/* Reasoning Option */}
-                                        <DropdownMenuItem
-                                            onClick={() => {
-                                                if (isThinkingSupported) setThinkingMode(!thinkingMode);
-                                            }}
-                                            disabled={!isThinkingSupported}
-                                            className="cursor-pointer"
-                                        >
-                                            <IconBrain className="w-4 h-4 mr-2" />
-                                            <span>Reasoning</span>
-                                            {thinkingMode && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
-                                        </DropdownMenuItem>
-
-                                        {/* Search Option */}
-                                        <DropdownMenuItem
-                                            onClick={() => setSearchMode(!searchMode)}
-                                            className="cursor-pointer"
-                                        >
-                                            <IconWorld className="w-4 h-4 mr-2" />
-                                            <span>Search</span>
-                                            {searchMode && <Icons.Check className="w-4 h-4 ml-auto text-primary" />}
-                                        </DropdownMenuItem>
-
-                                        <DropdownMenuSeparator />
-
-                                        {/* Improve/Revert Option */}
-                                        <DropdownMenuItem
-                                            onClick={originalMessage !== null ? handleRevert : handleImprove}
-                                            disabled={!message.trim() || isImproving || isLoading}
-                                            className="cursor-pointer"
-                                        >
-                                            {isImproving ? <Icons.Loader2 className="w-4 h-4 mr-2 animate-spin" /> : originalMessage !== null ? <IconArrowBackUp className="w-4 h-4 mr-2" /> : <IconWand className="w-4 h-4 mr-2" />}
-                                            <span>{isImproving ? "Improving..." : originalMessage !== null ? "Revert Prompt" : "Improve Prompt"}</span>
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            )}
                         </div>
 
                         <div className="flex-1" />

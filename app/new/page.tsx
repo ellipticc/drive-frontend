@@ -548,7 +548,7 @@ export default function AssistantPage() {
         };
     }, [conversationId, pagination.hasMore, pagination.offset, pagination.limit]);
 
-    const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, webSearch: boolean = false, parentIdOverwrite?: string | null, isEdit: boolean = false) => {
+    const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, webSearch: boolean = false, parentIdOverwrite?: string | null, isEdit: boolean = false, style: string = 'Normal') => {
         if (!value.trim() && attachments.length === 0 && contextItems.length === 0) return;
 
         if (!isReady || !kyberPublicKey) {
@@ -2063,8 +2063,8 @@ export default function AssistantPage() {
                             {/* Center Input Area */}
                             <div className="w-full max-w-5xl mx-auto px-4 z-20 mx-auto">
                                 <EnhancedPromptInput
-                                    onSubmit={async (text, files, thinkingMode, searchMode) => {
-                                        await handleSubmit(text, files, thinkingMode, searchMode);
+                                    onSubmit={async (text, files, thinkingMode, searchMode, style) => {
+                                        await handleSubmit(text, files, thinkingMode, searchMode, undefined, false, style);
                                     }}
                                     model={model}
                                     onModelChange={setModel}
@@ -2197,8 +2197,8 @@ export default function AssistantPage() {
                             <div className="flex justify-center w-full">
                                 <div className="max-w-4xl w-full px-4">
                                     <EnhancedPromptInput
-                                        onSubmit={async (text, files, thinkingMode, searchMode) => {
-                                            await handleSubmit(text, files, thinkingMode, searchMode);
+                                        onSubmit={async (text, files, thinkingMode, searchMode, style) => {
+                                            await handleSubmit(text, files, thinkingMode, searchMode, undefined, false, style);
                                         }}
                                         isLoading={isLoading || isCancelling || !isReady}
                                         onStop={handleCancel}

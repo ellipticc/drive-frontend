@@ -103,7 +103,8 @@ export function PaperAIAssistant({
         value: string,
         _attachments: File[] = [],
         _thinkingMode: boolean = false,
-        _searchMode: boolean = false
+        _searchMode: boolean = false,
+        _style: string = 'Normal'
     ) => {
         if (!value.trim()) return;
         if (!isReady || !kyberPublicKey) {
@@ -695,8 +696,8 @@ export function PaperAIAssistant({
             {/* ── Input Area ──────────────────────────────── */}
             <div className="shrink-0 px-3 pb-3 pt-1">
                 <EnhancedPromptInput
-                    onSubmit={async (text, files, thinkingMode, searchMode) => {
-                        await handleSubmit(text, files, thinkingMode, searchMode);
+                    onSubmit={async (text, files, thinkingMode, searchMode, style) => {
+                        await handleSubmit(text, files, thinkingMode, searchMode, style);
                     }}
                     isLoading={isLoading || !isReady}
                     onStop={handleCancel}

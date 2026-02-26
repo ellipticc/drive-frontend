@@ -32,6 +32,17 @@ import {
   MathInline,
   MathBlock,
 } from '@/components/ai-elements/markdown-components';
+import {
+  InlineCitation,
+  InlineCitationCard,
+  InlineCitationCardTrigger,
+  InlineCitationCardBody,
+  InlineCitationCarousel,
+  InlineCitationCarouselContent,
+  InlineCitationCarouselItem,
+  InlineCitationCarouselHeader,
+  InlineCitationSource,
+} from '@/components/ai-elements/inline-citation';
 
 // Plugins for extended Markdown support
 import remarkGfm from 'remark-gfm';
@@ -39,6 +50,12 @@ import remarkMath from 'remark-math';
 import remarkBreaks from 'remark-breaks';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
+
+export interface CitationSource {
+  title: string;
+  url: string;
+  content?: string;
+}
 
 interface MarkdownRendererProps {
   /**
@@ -57,6 +74,11 @@ interface MarkdownRendererProps {
    * Whether content is actively being streamed — skips syntax highlighting
    */
   isStreaming?: boolean;
+  /**
+   * Citation sources — when provided, [N] markers in text are replaced with
+   * hoverable citation pills inline.
+   */
+  sources?: CitationSource[];
 }
 
 /**
@@ -68,11 +90,106 @@ interface MarkdownRendererProps {
  * - GFM support (tables, strikethrough, task lists)
  * - Math support (KaTeX)
  */
+/**
+ * Recursively walk React children, find raw strings containing [N] or 【N】,
+ * and replace them with interactive citation pill components.
+ */
+function processTextWithCitations(
+  children: React.ReactNode,
+  sources: CitationSource[],
+  keyPrefix = ''
+): React.ReactNode {
+  return React.Children.map(children, (child, childIdx) => {
+    // Process string children — this is where [N] markers live
+    if (typeof child === 'string') {
+      const regex = /(?:(?:\[(\d+)\]|【(\d+)】)\s*)+/g;
+      const individualRegex = /(?:\[(\d+)\]|【(\d+)】)/g;
+      const parts: React.ReactNode[] = [];
+      let lastIndex = 0;
+      let match;
+
+      while ((match = regex.exec(child)) !== null) {
+        // Text before the citation cluster
+        if (match.index > lastIndex) {
+          parts.push(child.substring(lastIndex, match.index));
+        }
+
+        // Extract individual citation numbers from the cluster
+        const groupCitations: { number: number; source: CitationSource }[] = [];
+        let indMatch;
+        while ((indMatch = individualRegex.exec(match[0])) !== null) {
+          const num = parseInt(indMatch[1] || indMatch[2], 10);
+          const source = sources[num - 1];
+          if (source) {
+            groupCitations.push({ number: num, source });
+          }
+        }
+
+        if (groupCitations.length > 0) {
+          parts.push(
+            <InlineCitationCard key={`${keyPrefix}c-${childIdx}-${match.index}`} openDelay={100} closeDelay={300}>
+              <InlineCitation className="inline">
+                <InlineCitationCardTrigger
+                  sources={groupCitations.map(c => c.source)}
+                  indices={groupCitations.map(c => c.number)}
+                />
+              </InlineCitation>
+
+              <InlineCitationCardBody>
+                <InlineCitationCarousel>
+                  <InlineCitationCarouselContent>
+                    {groupCitations.map((c, i) => (
+                      <InlineCitationCarouselItem key={i} className="pl-6 pr-6 py-4">
+                        <InlineCitationSource
+                          title={c.source.title}
+                          url={c.source.url}
+                          description={c.source.content}
+                        />
+                      </InlineCitationCarouselItem>
+                    ))}
+                  </InlineCitationCarouselContent>
+                  <InlineCitationCarouselHeader sources={groupCitations.map(c => c.source)} />
+                </InlineCitationCarousel>
+              </InlineCitationCardBody>
+            </InlineCitationCard>
+          );
+        } else {
+          // No matching source, keep original text
+          parts.push(match[0]);
+        }
+
+        lastIndex = match.index + match[0].length;
+      }
+
+      if (parts.length === 0) return child; // No citations found
+
+      // Remaining text
+      if (lastIndex < child.length) {
+        parts.push(child.substring(lastIndex));
+      }
+
+      return <>{parts}</>;
+    }
+
+    // Recurse into React elements with children
+    if (React.isValidElement(child) && (child as any).props?.children) {
+      const props = (child as any).props;
+      return React.cloneElement(child as React.ReactElement<any>, {
+        ...props,
+        children: processTextWithCitations(props.children, sources, `${keyPrefix}${childIdx}-`),
+      });
+    }
+
+    return child;
+  });
+}
+
 const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   content,
   className,
   compact = false,
   isStreaming = false,
+  sources,
 }) => {
   // Normalize problematic unicode characters while preserving math delimiters
   const safeContent = React.useMemo(() => {
@@ -138,6 +255,12 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     return normalized;
   }, [content]);
 
+  // Helper: optionally wrap children through citation processing
+  const cite = (children: React.ReactNode) =>
+    sources && sources.length > 0
+      ? processTextWithCitations(children, sources)
+      : children;
+
   // Components mapping for react-markdown
   const components = useMemo(
     () => ({
@@ -181,37 +304,37 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         return <pre>{children}</pre>;
       },
 
-      // Headings
-      h1: H1 as any,
-      h2: H2 as any,
-      h3: H3 as any,
-      h4: H4 as any,
-      h5: H5 as any,
-      h6: H6 as any,
+      // Headings — citations can appear inside headings
+      h1: (props: any) => <H1>{cite(props.children)}</H1>,
+      h2: (props: any) => <H2>{cite(props.children)}</H2>,
+      h3: (props: any) => <H3>{cite(props.children)}</H3>,
+      h4: (props: any) => <H4>{cite(props.children)}</H4>,
+      h5: (props: any) => <H5>{cite(props.children)}</H5>,
+      h6: (props: any) => <H6>{cite(props.children)}</H6>,
 
-      // Text
+      // Text — primary target for inline citations
       p: (props: any) => {
         if (compact) {
-          return <span className={cn("inline leading-relaxed", props.className)}>{props.children}</span>;
+          return <span className={cn("inline leading-relaxed", props.className)}>{cite(props.children)}</span>;
         }
-        return <Text {...props} />;
+        return <Text>{cite(props.children)}</Text>;
       },
 
       // Lists
       ul: UnorderedList as any,
       ol: OrderedList as any,
-      li: ListItem as any,
+      li: (props: any) => <ListItem>{cite(props.children)}</ListItem>,
 
       // Tables
       table: Table as any,
       thead: TableHead as any,
       tbody: TableBody as any,
       tr: TableRow as any,
-      th: (props: any) => <TableCell {...props} isHeader={true} />,
-      td: (props: any) => <TableCell {...props} isHeader={false} />,
+      th: (props: any) => <TableCell isHeader={true}>{cite(props.children)}</TableCell>,
+      td: (props: any) => <TableCell isHeader={false}>{cite(props.children)}</TableCell>,
 
       // Other elements
-      blockquote: BlockQuote as any,
+      blockquote: (props: any) => <BlockQuote>{cite(props.children)}</BlockQuote>,
       a: Link as any,
       hr: HorizontalRule as any,
       br: Break as any,
@@ -221,12 +344,12 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       inlineMath: (props: any) => <MathInline {...props} />,
 
       // Text formatting
-      strong: Strong as any,
-      em: Emphasis as any,
+      strong: (props: any) => <Strong>{cite(props.children)}</Strong>,
+      em: (props: any) => <Emphasis>{cite(props.children)}</Emphasis>,
 
       // GFM strikethrough
       del: ({ children }: any) => (
-        <del className="line-through text-muted-foreground">{children}</del>
+        <del className="line-through text-muted-foreground">{cite(children)}</del>
       ),
 
       // Images — constrained to container width, never overflow
@@ -240,7 +363,7 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         />
       ),
     }),
-    [isStreaming]
+    [isStreaming, sources]
   );
 
   // Remark plugins for Markdown parsing
@@ -276,8 +399,7 @@ const InternalMarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     <div
       className={cn(
         // Base wrapper with prose styling - increased text size from default
-        !compact && 'prose dark:prose-invert prose-base max-w-none w-full overflow-hidden',
-        compact && 'inline leading-relaxed',
+        'prose dark:prose-invert prose-base max-w-none w-full overflow-hidden',
         '[&_pre]:overflow-x-auto [&_pre]:max-w-full [&_pre]:w-full',
         '[&_code]:break-words',
 

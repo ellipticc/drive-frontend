@@ -12,21 +12,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Reasoning, ReasoningTrigger, ReasoningContent, detectThinkingTagType } from "@/components/ai-elements/reasoning"
-import {
-    InlineCitation,
-    InlineCitationText,
-    InlineCitationCard,
-    InlineCitationCardTrigger,
-    InlineCitationCardBody,
-    InlineCitationCarousel,
-    InlineCitationCarouselContent,
-    InlineCitationCarouselItem,
-    InlineCitationCarouselHeader,
-    InlineCitationCarouselIndex,
-    InlineCitationCarouselPrev,
-    InlineCitationCarouselNext,
-    InlineCitationSource,
-} from "@/components/ai-elements/inline-citation"
 import { MarkdownRenderer } from "@/components/ai-elements/markdown-renderer"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 
@@ -126,116 +111,6 @@ function parseUserContent(rawContent: string): ParsedUserMessage {
         contexts
     };
 }
-
-// Helper component to render content with inline citations using ai-elements
-function InlineCitationRenderer({ content, sources = [], isStreaming = false }: { content: string; sources: { title: string; url: string; content?: string }[]; isStreaming?: boolean }) {
-    if (!sources || sources.length === 0) {
-        return <MarkdownRenderer content={content} compact={false} isStreaming={isStreaming} />;
-    }
-
-    // Split content by citation markers [N] or 【N】
-    // We want to find clusters of citations like [1][2][3]
-    const citationRegex = /(?:(?:\[\d+\]|【\d+】)\s*)+/g;
-    const individualRegex = /(?:\[(\d+)\]|【(\d+)】)/g;
-
-    const parts: React.ReactNode[] = [];
-    let lastIndex = 0;
-    let match;
-
-    while ((match = citationRegex.exec(content)) !== null) {
-        const fullMatch = match[0];
-
-        // Add text before citation group
-        if (match.index > lastIndex) {
-            let textBefore = content.substring(lastIndex, match.index);
-
-            // Punctuation Swap: If the citation is followed by punctuation (like a dot), 
-            // we want that punctuation to appear BEFORE the citation in the visual flow.
-            // Look ahead past the current citation group
-            const lookAhead = content.slice(match.index + fullMatch.length);
-            const punctMatch = lookAhead.match(/^[.,!?;:]+/);
-            if (punctMatch) {
-                textBefore += punctMatch[0];
-                // we will skip these characters in the next segment
-            }
-
-            parts.push(
-                <MarkdownRenderer
-                    key={`text-${lastIndex}`}
-                    content={textBefore}
-                    compact={true}
-                    isStreaming={isStreaming}
-                />
-            );
-
-            if (punctMatch) {
-                lastIndex += punctMatch[0].length;
-            }
-        }
-
-        // Extract individual citation numbers from the group
-        const groupCitations: { number: number, source: any }[] = [];
-        let indMatch;
-        while ((indMatch = individualRegex.exec(fullMatch)) !== null) {
-            const num = parseInt(indMatch[1] || indMatch[2], 10);
-            const source = sources[num - 1];
-            if (source) {
-                groupCitations.push({ number: num, source });
-            }
-        }
-
-        if (groupCitations.length > 0) {
-            parts.push(
-                <InlineCitationCard key={`group-${match.index}`} openDelay={100} closeDelay={300}>
-                    <InlineCitation className="inline">
-                        <InlineCitationCardTrigger
-                            sources={groupCitations.map(c => c.source)}
-                            indices={groupCitations.map(c => c.number)}
-                        />
-                    </InlineCitation>
-
-                    <InlineCitationCardBody>
-                        <InlineCitationCarousel>
-                            <InlineCitationCarouselContent>
-                                {groupCitations.map((c, i) => (
-                                    <InlineCitationCarouselItem key={i} className="pl-6 pr-6 py-4">
-                                        <InlineCitationSource
-                                            title={c.source.title}
-                                            url={c.source.url}
-                                            description={c.source.content}
-                                        />
-                                    </InlineCitationCarouselItem>
-                                ))}
-                            </InlineCitationCarouselContent>
-
-                            <InlineCitationCarouselHeader sources={groupCitations.map(c => c.source)} />
-                        </InlineCitationCarousel>
-                    </InlineCitationCardBody>
-                </InlineCitationCard>
-            );
-        }
-
-        lastIndex = Math.max(lastIndex, match.index + fullMatch.length);
-    }
-
-    // Add remaining text
-    if (lastIndex < content.length) {
-        parts.push(
-            <MarkdownRenderer
-                key={`text-${lastIndex}`}
-                content={content.substring(lastIndex)}
-                compact={true}
-                isStreaming={isStreaming}
-            />
-        );
-    }
-
-    return (
-        <div className="inline text-foreground leading-relaxed">
-            {parts}
-        </div>
-    );
-};
 
 export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onRegenerate, onVersionChange, onCheckpoint, availableModels = [], onRerunSystemWithModel, onAddToChat, onSuggestionClick }: ChatMessageProps) {
     // Helper to display pretty model names
@@ -699,12 +574,12 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                         )}
 
                         <div className="w-full max-w-full break-words overflow-hidden">
-                            {/* Use inline-citation component from ai-elements if sources exist */}
-                            {displayRes.sources && displayRes.sources.length > 0 ? (
-                                <InlineCitationRenderer content={displayRes.content} sources={displayRes.sources} isStreaming={!!displayRes.isThinking} />
-                            ) : (
-                                <MarkdownRenderer content={displayRes.content} compact={false} isStreaming={!!displayRes.isThinking} />
-                            )}
+                            <MarkdownRenderer
+                                content={displayRes.content}
+                                sources={displayRes.sources}
+                                compact={false}
+                                isStreaming={!!displayRes.isThinking}
+                            />
                         </div>
 
                         {/* Legacy References Footer Removed */}
