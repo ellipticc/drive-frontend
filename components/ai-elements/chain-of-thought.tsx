@@ -115,7 +115,7 @@ export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
   code?: string;
   stdout?: string;
   status?: "complete" | "active" | "pending";
-  stepType?: "thinking" | "search" | "code" | "think" | "default";
+  stepType?: "thinking" | "search" | "code" | "think" | "searching" | "default";
 };
 
 const stepStatusStyles = {
@@ -204,6 +204,57 @@ export const ChainOfThoughtSearchResults = memo(
       className={cn("flex flex-wrap items-center gap-2", className)}
       {...props}
     />
+  )
+);
+
+export const ChainOfThoughtSearchingQueries = memo(
+  ({ queries, className, ...props }: { queries: string[], className?: string }) => (
+    <div className={cn("flex flex-wrap gap-2 mt-2", className)} {...props}>
+      {queries.map((q, i) => (
+        <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border/50 text-[11px] text-muted-foreground/80">
+          <IconSearch className="size-3 opacity-60" />
+          {q}
+        </div>
+      ))}
+    </div>
+  )
+);
+
+export const ChainOfThoughtSourceTable = memo(
+  ({ sources, className, ...props }: { sources: any[], className?: string }) => (
+    <div className={cn("mt-3 rounded-xl border border-border/50 bg-muted/10 overflow-hidden max-h-[220px] overflow-y-auto custom-scrollbar shadow-inner", className)} {...props}>
+      {sources.map((s, i) => {
+        let domain = "";
+        try {
+          domain = new URL(s.url).hostname.replace('www.', '');
+        } catch (e) {
+          domain = "source";
+        }
+        return (
+          <div key={i} className="flex items-center justify-between px-3 py-2.5 border-b border-border/20 last:border-0 hover:bg-muted/30 transition-colors group/source">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <img
+                src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+                alt=""
+                className="size-4 shrink-0 rounded-sm bg-muted/50"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2Ij48cmVjdCB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIGZpbGw9IiM4ODgiIG9wYWNpdHk9IjAuMiIvPjwvc3ZnPg==';
+                }}
+              />
+              <span className="truncate font-medium text-[12px] group-hover/source:text-foreground transition-colors">{s.title}</span>
+            </div>
+            <a
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] text-muted-foreground/50 hover:text-primary transition-colors ml-4 shrink-0 font-mono italic"
+            >
+              {domain}
+            </a>
+          </div>
+        );
+      })}
+    </div>
   )
 );
 

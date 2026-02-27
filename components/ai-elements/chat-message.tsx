@@ -22,6 +22,8 @@ import {
     ChainOfThoughtSearchResults,
     ChainOfThoughtSearchResult,
     ChainOfThoughtImage,
+    ChainOfThoughtSearchingQueries,
+    ChainOfThoughtSourceTable,
 } from "@/components/ai-elements/chain-of-thought"
 
 export interface ToolCall {
@@ -647,16 +649,11 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                             stdout={step.stdout}
                                         >
                                             {/* Results rendering for search and images */}
+                                            {step.stepType === 'searching' && step.queries && (
+                                                <ChainOfThoughtSearchingQueries queries={step.queries} />
+                                            )}
                                             {step.stepType === 'search' && step.results && (
-                                                <ChainOfThoughtSearchResults>
-                                                    {step.results.map((res: any, rIdx: number) => (
-                                                        <ChainOfThoughtSearchResult key={rIdx}>
-                                                            <a href={res.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                                                {res.title}
-                                                            </a>
-                                                        </ChainOfThoughtSearchResult>
-                                                    ))}
-                                                </ChainOfThoughtSearchResults>
+                                                <ChainOfThoughtSourceTable sources={step.results} />
                                             )}
                                             {step.error && (
                                                 <pre className="text-[11px] font-mono bg-destructive/10 text-destructive p-2 rounded-md overflow-x-auto max-w-full">
