@@ -222,41 +222,43 @@ export const ChainOfThoughtSearchingQueries = memo(
 
 export const ChainOfThoughtSourceTable = memo(
   ({ sources, className, ...props }: { sources: any[], className?: string }) => (
-    <div className={cn("mt-3 rounded-xl border border-border/30 bg-muted/5 overflow-hidden max-h-[220px] overflow-y-auto custom-scrollbar shadow-inner", className)} {...props}>
-      {sources.map((s, i) => {
-        let domain = "";
-        try {
-          domain = new URL(s.url).hostname.replace('www.', '');
-        } catch (e) {
-          domain = "source";
-        }
-        return (
-          <a
-            key={i}
-            href={s.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group/source block px-1"
-          >
-            <div className="flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 group-hover/source:bg-muted/40 cursor-pointer">
-              <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                <img
-                  src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
-                  alt=""
-                  className="size-3.5 shrink-0 rounded-sm bg-muted/50 transition-transform duration-200 group-hover/source:scale-110"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2Ij48cmVjdCB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIGZpbGw9IiM4ODgiIG9wYWNpdHk9IjAuMiIvPjwvc3ZnPg==';
-                  }}
-                />
-                <span className="truncate font-medium text-[11.5px] text-muted-foreground/90 group-hover/source:text-foreground transition-colors">{s.title}</span>
+    <div className={cn("mt-3 rounded-xl border border-border/30 bg-muted/5 overflow-hidden max-h-[220px] overflow-y-auto custom-scrollbar shadow-inner pb-1", className)} {...props}>
+      <div className="pt-1">
+        {sources.map((s, i) => {
+          let domain = "";
+          try {
+            domain = new URL(s.url).hostname.replace('www.', '');
+          } catch (e) {
+            domain = "source";
+          }
+          return (
+            <a
+              key={i}
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group/source block px-1"
+            >
+              <div className="flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 group-hover/source:bg-muted/40 cursor-pointer">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <img
+                    src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+                    alt=""
+                    className="size-3.5 shrink-0 rounded-sm bg-muted/50 transition-transform duration-200 group-hover/source:scale-110"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2Ij48cmVjdCB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIGZpbGw9IiM4ODgiIG9wYWNpdHk9IjAuMiIvPjwvc3ZnPg==';
+                    }}
+                  />
+                  <span className="truncate font-medium text-[11.5px] text-muted-foreground/90 group-hover/source:text-foreground transition-colors">{s.title}</span>
+                </div>
+                <span className="text-[10px] text-muted-foreground/40 group-hover/source:text-muted-foreground/60 transition-colors ml-4 shrink-0 font-mono">
+                  {domain}
+                </span>
               </div>
-              <span className="text-[10px] text-muted-foreground/40 group-hover/source:text-muted-foreground/60 transition-colors ml-4 shrink-0 font-mono">
-                {domain}
-              </span>
-            </div>
-          </a>
-        );
-      })}
+            </a>
+          );
+        })}
+      </div>
     </div>
   )
 );

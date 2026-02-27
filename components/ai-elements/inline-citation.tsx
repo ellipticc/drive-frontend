@@ -73,8 +73,7 @@ export const InlineCitationCardTrigger = ({
     }
   };
 
-  // If we have specific indices, use them to calculate the display text (e.g., domain +N)
-  const firstDomain = sources[0]
+  const domain = sources[0]
     ? new URL(sources[0].url).hostname.replace('www.', '').split('.')[0]
     : '';
 
@@ -83,15 +82,15 @@ export const InlineCitationCardTrigger = ({
       <span
         role="button"
         className={cn(
-          "inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded bg-[#f3f4f6] dark:bg-muted/40 hover:bg-[#e5e7eb] dark:hover:bg-muted/60 transition-colors border border-border/10 ml-1 mb-0.5 align-baseline cursor-pointer select-none",
+          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 hover:bg-muted/60 transition-all border border-border/20 ml-1 mb-0.5 align-baseline cursor-pointer select-none group/pill",
           className
         )}
         {...props}
       >
-        <span className="text-[10px] font-mono font-medium text-foreground/60 whitespace-nowrap">
-          {firstDomain}
+        <span className="text-[10px] font-mono font-medium text-muted-foreground group-hover/pill:text-foreground transition-colors whitespace-nowrap">
+          {domain}
           {sources.length > 1 && (
-            <span className="ml-0.5 opacity-70">+{sources.length - 1}</span>
+            <span className="ml-0.5 opacity-60">+{sources.length - 1}</span>
           )}
         </span>
       </span>
@@ -107,7 +106,7 @@ export const InlineCitationCardBody = ({
 }: InlineCitationCardBodyProps) => (
   <HoverCardContent
     className={cn(
-      "relative w-[340px] p-0 overflow-hidden rounded-2xl border-none shadow-[0_20px_50px_rgba(0,0,0,0.1)] bg-white dark:bg-popover/95 backdrop-blur-xl",
+      "relative w-[340px] p-0 overflow-hidden rounded-2xl border border-border/40 shadow-[0_20px_50px_rgba(0,0,0,0.1)] bg-white/95 dark:bg-popover/95 backdrop-blur-xl",
       "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
       className
     )}
@@ -136,7 +135,7 @@ export const InlineCitationCarousel = ({
 
   return (
     <CarouselApiContext.Provider value={api}>
-      <Carousel className={cn("w-full", className)} setApi={setApi} {...props}>
+      <Carousel className={cn("w-full flex flex-col-reverse", className)} setApi={setApi} {...props}>
         {children}
       </Carousel>
     </CarouselApiContext.Provider>
@@ -156,7 +155,7 @@ export const InlineCitationCarouselItem = ({
   ...props
 }: InlineCitationCarouselItemProps) => (
   <CarouselItem
-    className={cn("w-full space-y-2 p-4 pl-4", className)}
+    className={cn("w-full px-5 py-4", className)}
     {...props}
   />
 );
@@ -181,31 +180,31 @@ export const InlineCitationCarouselHeader = ({
     <div className="space-y-0">
       <div
         className={cn(
-          "flex items-center justify-between px-3 py-2 bg-muted/10",
+          "flex items-center justify-between px-3.5 py-2.5",
           className
         )}
         {...props}
       >
         <div className="flex items-center gap-2">
-          <InlineCitationCarouselPrev className="hover:bg-muted/60 p-1 rounded-full transition-colors" />
-          <InlineCitationCarouselIndex className="p-0 text-foreground/60 font-mono text-[10px]" />
-          <InlineCitationCarouselNext className="hover:bg-muted/60 p-1 rounded-full transition-colors" />
+          <InlineCitationCarouselPrev className="hover:bg-muted/40 p-1.5 rounded-full transition-colors" />
+          <InlineCitationCarouselIndex className="p-0 text-muted-foreground/60 font-mono text-[10px]" />
+          <InlineCitationCarouselNext className="hover:bg-muted/40 p-1.5 rounded-full transition-colors" />
         </div>
 
         <div className="flex items-center gap-1.5">
-          <div className="flex -space-x-1 overflow-hidden">
+          <div className="flex -space-x-1 overflow-hidden mr-1">
             {sources.slice(0, 3).map((s, i) => (
-              <div key={i} className="inline-block h-3.5 w-3.5 rounded-full overflow-hidden shrink-0 bg-transparent">
+              <div key={i} className="inline-block h-3.5 w-3.5 rounded-full overflow-hidden shrink-0 border border-background">
                 <img src={getFavicon(s.url) || ""} alt="" className="h-full w-full object-cover" />
               </div>
             ))}
           </div>
-          <span className="text-[10px] text-muted-foreground/60 font-medium">
+          <span className="text-[10px] text-muted-foreground/50 font-medium">
             {sources.length} sources
           </span>
         </div>
       </div>
-      <div className="h-px w-full bg-border/30" />
+      <div className="h-px w-full bg-border/20" />
     </div>
   );
 };
@@ -243,7 +242,7 @@ export const InlineCitationCarouselIndex = ({
   return (
     <div
       className={cn(
-        "flex items-center px-2 py-1 text-muted-foreground text-xs font-mono",
+        "flex items-center px-1 text-muted-foreground/50 text-[10px] font-mono",
         className
       )}
       {...props}
@@ -275,7 +274,7 @@ export const InlineCitationCarouselPrev = ({
       type="button"
       {...props}
     >
-      <IconArrowLeft className="size-3.5 text-muted-foreground" />
+      <IconArrowLeft className="size-3 text-muted-foreground/60" />
     </button>
   );
 };
@@ -302,7 +301,7 @@ export const InlineCitationCarouselNext = ({
       type="button"
       {...props}
     >
-      <IconArrowRight className="size-3.5 text-muted-foreground" />
+      <IconArrowRight className="size-3 text-muted-foreground/60" />
     </button>
   );
 };
@@ -334,12 +333,12 @@ export const InlineCitationSource = ({
   const domain = url ? new URL(url).hostname.replace('www.', '').toLowerCase() : '';
 
   return (
-    <div className={cn("space-y-3", className)} {...props}>
-      <div className="flex items-center gap-2">
-        <div className="h-4 w-4 rounded-full overflow-hidden bg-muted shrink-0">
+    <div className={cn("space-y-2.5", className)} {...props}>
+      <div className="flex items-center gap-1.5">
+        <div className="h-3.5 w-3.5 rounded-sm overflow-hidden bg-muted shrink-0">
           <img src={getFavicon(url) || ""} alt="" className="h-full w-full object-cover" />
         </div>
-        <span className="text-xs font-medium text-muted-foreground tracking-tight">{domain}</span>
+        <span className="text-[10px] font-medium text-muted-foreground/60 truncate uppercase tracking-wider font-mono">{domain}</span>
       </div>
 
       <a
@@ -348,13 +347,13 @@ export const InlineCitationSource = ({
         rel="noopener noreferrer"
         className="block group/title"
       >
-        <h4 className="text-base font-bold leading-snug text-foreground group-hover/title:text-primary transition-colors line-clamp-2">
+        <h4 className="text-sm font-bold leading-snug text-foreground group-hover/title:text-primary transition-colors line-clamp-2">
           {title}
         </h4>
       </a>
 
       {description && (
-        <p className="line-clamp-4 text-sm leading-relaxed text-muted-foreground/90">
+        <p className="line-clamp-3 text-[12px] leading-relaxed text-muted-foreground/80">
           {description}
         </p>
       )}
