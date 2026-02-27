@@ -185,10 +185,23 @@ export const InlineCitationCarouselHeader = ({
         )}
         {...props}
       >
-        <div className="flex items-center gap-2">
-          <InlineCitationCarouselPrev className="hover:bg-muted/40 p-1.5 rounded-full transition-colors" />
-          <InlineCitationCarouselIndex className="p-0 text-muted-foreground/60 font-mono text-[10px]" />
-          <InlineCitationCarouselNext className="hover:bg-muted/40 p-1.5 rounded-full transition-colors" />
+        <div className={cn("flex items-center gap-2", sources.length <= 1 && "pointer-events-none")}>
+          <InlineCitationCarouselPrev
+            className={cn(
+              "p-1.5 rounded-full transition-colors",
+              sources.length <= 1 ? "opacity-20" : "hover:bg-muted/40"
+            )}
+          />
+          <InlineCitationCarouselIndex className={cn(
+            "p-0 font-mono text-[10px]",
+            sources.length <= 1 ? "text-foreground font-bold" : "text-muted-foreground/60"
+          )} />
+          <InlineCitationCarouselNext
+            className={cn(
+              "p-1.5 rounded-full transition-colors",
+              sources.length <= 1 ? "opacity-20" : "hover:bg-muted/40"
+            )}
+          />
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -199,8 +212,11 @@ export const InlineCitationCarouselHeader = ({
               </div>
             ))}
           </div>
-          <span className="text-[10px] text-muted-foreground/50 font-medium">
-            {sources.length} sources
+          <span className={cn(
+            "text-[10px] font-medium",
+            sources.length <= 1 ? "text-foreground font-bold" : "text-muted-foreground/50"
+          )}>
+            {sources.length} {sources.length === 1 ? 'source' : 'sources'}
           </span>
         </div>
       </div>
@@ -242,7 +258,7 @@ export const InlineCitationCarouselIndex = ({
   return (
     <div
       className={cn(
-        "flex items-center px-1 text-muted-foreground/50 text-[10px] font-mono",
+        "flex items-center px-1 text-[10px] font-mono",
         className
       )}
       {...props}

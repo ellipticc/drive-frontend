@@ -29,6 +29,7 @@ import { EnhancedPromptInput } from "@/components/enhanced-prompt-input";
 import { ChatMessage, type Message } from "@/components/ai-elements/chat-message";
 import { FeedbackModal } from "@/components/ai-elements/feedback-modal";
 import { useAICrypto } from "@/hooks/use-ai-crypto";
+import { useSmartScroll } from "@/hooks/use-smart-scroll";
 import { apiClient } from "@/lib/api";
 import { trimHistoryByTokens } from "@/lib/context-calculator";
 import { toast } from "sonner";
@@ -76,27 +77,17 @@ export function PaperAIAssistant({
     const [feedbackPromptContext, setFeedbackPromptContext] = useState<string>("");
     const [feedbackResponseContext, setFeedbackResponseContext] = useState<string>("");
 
-    // ── Scroll ──────────────────────────────────────────────────
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const scrollEndRef = useRef<HTMLDivElement>(null);
-    const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-
-    const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-        scrollEndRef.current?.scrollIntoView({ behavior });
-    }, []);
-
-    const handleScroll = useCallback(() => {
-        const el = scrollContainerRef.current;
-        if (!el) return;
-        const threshold = 120;
-        const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
-        setShowScrollToBottom(!atBottom);
-    }, []);
-
-    // Auto-scroll on new streaming content
-    useEffect(() => {
-        if (isLoading) scrollToBottom('smooth');
-    }, [messages, isLoading, scrollToBottom]);
+    // ── Smart Scroll ───────────────────────────────────────────
+    const {
+        scrollContainerRef,
+        scrollEndRef,
+        showScrollToBottom,
+        scrollToBottom,
+        onScroll
+    } = useSmartScroll({
+        isLoading,
+        messages,
+    });
 
     // ── Handle Submit (mirrors main page streaming logic) ────
     const handleSubmit = useCallback(async (
@@ -647,7 +638,7 @@ export function PaperAIAssistant({
                 <div className="flex flex-col flex-1 min-h-0 relative">
                     <div
                         ref={scrollContainerRef}
-                        onScroll={handleScroll}
+                        onScroll={onScroll}
                         className="flex-1 overflow-y-auto px-3 py-3 scroll-smooth min-h-0 overflow-x-hidden"
                     >
                         <div className="flex flex-col items-center w-full">

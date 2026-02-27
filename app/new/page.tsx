@@ -12,7 +12,6 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -27,13 +26,6 @@ import { cn } from "@/lib/utils"
 // Import AI Elements
 import { EnhancedPromptInput } from "@/components/enhanced-prompt-input"
 import { SiteHeader } from "@/components/layout/header/site-header"
-import {
-    Context,
-    ContextTrigger,
-    ContextContent,
-    ContextContentHeader,
-    ContextWindowBreakdown,
-} from "@/components/ai-elements/context"
 import { useAICrypto } from "@/hooks/use-ai-crypto";
 import { parseFile } from "@/lib/file-parser";
 import { calculateContextBreakdown, ContextBreakdown, trimHistoryByTokens } from "@/lib/context-calculator"
@@ -42,6 +34,7 @@ import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { FeedbackModal } from "@/components/ai-elements/feedback-modal";
 import { ChatMessage } from "@/components/ai-elements/chat-message"
 import { ChatScrollNavigation } from "@/components/ai-elements/chat-navigation"
+import { useSmartScroll } from "@/hooks/use-smart-scroll"
 import { toast } from "sonner"
 
 // helper to prettify model names (capitalize segments)
@@ -186,29 +179,19 @@ export default function AssistantPage() {
     // Context breakdown for displaying token usage
     const [contextBreakdown, setContextBreakdown] = React.useState<ContextBreakdown | null>(null);
 
-    // Scroll Container Ref
-    const scrollContainerRef = React.useRef<HTMLDivElement>(null)
-    const virtualParentRef = React.useRef<HTMLDivElement>(null)
+    // ── Smart Scroll ───────────────────────────────────────────
+    const {
+        scrollContainerRef,
+        scrollEndRef,
+        showScrollToBottom,
+        scrollToBottom,
+        onScroll
+    } = useSmartScroll({
+        isLoading,
+        messages,
+    });
 
-    // Standard scrolling state
-    const [isAtBottom, setIsAtBottom] = React.useState(true);
-    const scrollEndRef = React.useRef<HTMLDivElement>(null);
-    const [showScrollToBottom, setShowScrollToBottom] = React.useState(false);
-
-    const handleScroll = () => {
-        if (!scrollContainerRef.current) return;
-        const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-        const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-        setShowScrollToBottom(!isNearBottom);
-        setIsAtBottom(isNearBottom);
-    };
-
-    // Track metrics during streaming so they persist in final message
-    const currentMetricsRef = React.useRef<{
-        ttft?: number;
-        tps?: number;
-        total_time?: number;
-    }>({});
+    // Unified effect for chat title
 
     // Chat Title State
     const [isEditingTitle, setIsEditingTitle] = React.useState(false);
@@ -219,6 +202,13 @@ export default function AssistantPage() {
 
     // Track active session key for cancel action
     const latestSessionKeyRef = React.useRef<Uint8Array | null>(null);
+
+    // Track metrics during streaming so they persist in final message
+    const currentMetricsRef = React.useRef<{
+        ttft?: number;
+        tps?: number;
+        total_time?: number;
+    }>({});
 
     // Typing effect state
     const [displayedTitle, setDisplayedTitle] = React.useState("");
@@ -279,10 +269,7 @@ export default function AssistantPage() {
         }
     };
 
-    // Robust scroll-to-bottom
-    const scrollToBottom = React.useCallback((behavior: ScrollBehavior = 'smooth') => {
-        scrollEndRef.current?.scrollIntoView({ behavior, block: 'end' });
-    }, []);
+    // Standard scrolling state removed in favor of hook
 
     const handleRegenerateOption = (messageId: string, optionModel?: string, thinkingMode?: boolean) => {
         const msg = messages.find(m => m.id === messageId);
@@ -469,88 +456,7 @@ export default function AssistantPage() {
         return () => document.removeEventListener('keydown', handler);
     }, [isLoading, isCancelling]);
 
-    // Auto-scroll interruption detection: stop auto-scroll if user manually scrolls
-    // Also handle pagination when scrolling to top
-    React.useEffect(() => {
-        const container = scrollContainerRef.current;
-        if (!container) return;
-
-        // Debounced scroll handler to avoid excessive pagination loads
-        let scrollTimeout: NodeJS.Timeout | null = null;
-        const SCROLL_THRESHOLD = 500; // px from top to trigger load
-        const DEBOUNCE_MS = 300; // Wait 300ms before checking pagination
-
-        const handleScroll = () => {
-            const scrollTop = container.scrollTop;
-            const scrollHeight = container.scrollHeight;
-            const clientHeight = container.clientHeight;
-
-            // Check if user is at the bottom (with tolerance)
-            const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
-            shouldAutoScrollRef.current = isAtBottom;
-            setIsAtBottom(isAtBottom);
-            setShowScrollToBottom(!isAtBottom); // Show button only if scrolled up
-
-            // Debounced pagination check
-            if (scrollTimeout) clearTimeout(scrollTimeout);
-            scrollTimeout = setTimeout(async () => {
-                // Check if should load older messages
-                if (
-                    scrollTop < SCROLL_THRESHOLD &&
-                    pagination.hasMore &&
-                    !isLoadingOlderRef.current &&
-                    conversationId
-                ) {
-                    // Prevent concurrent loads
-                    isLoadingOlderRef.current = true;
-                    setIsLoadingOlder(true);
-
-                    try {
-                        const nextOffset = pagination.offset + pagination.limit;
-
-                        const result = await apiClient.getAIChatMessages(conversationId, {
-                            offset: nextOffset,
-                            limit: pagination.limit,
-                        });
-
-                        if (result.messages && result.messages.length > 0) {
-                            // Prepend older messages to the beginning
-                            setMessages(prev => {
-                                // Ensure no duplicates by checking IDs
-                                const existingIds = new Set(prev.map(m => m.id));
-                                const newMessages = result.messages.filter(m => !existingIds.has(m.id));
-                                return [...newMessages, ...prev];
-                            });
-
-                            // Update pagination state AFTER message update
-                            setPagination(prev => ({
-                                offset: result.pagination.offset,
-                                limit: result.pagination.limit,
-                                total: result.pagination.total,
-                                hasMore: result.pagination.hasMore,
-                            }));
-                        }
-                    } catch (err) {
-                        console.error("Failed to load older messages:", err);
-                        toast.error("Failed to load older messages");
-                    } finally {
-                        isLoadingOlderRef.current = false;
-                        setIsLoadingOlder(false);
-                    }
-                }
-            }, DEBOUNCE_MS);
-
-            lastScrollTopRef.current = scrollTop;
-        };
-
-        container.addEventListener('scroll', handleScroll, { passive: true });
-        return () => {
-            container.removeEventListener('scroll', handleScroll);
-            if (scrollTimeout) clearTimeout(scrollTimeout);
-        };
-    }, [conversationId, pagination.hasMore, pagination.offset, pagination.limit]);
-
-    const handleSubmit = async (value: string, attachments: File[] = [], thinkingMode: boolean = false, webSearch: boolean = false, parentIdOverwrite?: string | null, isEdit: boolean = false, style: string = 'Normal') => {
+    const handleSubmit = React.useCallback(async (value: string, attachments: File[] = [], thinkingMode: boolean = false, webSearch: boolean = false, parentIdOverwrite?: string | null, isEdit: boolean = false, style: string = 'Normal') => {
         if (!value.trim() && attachments.length === 0 && contextItems.length === 0) return;
 
         if (!isReady || !kyberPublicKey) {
@@ -1353,9 +1259,8 @@ export default function AssistantPage() {
             // Don't force shouldAutoScroll to false - let the current scroll position determine it
             // This allows auto-scroll to remain enabled if user stayed at bottom during streaming
         }
-    }
+    }, [conversationId, isReady, kyberPublicKey, model, setMessages, updateChatTimestamp, loadChats]);
 
-    // Suggestion Chips
     // Suggestion Chips
     const suggestions: string[] = [];
 
@@ -2089,7 +1994,7 @@ export default function AssistantPage() {
                         {/* Messages Container - Virtual List for Performance */}
                         <div
                             ref={scrollContainerRef}
-                            onScroll={handleScroll}
+                            onScroll={onScroll}
                             className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth min-h-0 max-w-full overflow-x-hidden"
                         >
                             {/* Standard List Rendering */}

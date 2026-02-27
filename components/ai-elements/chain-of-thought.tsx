@@ -224,37 +224,40 @@ export const ChainOfThoughtSourceTable = memo(
   ({ sources, className, ...props }: { sources: any[], className?: string }) => (
     <div className={cn("mt-3 rounded-xl border border-border/30 bg-muted/5 overflow-hidden max-h-[220px] overflow-y-auto custom-scrollbar shadow-inner pb-1", className)} {...props}>
       <div className="pt-1">
-        {sources.map((s, i) => {
+        {sources.map((source, index) => {
           let domain = "";
           try {
-            domain = new URL(s.url).hostname.replace('www.', '');
+            domain = new URL(source.url).hostname.replace('www.', '');
           } catch (e) {
             domain = "source";
           }
+
           return (
             <a
-              key={i}
-              href={s.url}
+              key={index}
+              href={source.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group/source block px-1"
+              className="group relative flex items-center justify-between p-3 py-2.5 transition-all text-sm hover:bg-primary/5 cursor-pointer rounded-lg"
             >
-              <div className="flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 group-hover/source:bg-muted/40 cursor-pointer">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="shrink-0">
                   <img
-                    src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+                    src={source.favicon || `https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
                     alt=""
-                    className="size-3.5 shrink-0 rounded-sm bg-muted/50 transition-transform duration-200 group-hover/source:scale-110"
+                    className="size-4.5 rounded object-contain transition-none"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDE2IDE2Ij48cmVjdCB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIGZpbGw9IiM4ODgiIG9wYWNpdHk9IjAuMiIvPjwvc3ZnPg==';
+                      (e.target as HTMLImageElement).src = "/favicon-fallback.png"
                     }}
                   />
-                  <span className="truncate font-medium text-[11.5px] text-muted-foreground/90 group-hover/source:text-foreground transition-colors">{s.title}</span>
                 </div>
-                <span className="text-[10px] text-muted-foreground/40 group-hover/source:text-muted-foreground/60 transition-colors ml-4 shrink-0 font-mono">
-                  {domain}
-                </span>
+                <span className="truncate text-foreground/80 font-mono tracking-tight">{source.title}</span>
               </div>
+              <span className="text-[11px] text-muted-foreground/60 font-mono shrink-0 ml-4">{domain}</span>
+
+              {index !== sources.length - 1 && (
+                <div className="absolute bottom-0 left-4 right-4 h-[1px] bg-border/40" />
+              )}
             </a>
           );
         })}
