@@ -9,10 +9,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { cjk } from "@streamdown/cjk";
-import { code } from "@streamdown/code";
-import { math } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
 import { IconChevronDown, IconChevronRight, IconBulb, IconBulbFilled } from "@tabler/icons-react";
 import {
   createContext,
@@ -24,7 +20,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Streamdown } from "streamdown";
+import { MarkdownRenderer } from "./markdown-renderer";
 
 import { Shimmer } from "./shimmer";
 
@@ -249,32 +245,24 @@ export type ReasoningContentProps = ComponentProps<
   isStreaming?: boolean;
 };
 
-const streamdownPlugins = { cjk, code, math, mermaid };
-
 export const ReasoningContent = memo(
   ({ className, children, isStreaming, ...props }: ReasoningContentProps) => {
-    // While streaming, render a lightweight, append-friendly text block for smooth token updates
-    if (isStreaming) {
-      return (
-        <div className={cn("mt-4 text-sm text-muted-foreground whitespace-pre-wrap font-mono", className)} {...props}>
-          {children}
-        </div>
-      );
-    }
-
-    // Once streaming is complete, render with Streamdown for rich formatting
     return (
       <CollapsibleContent
         className={cn(
           "mt-4 text-sm",
-          "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+          "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
           className
         )}
         {...props}
       >
-        <Streamdown plugins={streamdownPlugins as any} {...props}>
-          {children}
-        </Streamdown>
+        <div className="text-muted-foreground/80">
+          <MarkdownRenderer
+            content={children}
+            isStreaming={isStreaming}
+            compact={true}
+          />
+        </div>
       </CollapsibleContent>
     );
   }
