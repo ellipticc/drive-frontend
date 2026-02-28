@@ -629,380 +629,384 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                             </div>
                         )}
 
-                        {/* Unified Chain of Thought Section */}
-                        {displayRes.steps && displayRes.steps.length > 0 && (
-                            <ChainOfThought
-                                className="mb-4"
-                                open={isCotOpen}
-                                onOpenChange={setIsCotOpen}
-                            >
-                                <ChainOfThoughtHeader label={displayRes.isThinking ? "Thinking..." : "Thought process"} />
-                                <ChainOfThoughtContent>
-                                    {displayRes.steps.map((step: any, idx: number) => (
-                                        <ChainOfThoughtStep
-                                            key={step.id || idx}
-                                            stepType={step.stepType}
-                                            label={step.label}
-                                            status={step.status || "complete"}
-                                            content={step.content}
-                                            code={step.code}
-                                            stdout={step.stdout}
-                                        >
-                                            {/* Results rendering for search and images */}
-                                            {step.stepType === 'searching' && step.queries && (
-                                                <ChainOfThoughtSearchingQueries queries={step.queries} />
-                                            )}
-                                            {step.stepType === 'search' && step.results && (
-                                                <ChainOfThoughtSourceTable sources={step.results} />
-                                            )}
-                                            {step.error && (
-                                                <pre className="text-[11px] font-mono bg-destructive/10 text-destructive p-2 rounded-md overflow-x-auto max-w-full">
-                                                    {step.error}
-                                                </pre>
-                                            )}
-                                            {step.images && step.images.length > 0 && (
-                                                <div className="flex flex-wrap gap-2">
-                                                    {step.images.map((img: string, iIdx: number) => (
-                                                        <ChainOfThoughtImage key={iIdx}>
-                                                            <img src={`data:image/png;base64,${img}`} alt={`Plot ${iIdx + 1}`} className="max-w-full h-auto" />
-                                                        </ChainOfThoughtImage>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </ChainOfThoughtStep>
-                                    ))}
-                                </ChainOfThoughtContent>
-                            </ChainOfThought>
-                        )}
+                        <div className="text-foreground text-sm leading-relaxed font-geist tracking-tight">
+                            <MarkdownRenderer content={displayRes.content} isStreaming={message.isThinking} />
+                        </div>
+                    </div>
+                )}
 
-                        <div className="w-full max-w-full break-words overflow-hidden">
-                            <MarkdownRenderer
-                                content={displayRes.content}
-                                sources={displayRes.sources}
-                                compact={false}
-                                isStreaming={!!displayRes.isThinking}
+                {/* Unified Chain of Thought Section */}
+                {displayRes.steps && displayRes.steps.length > 0 && (
+                    <ChainOfThought
+                        className="mb-4"
+                        open={isCotOpen}
+                        onOpenChange={setIsCotOpen}
+                    >
+                        <ChainOfThoughtHeader label={displayRes.isThinking ? "Thinking..." : "Thought process"} />
+                        <ChainOfThoughtContent>
+                            {displayRes.steps.map((step: any, idx: number) => (
+                                <ChainOfThoughtStep
+                                    key={step.id || idx}
+                                    stepType={step.stepType}
+                                    label={step.label}
+                                    status={step.status || "complete"}
+                                    content={step.content}
+                                    code={step.code}
+                                    stdout={step.stdout}
+                                >
+                                    {/* Results rendering for search and images */}
+                                    {step.stepType === 'searching' && step.queries && (
+                                        <ChainOfThoughtSearchingQueries queries={step.queries} />
+                                    )}
+                                    {step.stepType === 'search' && step.results && (
+                                        <ChainOfThoughtSourceTable sources={step.results} />
+                                    )}
+                                    {step.error && (
+                                        <pre className="text-[11px] font-mono bg-destructive/10 text-destructive p-2 rounded-md overflow-x-auto max-w-full">
+                                            {step.error}
+                                        </pre>
+                                    )}
+                                    {step.images && step.images.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {step.images.map((img: string, iIdx: number) => (
+                                                <ChainOfThoughtImage key={iIdx}>
+                                                    <img src={`data:image/png;base64,${img}`} alt={`Plot ${iIdx + 1}`} className="max-w-full h-auto" />
+                                                </ChainOfThoughtImage>
+                                            ))}
+                                        </div>
+                                    )}
+                                </ChainOfThoughtStep>
+                            ))}
+                        </ChainOfThoughtContent>
+                    </ChainOfThought>
+                )}
+
+                <div className="w-full max-w-full break-words overflow-hidden">
+                    <MarkdownRenderer
+                        content={displayRes.content}
+                        sources={displayRes.sources}
+                        compact={false}
+                        isStreaming={!!displayRes.isThinking}
+                    />
+                </div>
+
+                {/* Legacy References Footer Removed */}
+
+
+                {/* Actions Footer - rendered only when not thinking/streaming */}
+                {isAssistant && !message.isThinking && (
+                    <div className="flex items-center justify-between mt-2 select-none">
+                        {/* Left Actions */}
+                        <div className="flex items-center gap-0.5">
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && feedbackValue === 'like' ? "text-foreground bg-sidebar-accent/40" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
+                                        onClick={() => handleFeedback('like')}
+                                    >
+                                        {feedbackGiven && feedbackValue === 'like' ? (
+                                            <IconThumbUpFilled className="size-3.5" />
+                                        ) : (
+                                            <IconThumbUp className="size-3.5" />
+                                        )}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                    <p>Like</p>
+                                </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && feedbackValue === 'dislike' ? "text-foreground bg-sidebar-accent/40" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
+                                        onClick={() => handleFeedback('dislike')}
+                                    >
+                                        {feedbackGiven && feedbackValue === 'dislike' ? (
+                                            <IconThumbDownFilled className="size-3.5" />
+                                        ) : (
+                                            <IconThumbDown className="size-3.5" />
+                                        )}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                    <p>Dislike</p>
+                                </TooltipContent>
+                            </Tooltip>
+                            {/* Duplicate version navigation removed */}
+
+                            <ActionButton
+                                icon={copied ? IconCheck : IconCopy}
+                                label="Copy"
+                                onClick={handleCopy}
                             />
+
+                            <DropdownMenu open={isRegenOpen} onOpenChange={setIsRegenOpen}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className={cn("h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors", isRegenOpen && "bg-muted text-foreground")}>
+                                                <IconRefresh className="size-3.5" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom"><p>Regenerate</p></TooltipContent>
+                                </Tooltip>
+                                <DropdownMenuContent align="end" side="top" className="w-[210px] p-2 shadow-xl border border-border/50">
+                                    <div className="flex items-center gap-1.5 mb-1.5 px-0.5">
+                                        <div className="relative flex-1">
+                                            <Input
+                                                value={regenInput}
+                                                onChange={(e) => setRegenInput(e.target.value)}
+                                                placeholder="Change response..."
+                                                className="h-8 text-xs bg-muted/40 border-none focus-visible:ring-1 focus-visible:ring-border/40 rounded-md pr-8"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        if (regenInput.trim()) handleRegenerateOption('custom');
+                                                    }
+                                                }}
+                                            />
+                                            <Button
+                                                size="icon"
+                                                className="absolute right-0.5 top-0.5 h-7 w-7 bg-foreground/5 hover:bg-foreground/10 text-foreground dark:bg-muted/40 dark:hover:bg-muted/60 rounded-sm transition-colors"
+                                                disabled={!regenInput.trim()}
+                                                onClick={() => handleRegenerateOption('custom')}
+                                            >
+                                                <IconArrowUp className="size-3.5" />
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <DropdownMenuSeparator className="mx-0.5 my-1 opacity-50" />
+
+                                    <div className="space-y-1">
+                                        <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
+                                            <IconRefresh className="mr-2.5 size-4 opacity-70" /> Retry
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleRegenerateOption('details')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
+                                            <IconListDetails className="mr-2.5 size-4 opacity-70" /> Add details
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleRegenerateOption('concise')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
+                                            <IconViewportShort className="mr-2.5 size-4 opacity-70" /> More concise
+                                        </DropdownMenuItem>
+
+                                        <DropdownMenuSeparator className="mx-0.5 my-1.5 opacity-50" />
+
+                                        <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
+                                            <IconBulb className="mr-2.5 size-4 opacity-70" /> Think Longer
+                                        </DropdownMenuItem>
+                                    </div>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            <ActionButton
+                                icon={IconDownload}
+                                label="Download"
+                                onClick={handleDownload}
+                            />
+
+                            {/* Timing Metrics Indicator / Interrupted State */}
+                            {isInterrupted ? (
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md select-none cursor-default">
+                                    <IconHandStop className="size-3.5" />
+                                    <span>Interrupted</span>
+                                </div>
+                            ) : null}
+
+                            {/* display model badge on every assistant response */}
+                            {displayRes.model && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span className="text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 transition-colors">
+                                            {formatModelName(displayRes.model)}
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                        <p>Model used: {formatModelName(displayRes.model)}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            )}
+
+                            {displayRes.total_time !== undefined && Number(displayRes.total_time) > 0 && (() => {
+                                const totalTime = Number(displayRes.total_time);
+                                const ttft = Number(displayRes.ttft);
+                                const tps = Number(displayRes.tps);
+                                const displayValue = ttft > 0 ? ttft : totalTime;
+                                const displayText = displayValue < 1000
+                                    ? `${Math.round(displayValue)}ms`
+                                    : `${(displayValue / 1000).toFixed(1)}s`;
+                                return (
+                                    <div className="flex items-center gap-1">
+                                        <HoverCard>
+                                            <HoverCardTrigger className="flex items-center text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md hover:bg-sidebar-accent/10 dark:hover:bg-sidebar-accent/20 transition-colors cursor-default select-none">
+                                                {displayText}
+                                            </HoverCardTrigger>
+                                            <HoverCardContent side="bottom" align="center" className="flex flex-col gap-1.5 p-3 text-sm min-w-[180px] w-auto">
+                                                <div className="font-medium text-xs text-muted-foreground pb-1 border-b">Timing Metrics</div>
+                                                {ttft > 0 && (
+                                                    <div className="flex justify-between gap-4 text-xs">
+                                                        <span className="text-muted-foreground">Time to First Token:</span>
+                                                        <span className="font-mono">{ttft < 1000 ? `${Math.round(ttft)}ms` : `${(ttft / 1000).toFixed(2)}s`}</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between gap-4 text-xs">
+                                                    <span className="text-muted-foreground">Response Time:</span>
+                                                    <span className="font-mono">{totalTime < 1000 ? `${Math.round(totalTime)}ms` : `${(totalTime / 1000).toFixed(2)}s`}</span>
+                                                </div>
+                                                {tps > 0 && (
+                                                    <div className="flex justify-between gap-4 text-xs">
+                                                        <span className="text-muted-foreground">Speed:</span>
+                                                        <span className="font-mono">{tps.toFixed(1)} tok/s</span>
+                                                    </div>
+                                                )}
+                                            </HoverCardContent>
+                                        </HoverCard>
+
+                                        {displayRes.sources && displayRes.sources.length > 0 && (
+                                            <Sheet modal={true}>
+                                                <SheetTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        className="flex items-center gap-2 h-7 px-2 rounded-full bg-muted/20 hover:bg-muted/50 text-muted-foreground transition-all ml-1 group/sources"
+                                                    >
+                                                        <div className="flex -space-x-1 overflow-hidden">
+                                                            {displayRes.sources.slice(0, 3).map((s, i) => (
+                                                                <div key={i} className="inline-block h-3.5 w-3.5 rounded-full overflow-hidden shrink-0 border-none">
+                                                                    <img
+                                                                        src={`https://www.google.com/s2/favicons?sz=64&domain=${new URL(s.url).hostname}`}
+                                                                        alt=""
+                                                                        className="h-full w-full object-cover"
+                                                                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        <span className="text-[10px] font-medium group-hover/sources:text-foreground">
+                                                            {displayRes.sources.length} sources
+                                                        </span>
+                                                    </Button>
+                                                </SheetTrigger>
+                                                <SheetContent side="right" className="w-[350px] sm:w-[450px] p-0 flex flex-col gap-0 border-l border-border/40 shadow-2xl">
+                                                    <SheetHeader className="px-6 py-5 border-b border-border/40 shrink-0 bg-muted/10">
+                                                        <SheetTitle className="text-xl font-bold flex items-center gap-2">
+                                                            <span>{displayRes.sources.length}</span>
+                                                            <span className="text-foreground/80">Sources</span>
+                                                        </SheetTitle>
+                                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">Sources for "{displayContent.substring(0, 50)}..."</p>
+                                                    </SheetHeader>
+                                                    <ScrollArea className="flex-1 w-full">
+                                                        <div className="divide-y divide-border/30">
+                                                            {displayRes.sources.map((source, idx) => (
+                                                                <div key={idx} className="p-6 hover:bg-muted/20 transition-colors group/source-item">
+                                                                    <div className="flex items-start gap-4">
+                                                                        <div className="text-[10px] font-mono text-muted-foreground/40 mt-1 shrink-0 bg-muted px-1.5 py-0.5 rounded">
+                                                                            {idx + 1}
+                                                                        </div>
+                                                                        <div className="space-y-3 flex-1 min-w-0">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <img
+                                                                                    src={`https://www.google.com/s2/favicons?sz=64&domain=${new URL(source.url).hostname}`}
+                                                                                    alt=""
+                                                                                    className="size-4 rounded-full"
+                                                                                />
+                                                                                <span className="text-xs font-medium text-muted-foreground truncate uppercase tracking-wider">
+                                                                                    {new URL(source.url).hostname.replace('www.', '').toLowerCase()}
+                                                                                </span>
+                                                                            </div>
+                                                                            <a
+                                                                                href={source.url}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="block group/title"
+                                                                            >
+                                                                                <h4 className="text-[15px] font-bold leading-snug text-foreground/90 group-hover/title:text-primary transition-colors line-clamp-2">
+                                                                                    {source.title}
+                                                                                </h4>
+                                                                            </a>
+                                                                            {source.content && (
+                                                                                <p className="text-[13px] leading-relaxed text-muted-foreground/80 line-clamp-3">
+                                                                                    {source.content}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </ScrollArea>
+                                                </SheetContent>
+                                            </Sheet>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                         </div>
 
-                        {/* Legacy References Footer Removed */}
-
-
-                        {/* Actions Footer - rendered only when not thinking/streaming */}
-                        {isAssistant && !message.isThinking && (
-                            <div className="flex items-center justify-between mt-2 select-none">
-                                {/* Left Actions */}
-                                <div className="flex items-center gap-0.5">
+                        {/* Right Actions - Version Navigation */}
+                        {versionCount > 1 && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground rounded-md px-1 select-none">
+                                <TooltipProvider delayDuration={400}>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && feedbackValue === 'like' ? "text-foreground bg-sidebar-accent/40" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
-                                                onClick={() => handleFeedback('like')}
+                                                className="h-5 w-5 hover:bg-sidebar-accent/50 transition-colors"
+                                                onClick={() => onVersionChange?.('prev')}
+                                                disabled={currentVersion <= 1}
                                             >
-                                                {feedbackGiven && feedbackValue === 'like' ? (
-                                                    <IconThumbUpFilled className="size-3.5" />
-                                                ) : (
-                                                    <IconThumbUp className="size-3.5" />
-                                                )}
+                                                <IconChevronLeft className="size-3" />
                                             </Button>
                                         </TooltipTrigger>
-                                        <TooltipContent side="bottom">
-                                            <p>Like</p>
-                                        </TooltipContent>
+                                        <TooltipContent side="bottom"><p className="text-[10px]">Previous version</p></TooltipContent>
                                     </Tooltip>
+                                </TooltipProvider>
+
+                                <span className="px-1 min-w-[30px] text-center font-mono opacity-60">
+                                    {currentVersion} / {versionCount}
+                                </span>
+
+                                <TooltipProvider delayDuration={400}>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className={cn("h-6 w-6 rounded-md transition-colors", feedbackGiven && feedbackValue === 'dislike' ? "text-foreground bg-sidebar-accent/40" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30 dark:hover:bg-sidebar-accent/40")}
-                                                onClick={() => handleFeedback('dislike')}
+                                                className="h-5 w-5 hover:bg-sidebar-accent/50 transition-colors"
+                                                onClick={() => onVersionChange?.('next')}
+                                                disabled={currentVersion >= versionCount}
                                             >
-                                                {feedbackGiven && feedbackValue === 'dislike' ? (
-                                                    <IconThumbDownFilled className="size-3.5" />
-                                                ) : (
-                                                    <IconThumbDown className="size-3.5" />
-                                                )}
+                                                <IconChevronRight className="size-3" />
                                             </Button>
                                         </TooltipTrigger>
-                                        <TooltipContent side="bottom">
-                                            <p>Dislike</p>
-                                        </TooltipContent>
+                                        <TooltipContent side="bottom"><p className="text-[10px]">Next version</p></TooltipContent>
                                     </Tooltip>
-                                    {/* Duplicate version navigation removed */}
-
-                                    <ActionButton
-                                        icon={copied ? IconCheck : IconCopy}
-                                        label="Copy"
-                                        onClick={handleCopy}
-                                    />
-
-                                    <DropdownMenu open={isRegenOpen} onOpenChange={setIsRegenOpen}>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className={cn("h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 rounded-md transition-colors", isRegenOpen && "bg-muted text-foreground")}>
-                                                        <IconRefresh className="size-3.5" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="bottom"><p>Regenerate</p></TooltipContent>
-                                        </Tooltip>
-                                        <DropdownMenuContent align="end" side="top" className="w-[210px] p-2 shadow-xl border border-border/50">
-                                            <div className="flex items-center gap-1.5 mb-1.5 px-0.5">
-                                                <div className="relative flex-1">
-                                                    <Input
-                                                        value={regenInput}
-                                                        onChange={(e) => setRegenInput(e.target.value)}
-                                                        placeholder="Change response..."
-                                                        className="h-8 text-xs bg-muted/40 border-none focus-visible:ring-1 focus-visible:ring-border/40 rounded-md pr-8"
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                if (regenInput.trim()) handleRegenerateOption('custom');
-                                                            }
-                                                        }}
-                                                    />
-                                                    <Button
-                                                        size="icon"
-                                                        className="absolute right-0.5 top-0.5 h-7 w-7 bg-foreground/5 hover:bg-foreground/10 text-foreground dark:bg-muted/40 dark:hover:bg-muted/60 rounded-sm transition-colors"
-                                                        disabled={!regenInput.trim()}
-                                                        onClick={() => handleRegenerateOption('custom')}
-                                                    >
-                                                        <IconArrowUp className="size-3.5" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-
-                                            <DropdownMenuSeparator className="mx-0.5 my-1 opacity-50" />
-
-                                            <div className="space-y-1">
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('retry')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
-                                                    <IconRefresh className="mr-2.5 size-4 opacity-70" /> Retry
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('details')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
-                                                    <IconListDetails className="mr-2.5 size-4 opacity-70" /> Add details
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('concise')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
-                                                    <IconViewportShort className="mr-2.5 size-4 opacity-70" /> More concise
-                                                </DropdownMenuItem>
-
-                                                <DropdownMenuSeparator className="mx-0.5 my-1.5 opacity-50" />
-
-                                                <DropdownMenuItem onClick={() => handleRegenerateOption('think')} className="text-sm cursor-pointer py-1.5 px-2.5 focus:bg-sidebar-accent/50 rounded-md">
-                                                    <IconBulb className="mr-2.5 size-4 opacity-70" /> Think Longer
-                                                </DropdownMenuItem>
-                                            </div>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-
-                                    <ActionButton
-                                        icon={IconDownload}
-                                        label="Download"
-                                        onClick={handleDownload}
-                                    />
-
-                                    {/* Timing Metrics Indicator / Interrupted State */}
-                                    {isInterrupted ? (
-                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md select-none cursor-default">
-                                            <IconHandStop className="size-3.5" />
-                                            <span>Interrupted</span>
-                                        </div>
-                                    ) : null}
-
-                                    {/* display model badge on every assistant response */}
-                                    {displayRes.model && (
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <span className="text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 transition-colors">
-                                                    {formatModelName(displayRes.model)}
-                                                </span>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="bottom">
-                                                <p>Model used: {formatModelName(displayRes.model)}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    )}
-
-                                    {displayRes.total_time !== undefined && Number(displayRes.total_time) > 0 && (() => {
-                                        const totalTime = Number(displayRes.total_time);
-                                        const ttft = Number(displayRes.ttft);
-                                        const tps = Number(displayRes.tps);
-                                        const displayValue = ttft > 0 ? ttft : totalTime;
-                                        const displayText = displayValue < 1000
-                                            ? `${Math.round(displayValue)}ms`
-                                            : `${(displayValue / 1000).toFixed(1)}s`;
-                                        return (
-                                            <div className="flex items-center gap-1">
-                                                <HoverCard>
-                                                    <HoverCardTrigger className="flex items-center text-xs text-muted-foreground ml-1 px-1.5 py-0.5 rounded-md hover:bg-sidebar-accent/10 dark:hover:bg-sidebar-accent/20 transition-colors cursor-default select-none">
-                                                        {displayText}
-                                                    </HoverCardTrigger>
-                                                    <HoverCardContent side="bottom" align="center" className="flex flex-col gap-1.5 p-3 text-sm min-w-[180px] w-auto">
-                                                        <div className="font-medium text-xs text-muted-foreground pb-1 border-b">Timing Metrics</div>
-                                                        {ttft > 0 && (
-                                                            <div className="flex justify-between gap-4 text-xs">
-                                                                <span className="text-muted-foreground">Time to First Token:</span>
-                                                                <span className="font-mono">{ttft < 1000 ? `${Math.round(ttft)}ms` : `${(ttft / 1000).toFixed(2)}s`}</span>
-                                                            </div>
-                                                        )}
-                                                        <div className="flex justify-between gap-4 text-xs">
-                                                            <span className="text-muted-foreground">Response Time:</span>
-                                                            <span className="font-mono">{totalTime < 1000 ? `${Math.round(totalTime)}ms` : `${(totalTime / 1000).toFixed(2)}s`}</span>
-                                                        </div>
-                                                        {tps > 0 && (
-                                                            <div className="flex justify-between gap-4 text-xs">
-                                                                <span className="text-muted-foreground">Speed:</span>
-                                                                <span className="font-mono">{tps.toFixed(1)} tok/s</span>
-                                                            </div>
-                                                        )}
-                                                    </HoverCardContent>
-                                                </HoverCard>
-
-                                                {displayRes.sources && displayRes.sources.length > 0 && (
-                                                    <Sheet modal={true}>
-                                                        <SheetTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                className="flex items-center gap-2 h-7 px-2 rounded-full bg-muted/20 hover:bg-muted/50 text-muted-foreground transition-all ml-1 group/sources"
-                                                            >
-                                                                <div className="flex -space-x-1 overflow-hidden">
-                                                                    {displayRes.sources.slice(0, 3).map((s, i) => (
-                                                                        <div key={i} className="inline-block h-3.5 w-3.5 rounded-full overflow-hidden shrink-0 border-none">
-                                                                            <img
-                                                                                src={`https://www.google.com/s2/favicons?sz=64&domain=${new URL(s.url).hostname}`}
-                                                                                alt=""
-                                                                                className="h-full w-full object-cover"
-                                                                                onError={(e) => (e.currentTarget.style.display = 'none')}
-                                                                            />
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                                <span className="text-[10px] font-medium group-hover/sources:text-foreground">
-                                                                    {displayRes.sources.length} sources
-                                                                </span>
-                                                            </Button>
-                                                        </SheetTrigger>
-                                                        <SheetContent side="right" className="w-[350px] sm:w-[450px] p-0 flex flex-col gap-0 border-l border-border/40 shadow-2xl">
-                                                            <SheetHeader className="px-6 py-5 border-b border-border/40 shrink-0 bg-muted/10">
-                                                                <SheetTitle className="text-xl font-bold flex items-center gap-2">
-                                                                    <span>{displayRes.sources.length}</span>
-                                                                    <span className="text-foreground/80">Sources</span>
-                                                                </SheetTitle>
-                                                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">Sources for "{displayContent.substring(0, 50)}..."</p>
-                                                            </SheetHeader>
-                                                            <ScrollArea className="flex-1 w-full">
-                                                                <div className="divide-y divide-border/30">
-                                                                    {displayRes.sources.map((source, idx) => (
-                                                                        <div key={idx} className="p-6 hover:bg-muted/20 transition-colors group/source-item">
-                                                                            <div className="flex items-start gap-4">
-                                                                                <div className="text-[10px] font-mono text-muted-foreground/40 mt-1 shrink-0 bg-muted px-1.5 py-0.5 rounded">
-                                                                                    {idx + 1}
-                                                                                </div>
-                                                                                <div className="space-y-3 flex-1 min-w-0">
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <img
-                                                                                            src={`https://www.google.com/s2/favicons?sz=64&domain=${new URL(source.url).hostname}`}
-                                                                                            alt=""
-                                                                                            className="size-4 rounded-full"
-                                                                                        />
-                                                                                        <span className="text-xs font-medium text-muted-foreground truncate uppercase tracking-wider">
-                                                                                            {new URL(source.url).hostname.replace('www.', '').toLowerCase()}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                    <a
-                                                                                        href={source.url}
-                                                                                        target="_blank"
-                                                                                        rel="noopener noreferrer"
-                                                                                        className="block group/title"
-                                                                                    >
-                                                                                        <h4 className="text-[15px] font-bold leading-snug text-foreground/90 group-hover/title:text-primary transition-colors line-clamp-2">
-                                                                                            {source.title}
-                                                                                        </h4>
-                                                                                    </a>
-                                                                                    {source.content && (
-                                                                                        <p className="text-[13px] leading-relaxed text-muted-foreground/80 line-clamp-3">
-                                                                                            {source.content}
-                                                                                        </p>
-                                                                                    )}
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </ScrollArea>
-                                                        </SheetContent>
-                                                    </Sheet>
-                                                )}
-                                            </div>
-                                        );
-                                    })()}
-                                </div>
-
-                                {/* Right Actions - Version Navigation */}
-                                {versionCount > 1 && (
-                                    <div className="flex items-center gap-1 text-xs text-muted-foreground rounded-md px-1 select-none">
-                                        <TooltipProvider delayDuration={400}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-5 w-5 hover:bg-sidebar-accent/50 transition-colors"
-                                                        onClick={() => onVersionChange?.('prev')}
-                                                        disabled={currentVersion <= 1}
-                                                    >
-                                                        <IconChevronLeft className="size-3" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom"><p className="text-[10px]">Previous version</p></TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-
-                                        <span className="px-1 min-w-[30px] text-center font-mono opacity-60">
-                                            {currentVersion} / {versionCount}
-                                        </span>
-
-                                        <TooltipProvider delayDuration={400}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-5 w-5 hover:bg-sidebar-accent/50 transition-colors"
-                                                        onClick={() => onVersionChange?.('next')}
-                                                        disabled={currentVersion >= versionCount}
-                                                    >
-                                                        <IconChevronRight className="size-3" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom"><p className="text-[10px]">Next version</p></TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </div>
-                                )}
+                                </TooltipProvider>
                             </div>
-                        )}
-
-                        {/* System message actions - hide when streaming */}
-                        {isSystem && !message.isThinking && availableModels.length > 0 && (
-                            <div className="flex items-center justify-end mt-2 select-none">
-                            </div>
-                        )}
-                        {/* Follow-up Suggestions - hide when streaming */}
-                        {isAssistant && !message.isThinking && displayRes.suggestions && displayRes.suggestions.length > 0 && (
-                            <Suggestions>
-                                {displayRes.suggestions.map((s, i) => (
-                                    <Suggestion
-                                        key={i}
-                                        suggestion={s}
-                                        onClick={onSuggestionClick}
-                                    />
-                                ))}
-                            </Suggestions>
                         )}
                     </div>
+                )}
+
+                {/* System message actions - hide when streaming */}
+                {isSystem && !message.isThinking && availableModels.length > 0 && (
+                    <div className="flex items-center justify-end mt-2 select-none">
+                    </div>
+                )}
+                {/* Follow-up Suggestions - hide when streaming */}
+                {isAssistant && !message.isThinking && displayRes.suggestions && displayRes.suggestions.length > 0 && (
+                    <Suggestions>
+                        {displayRes.suggestions.map((s, i) => (
+                            <Suggestion
+                                key={i}
+                                suggestion={s}
+                                onClick={onSuggestionClick}
+                            />
+                        ))}
+                    </Suggestions>
                 )}
             </div>
         </div>

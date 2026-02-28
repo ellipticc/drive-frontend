@@ -229,7 +229,7 @@ export function NavMain({
                         </div>
                       )
                     } : item.title}
-                    isActive={pathname === item.url && (item.id !== 'my-files' || !searchParams.has('folderId'))}
+                    isActive={pathname.startsWith('/v')}
                     className="cursor-pointer group/nav-item group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 pl-2"
                     data-space-id="root"
                     data-space-name="Vault"

@@ -118,6 +118,7 @@ export default function AssistantPage() {
     const isLoadingOlderRef = React.useRef(false)
     const hasScrolledRef = React.useRef(false);
     const shouldAutoScrollRef = React.useRef(true);
+
     const [isMobile, setIsMobile] = React.useState(false);
     const scrollToMessageIdRef = React.useRef<string | null>(null);
 
@@ -261,7 +262,7 @@ export default function AssistantPage() {
             setDisplayedTitle(newTitle);
             setIsTypingTitle(false);
         }
-    }, [conversationId, chats]);
+    }, [conversationId, chats, chatTitle]);
 
     const scrollToMessage = (messageId: string, behavior: ScrollBehavior = 'smooth') => {
         const element = document.getElementById(`message-${messageId}`);
@@ -1892,7 +1893,7 @@ export default function AssistantPage() {
                             </div>
 
                             {/* Center Input Area */}
-                            <div className="w-full max-w-[64rem] mx-auto px-4 z-20">
+                            <div className="w-full max-w-3xl mx-auto px-4 z-20">
                                 <EnhancedPromptInput
                                     onSubmit={async (text, files, thinkingMode, searchMode, style) => {
                                         await handleSubmit(text, files, thinkingMode, searchMode, undefined, false, style);
@@ -1904,7 +1905,7 @@ export default function AssistantPage() {
 
                                 {/* Suggestions */}
                                 {suggestions.length > 0 && (
-                                    <div className="pt-2">
+                                    <div className="flex flex-col gap-4 py-8 pb-32 max-w-2xl mx-auto w-full">
                                         <Suggestions>
                                             {suggestions.map((s, i) => (
                                                 <Suggestion
@@ -1923,6 +1924,23 @@ export default function AssistantPage() {
 
                     // CHAT STATE: Scrollable Messages + Sticky Bottom Input
                     <div className="flex flex-col h-full w-full relative">
+                        <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b overflow-x-hidden">
+                            <div className="max-w-4xl mx-auto px-4">
+                                <SiteHeader
+                                    sticky={true}
+                                    customTitle={
+                                        displayedTitle ? (
+                                            <h1 className="text-sm font-medium truncate max-w-[200px] md:max-w-md">
+                                                {displayedTitle}
+                                            </h1>
+                                        ) : (
+                                            <h1 className="text-sm font-medium">Chat</h1>
+                                        )
+                                    }
+                                />
+                            </div>
+                        </div>
+
                         <div
                             ref={scrollContainerRef}
                             onScroll={onScroll}
@@ -1942,9 +1960,15 @@ export default function AssistantPage() {
                                         <div
                                             key={message.id || index}
                                             id={`message-${message.id}`}
-                                            className={cn("w-full flex justify-center animate-in fade-in duration-300", spacing)}
+                                            className={cn(
+                                                "w-full flex justify-center animate-in fade-in duration-300",
+                                                spacing
+                                            )}
                                         >
-                                            <div className="w-full max-w-[64rem]">
+                                            <div className={cn(
+                                                "w-full",
+                                                message.role === 'assistant' ? "max-w-2xl px-4" : "max-w-3xl px-4"
+                                            )}>
                                                 {message.isCheckpoint ? (
                                                     <Checkpoint className="my-4">
                                                         <CheckpointIcon>
@@ -2024,9 +2048,9 @@ export default function AssistantPage() {
                                     </Tooltip>
                                 </div>
                             )}
-
-                            <div className="flex justify-center w-full">
-                                <div className="max-w-[64rem] w-full px-4">
+                            {/* Input Area (Sticky Bottom for Chat) */}
+                            <div className="sticky bottom-0 z-40 bg-background/0 w-full pb-6 px-4">
+                                <div className="max-w-3xl mx-auto">
                                     <EnhancedPromptInput
                                         onSubmit={async (text, files, thinkingMode, searchMode, style) => {
                                             await handleSubmit(text, files, thinkingMode, searchMode, undefined, false, style);

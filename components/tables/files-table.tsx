@@ -284,7 +284,8 @@ export const Table01DividerLineSm = ({
     dragDropFiles,
     onDragDropProcessed,
     onUploadHandlersReady,
-    filterMode = 'default'
+    filterMode = 'default',
+    initialFolderId
 }: {
     searchQuery?: string
     onFileUpload?: () => void
@@ -295,6 +296,7 @@ export const Table01DividerLineSm = ({
     onFolderInputRef?: (ref: HTMLInputElement | null) => void
     onUploadHandlersReady?: (handlers: { handleFileUpload: () => void; handleFolderUpload: () => void }) => void
     filterMode?: 'default' | 'recents'
+    initialFolderId?: string
 }) => {
     const { t } = useLanguage();
     const { user } = useUser();
@@ -415,6 +417,7 @@ export const Table01DividerLineSm = ({
 
     // Folder navigation state
     const [currentFolderId, setCurrentFolderId] = useState<string>(() => {
+        if (initialFolderId) return initialFolderId;
         if (typeof window === 'undefined') return 'root';
         const params = new URLSearchParams(window.location.search);
         return params.get('folderId') || 'root';
@@ -795,9 +798,9 @@ export const Table01DividerLineSm = ({
 
     // Build URL path from folder path
     const buildUrlPath = (folderPath: Array<{ id: string, name: string }>): string => {
-        if (folderPath.length <= 1) return '/v';
+        if (folderPath.length <= 1) return "/v";
         const lastFolder = folderPath[folderPath.length - 1];
-        return '/v?folderId=' + lastFolder.id;
+        return `/v/${lastFolder.id}`;
     };
 
     // Truncate breadcrumb names that are too long (encrypted names)

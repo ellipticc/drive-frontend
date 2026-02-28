@@ -16,9 +16,10 @@ interface ExtendedFile extends File {
 interface FileBrowserProps {
     filterMode?: 'default' | 'recents';
     pageTitle?: string;
+    initialFolderId?: string;
 }
 
-export function FileBrowser({ filterMode = 'default', pageTitle = "Vault" }: FileBrowserProps) {
+export function FileBrowser({ filterMode = 'default', pageTitle = "Vault", initialFolderId }: FileBrowserProps) {
     const { user } = useUser()
     const router = useRouter()
     const pathname = usePathname()
@@ -179,6 +180,7 @@ export function FileBrowser({ filterMode = 'default', pageTitle = "Vault" }: Fil
                                 setDroppedFiles(null);
                             }}
                             filterMode={filterMode}
+                            initialFolderId={initialFolderId}
                         />
 
                         {/* Hidden file inputs */}

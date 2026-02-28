@@ -107,6 +107,8 @@ export const AppSidebar = React.memo(function AppSidebar({
     return () => document.removeEventListener("keydown", down)
   }, [router])
 
+  const isChat = pathname === '/' || pathname === '/new' || pathname.startsWith('/c/') || pathname.startsWith('/paper') || pathname.startsWith('/p/');
+
   const data = {
     user: contextUser ? {
       name: contextUser.name || "",
@@ -123,6 +125,7 @@ export const AppSidebar = React.memo(function AppSidebar({
         icon: IconStack2,
         id: "my-files",
         shortcut: "V",
+        isMuted: isChat && !pathname.startsWith('/v'),
       },
       {
         title: "Draft",
@@ -130,6 +133,7 @@ export const AppSidebar = React.memo(function AppSidebar({
         icon: IconWritingSign,
         id: "draft",
         shortcut: "D",
+        isMuted: isChat && !pathname.startsWith('/p/new'),
       },
     ],
     navSecondary: [
@@ -246,14 +250,22 @@ export const AppSidebar = React.memo(function AppSidebar({
   }
 
   return (
-    <Sidebar collapsible="icon" className="bg-sidebar flex flex-col overflow-x-hidden" {...props}>
+    <Sidebar
+      collapsible="icon"
+      className={cn(
+        "transition-[width,background-color] duration-300 ease-in-out",
+        isChat && "bg-muted/30 dark:bg-muted/10",
+        props.className
+      )}
+      {...props}
+    >
       <SidebarHeader className="gap-2 p-2 relative z-20">
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex w-full items-center justify-between group-data-[collapsible=icon]:hidden">
               <SidebarMenuButton asChild className="flex-1">
                 <Link href="/" className="flex items-center gap-2">
-                  <IconCaretLeftRightFilled className="size-4 shrink-0" />
+                  <IconCaretLeftRightFilled className="size-4 shrink-0 text-primary" />
                   <span className="text-base font-geist-mono select-none break-all leading-none">ellipticc</span>
                 </Link>
               </SidebarMenuButton>
@@ -307,9 +319,9 @@ export const AppSidebar = React.memo(function AppSidebar({
                 side: "right",
                 hidden: state !== "collapsed"
               }}
-              isActive={true}
               className={cn(
-                "relative group/menu-button font-medium transition-all group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 pl-2"
+                "relative group/menu-button font-medium transition-all group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 pl-2",
+                searchOpen && "bg-sidebar-accent text-sidebar-accent-foreground"
               )}
             >
               <IconSearch />
