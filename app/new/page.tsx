@@ -1807,7 +1807,7 @@ export default function AssistantPage() {
                         const lines: string[] = [];
                         const exportedAt = new Date();
                         lines.push(`# Conversation export`);
-                        lines.push(`This conversation was generated with Ellipticc (https://ellipticc.com). AI chats may display inaccurate or offensive information (see https://ellipticc.com/privacy-policy for more info).`);
+                        lines.push(`This conversation was generated with Ellipticc (https://ellipticc.com). While we strive for accuracy, the AI may occasionally get things wrong.`);
                         lines.push(`Exported: ${exportedAt.toLocaleString()}`);
                         if (conversationId) lines.push(`Conversation ID: ${conversationId}`);
                         if (model) lines.push(`Model: ${formatModelName(model)}`);
@@ -2048,7 +2048,7 @@ export default function AssistantPage() {
                                     />
                                     {/* Disclaimer Text */}
                                     <p className="text-xs text-center text-muted-foreground mt-2 select-none" aria-hidden="false">
-                                        AI may display inaccurate or offensive information.
+                                        While we strive for accuracy, the AI may occasionally get things wrong.
                                     </p>
                                 </div>
                             </div>

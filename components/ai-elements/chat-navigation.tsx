@@ -45,7 +45,7 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
         } else {
             const element = document.getElementById(`message-${id}`);
             if (element) {
-                element.scrollIntoView({ behavior: 'auto', block: 'start' });
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
         setActiveId(id);

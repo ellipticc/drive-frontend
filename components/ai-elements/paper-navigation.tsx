@@ -24,11 +24,11 @@ const getHeadingLevel = (type: string): number => {
     return match ? parseInt(match[1]) : 0;
 };
 
-export function PaperScrollNavigation({ 
-    blocks, 
-    scrollToBlock, 
+export function PaperScrollNavigation({
+    blocks,
+    scrollToBlock,
     highlightBlock,
-    clearHighlight 
+    clearHighlight
 }: PaperScrollNavigationProps) {
     const isMobile = useIsMobileDevice();
     const [activeId, setActiveId] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export function PaperScrollNavigation({
     // Handle navigation only on user interaction
     const handleNavigationInfo = (id: string) => {
         userInteractionRef.current = true;
-        
+
         if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
         setIsHovered(true);
 
@@ -65,7 +65,7 @@ export function PaperScrollNavigation({
         } else {
             const element = document.getElementById(`block-${id}`);
             if (element) {
-                element.scrollIntoView({ behavior: 'auto', block: 'start' });
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
 
@@ -84,8 +84,8 @@ export function PaperScrollNavigation({
 
         // Update URL with content fragment
         window.history.replaceState(
-            null, 
-            '', 
+            null,
+            '',
             `${window.location.pathname}${window.location.search}#content=${id}`
         );
     };
@@ -143,10 +143,10 @@ export function PaperScrollNavigation({
         const handleHashChange = () => {
             const hash = window.location.hash;
             const match = hash.match(/content=([^&]*)/);
-            
+
             if (match?.[1]) {
                 const blockId = match[1];
-                
+
                 // If user hasn't interacted yet, just set activeId (don't open nav)
                 if (!userInteractionRef.current) {
                     const element = document.getElementById(`block-${blockId}`);
@@ -162,7 +162,7 @@ export function PaperScrollNavigation({
                         // If element not found, wait for it to render
                         let frameCount = 0;
                         const maxFrames = 30; // ~500ms at 60fps
-                        
+
                         const checkForElement = () => {
                             frameCount++;
                             const el = document.getElementById(`block-${blockId}`);
@@ -175,7 +175,7 @@ export function PaperScrollNavigation({
                                 rafRef.current = null;
                             }
                         };
-                        
+
                         rafRef.current = requestAnimationFrame(checkForElement);
                     }
                 }
@@ -277,7 +277,7 @@ export function PaperScrollNavigation({
                     {navigableBlocks.map((block, idx) => {
                         // Calculate padding based on heading level
                         const paddingLeft = block.level === 0 ? 0 : (block.level - 1) * 12;
-                        
+
                         return (
                             <button
                                 key={`item-${block.id}`}
