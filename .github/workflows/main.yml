@@ -76,8 +76,9 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "deploy/"
+          source: "deploy/*"
           target: "/var/www/app-frontend"
+          strip_components: 1
 
       - name: Deploy and Restart via PM2
         uses: appleboy/ssh-action@v1.0.3
