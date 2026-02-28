@@ -347,7 +347,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
         >
             {/* Main Container */}
             <div className={cn(
-                "flex flex-col mx-2 md:mx-0 items-stretch transition-all duration-200 relative z-10 rounded-2xl border border-border/20 bg-muted/15",
+                "flex flex-col mx-2 md:mx-0 items-stretch transition-all duration-200 relative z-10 rounded-2xl border border-border/20 bg-sidebar",
                 isLoading && "opacity-60"
             )}>
 
@@ -459,27 +459,32 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
                                     <DropdownMenuSeparator />
 
                                     {/* Web search toggle */}
-                                    <DropdownMenuCheckboxItem
-                                        checked={searchMode}
-                                        onCheckedChange={(val) => setSearchMode(!!val)}
-                                        className="cursor-pointer"
+                                    <DropdownMenuItem
+                                        onClick={(e) => { e.preventDefault(); setSearchMode(!searchMode); }}
+                                        className="cursor-pointer flex items-center justify-between gap-2"
                                     >
-                                        <IconWorld className="w-4 h-4 mr-2" />
-                                        <span>Web search</span>
-                                    </DropdownMenuCheckboxItem>
+                                        <div className="flex items-center">
+                                            <IconWorld className="w-4 h-4 mr-2" />
+                                            <span>Web search</span>
+                                        </div>
+                                        {searchMode && <Icons.Check className="w-4 h-4 text-primary" />}
+                                    </DropdownMenuItem>
 
                                     {/* Thinking mode toggle */}
-                                    <DropdownMenuCheckboxItem
-                                        checked={thinkingMode}
-                                        onCheckedChange={(val) => {
-                                            if (isThinkingSupported) setThinkingMode(!!val);
+                                    <DropdownMenuItem
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            if (isThinkingSupported) setThinkingMode(!thinkingMode);
                                         }}
                                         disabled={!isThinkingSupported}
-                                        className="cursor-pointer"
+                                        className="cursor-pointer flex items-center justify-between gap-2"
                                     >
-                                        <IconBulbFilled className="w-4 h-4 mr-2" />
-                                        <span>Thinking mode</span>
-                                    </DropdownMenuCheckboxItem>
+                                        <div className="flex items-center">
+                                            <IconBulbFilled className="w-4 h-4 mr-2" />
+                                            <span>Thinking mode</span>
+                                        </div>
+                                        {thinkingMode && <Icons.Check className="w-4 h-4 text-primary" />}
+                                    </DropdownMenuItem>
 
                                     <DropdownMenuSeparator />
 
