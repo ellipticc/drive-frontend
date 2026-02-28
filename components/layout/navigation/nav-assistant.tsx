@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import {
   IconHistory,
   IconChevronDown,
@@ -147,9 +148,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
 
   const isActive = currentConversationId === chat.id
 
-  const handleNavigate = () => {
-    router.push(`/new?conversationId=${chat.id}`)
-  }
+
 
   const openRenameDialog = () => {
     setRenameTitle(chat.title)
@@ -195,74 +194,77 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
         <SidebarMenuSubButton
           asChild
           isActive={isActive}
-          onClick={handleNavigate}
           className={cn(
             "group/chat-item relative cursor-pointer ml-0 pl-2 pr-1 h-8 rounded-md transition-none w-full",
             isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
           )}
         >
-          <div className="flex items-center w-full relative">
-            <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight group-hover/chat-item:[mask-image:linear-gradient(to_right,black_70%,transparent_90%)]" />
+          <Link href={`/c/${chat.id}`}>
+            <div className="flex items-center w-full relative">
+              <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight group-hover/chat-item:[mask-image:linear-gradient(to_right,black_70%,transparent_90%)]" />
 
-            {/* Actions dropdown on hover */}
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 focus-within:opacity-100 transition-opacity flex items-center bg-transparent">
-              <DropdownMenu>
-                <Tooltip delayDuration={300}>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <div
-                        role="button"
-                        className="flex items-center justify-center size-5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/80 hover:text-sidebar-foreground cursor-pointer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <IconDotsVertical className="size-4" />
-                      </div>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">Options</TooltipContent>
-                </Tooltip>
+              {/* Actions dropdown on hover */}
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 focus-within:opacity-100 transition-opacity flex items-center bg-transparent">
+                <DropdownMenu>
+                  <Tooltip delayDuration={300}>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <div
+                          role="button"
+                          className="flex items-center justify-center size-5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/80 hover:text-sidebar-foreground cursor-pointer"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        >
+                          <IconDotsVertical className="size-4" />
+                        </div>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">Options</TooltipContent>
+                  </Tooltip>
 
-                <DropdownMenuContent side="bottom" align="start" sideOffset={8} className="w-40">
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openRenameDialog() }}>
-                    <IconPencil className="size-3.5 mr-2" />
-                    Rename
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={async (e) => {
-                      e.stopPropagation()
-                      try {
-                        await actions.pinChat(chat.id, !chat.pinned)
-                        toast.success(chat.pinned ? "Unpinned" : "Pinned")
-                      } catch { toast.error("Failed") }
-                    }}
-                  >
-                    {chat.pinned ? <IconPinFilled className="size-3.5 mr-2" /> : <IconPin className="size-3.5 mr-2" />}
-                    {chat.pinned ? "Unpin" : "Pin"}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={async (e) => {
-                      e.stopPropagation()
-                      try {
-                        await actions.archiveChat(chat.id, true)
-                        toast.success("Archived")
-                      } catch { toast.error("Failed") }
-                    }}
-                  >
-                    <IconArchive className="size-3.5 mr-2" />
-                    Archive
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={(e) => { e.stopPropagation(); setDeleteDialogOpen(true) }}
-                    className="text-red-600 focus:bg-red-600/15 focus:text-red-600 hover:bg-red-600/15 hover:text-red-700 dark:text-red-500 dark:focus:bg-red-500/20 dark:focus:text-red-400 dark:hover:bg-red-500/20 dark:hover:text-red-400 font-medium"
-                  >
-                    <IconTrash className="size-3.5 mr-2 text-red-600 dark:text-red-500" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  <DropdownMenuContent side="bottom" align="start" sideOffset={8} className="w-40">
+                    <DropdownMenuItem onClick={(e) => { e.preventDefault(); e.stopPropagation(); openRenameDialog() }}>
+                      <IconPencil className="size-3.5 mr-2" />
+                      Rename
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation()
+                        try {
+                          await actions.pinChat(chat.id, !chat.pinned)
+                          toast.success(chat.pinned ? "Unpinned" : "Pinned")
+                        } catch { toast.error("Failed") }
+                      }}
+                    >
+                      {chat.pinned ? <IconPinFilled className="size-3.5 mr-2" /> : <IconPin className="size-3.5 mr-2" />}
+                      {chat.pinned ? "Unpin" : "Pin"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation()
+                        try {
+                          await actions.archiveChat(chat.id, true)
+                          toast.success("Archived")
+                        } catch { toast.error("Failed") }
+                      }}
+                    >
+                      <IconArchive className="size-3.5 mr-2" />
+                      Archive
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteDialogOpen(true) }}
+                      className="text-red-600 focus:bg-red-600/15 focus:text-red-600 hover:bg-red-600/15 hover:text-red-700 dark:text-red-500 dark:focus:bg-red-500/20 dark:focus:text-red-400 dark:hover:bg-red-500/20 dark:hover:text-red-400 font-medium"
+                    >
+                      <IconTrash className="size-3.5 mr-2 text-red-600 dark:text-red-500" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
-          </div>
+          </Link>
         </SidebarMenuSubButton>
       </SidebarMenuSubItem>
 

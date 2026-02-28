@@ -432,11 +432,11 @@ export function GlobalSearch({
     //  Action handlers 
     const handleOpenEdit = React.useCallback((chat: ChatType) => { setRenameTitle(chat.title); setEditingChat(chat) }, [])
     const handleOpenDelete = React.useCallback((chat: ChatType) => { setDeletingChat(chat) }, [])
-    const handleOpenNewTab = React.useCallback((chat: ChatType) => { window.open(`/new?conversationId=${chat.id}`, "_blank") }, [])
+    const handleOpenNewTab = React.useCallback((chat: ChatType) => { window.open(`/c/${chat.id}`, "_blank") }, [])
 
     const handleGo = React.useCallback((id?: string) => {
         const target = id || footerChat?.id
-        if (target) { router.push(`/new?conversationId=${target}`); onOpenChange(false) }
+        if (target) { router.push(`/c/${target}`); onOpenChange(false) }
     }, [footerChat, router, onOpenChange])
 
     //  Keyboard shortcuts 

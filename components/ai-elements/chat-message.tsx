@@ -326,7 +326,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
             <div className={cn(
                 "flex flex-col min-w-0 transition-all duration-200",
                 isUser
-                    ? (isEditingPrompt ? "w-full max-w-full items-start !max-w-[none]" : "items-end max-w-[85%]")
+                    ? (isEditingPrompt ? "w-full max-w-full items-start !max-w-[none]" : "items-end max-w-[90%]")
                     : "items-start flex-1 max-w-full"
             )}>
                 {isUser ? (

@@ -379,9 +379,9 @@ export function PaperAIAssistant({
     // ── Open Chat in Full Page ────────────────────────────────
     const handleOpenInFullPage = useCallback(() => {
         if (conversationId) {
-            window.open(`/new?conversationId=${conversationId}`, '_blank');
+            window.open(`/c/${conversationId}`, '_blank');
         } else {
-            window.open('/new', '_blank');
+            window.open('/', '_blank');
         }
     }, [conversationId]);
 

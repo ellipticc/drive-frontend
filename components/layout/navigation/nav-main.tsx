@@ -17,6 +17,7 @@ import {
 } from "@tabler/icons-react"
 import { useState, useEffect, useCallback, Fragment } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { useLanguage } from "@/lib/i18n/language-context"
 import { apiClient, FolderContentItem } from "@/lib/api"
 import { decryptFilename } from "@/lib/crypto"
@@ -217,6 +218,7 @@ export function NavMain({
               return (
                 <SidebarMenuItem key={item.id || item.title} className="space-y-1">
                   <SidebarMenuButton
+                    asChild
                     onMouseEnter={() => setIsVaultHovered(true)}
                     onMouseLeave={() => setIsVaultHovered(false)}
                     tooltip={item.shortcut ? {
@@ -228,62 +230,67 @@ export function NavMain({
                       )
                     } : item.title}
                     isActive={pathname === item.url && (item.id !== 'my-files' || !searchParams.has('folderId'))}
-                    onClick={(e) => {
-                      if (item.url === '/vault') {
-                        const hasFolderId = searchParams.get('folderId');
-                        if (pathname === '/vault' && !hasFolderId) return;
-                        handleNavigate('/vault');
-                      } else {
-                        handleNavigate(item.url);
-                      }
-                    }}
                     className="cursor-pointer group/nav-item group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 pl-2"
                     data-space-id="root"
                     data-space-name="Vault"
                   >
-                    {!isMyFilesLeaf ? (
-                      <div
-                        role="button"
-                        onClick={(e) => {
-                          if (state !== 'collapsed') {
-                            toggleMyFiles(e)
+                    <Link
+                      href={item.url}
+                      onClick={(e) => {
+                        if (item.url === '/vault') {
+                          const hasFolderId = searchParams.get('folderId');
+                          if (pathname === '/vault' && !hasFolderId) {
+                            e.preventDefault();
                           }
-                        }}
-                        className={cn(
-                          "flex items-center justify-center rounded-sm transition-colors",
-                          state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer'
-                        )}
-                      >
-                        {isVaultHovered && state !== 'collapsed' ? (
-                          <IconChevronDown
-                            className={cn("size-4 shrink-0 transition-transform duration-200", !isMyFilesExpanded && "-rotate-90")}
-                          />
-                        ) : (
-                          (() => {
-                            const isActive = pathname === item.url;
-                            const IconComponent = getIcon(item, isActive);
-                            return IconComponent && <IconComponent className="shrink-0 size-4" />;
-                          })()
-                        )}
-                      </div>
-                    ) : (
-                      (() => {
-                        const isActive = pathname === item.url;
-                        const IconComponent = getIcon(item, isActive);
-                        return IconComponent && <IconComponent className="shrink-0" />;
-                      })()
-                    )}
-                    <span>{item.title}</span>
-                    {item.shortcut && (
-                      <kbd className="pointer-events-none ml-auto h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/nav-item:opacity-100 transition-opacity sm:inline-flex group-data-[collapsible=icon]:hidden">
-                        {item.shortcut}
-                      </kbd>
-                    )}
-                    {item.badge && (
-                      <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-medium text-white min-w-[1.25rem] group-data-[collapsible=icon]:hidden">
-                        {item.badge}
-                      </span>
-                    )}
+                        }
+                      }}
+                    >
+                      {!isMyFilesLeaf ? (
+                        <div
+                          role="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (state !== 'collapsed') {
+                              toggleMyFiles(e)
+                            }
+                          }}
+                          className={cn(
+                            "flex items-center justify-center rounded-sm transition-colors",
+                            state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer'
+                          )}
+                        >
+                          {isVaultHovered && state !== 'collapsed' ? (
+                            <IconChevronDown
+                              className={cn("size-4 shrink-0 transition-transform duration-200", !isMyFilesExpanded && "-rotate-90")}
+                            />
+                          ) : (
+                            (() => {
+                              const isActive = pathname === item.url;
+                              const IconComponent = getIcon(item, isActive);
+                              return IconComponent && <IconComponent className="shrink-0 size-4" />;
+                            })()
+                          )}
+                        </div>
+                      ) : (
+                        (() => {
+                          const isActive = pathname === item.url;
+                          const IconComponent = getIcon(item, isActive);
+                          return IconComponent && <IconComponent className="shrink-0" />;
+                        })()
+                      )}
+                      <span>{item.title}</span>
+                      {item.shortcut && (
+                        <kbd className="pointer-events-none ml-auto h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/nav-item:opacity-100 transition-opacity sm:inline-flex group-data-[collapsible=icon]:hidden">
+                          {item.shortcut}
+                        </kbd>
+                      )}
+                      {item.badge && (
+                        <span className="ml-auto inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-medium text-white min-w-[1.25rem] group-data-[collapsible=icon]:hidden">
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
                   </SidebarMenuButton>
 
                   {/* Always render submenu container for Folders */}
@@ -319,6 +326,7 @@ export function NavMain({
               return (
                 <SidebarMenuItem key={item.id || item.title}>
                   <SidebarMenuButton
+                    asChild
                     tooltip={item.shortcut ? {
                       children: (
                         <div className="flex items-center gap-2">
@@ -328,17 +336,18 @@ export function NavMain({
                       )
                     } : item.title}
                     isActive={pathname === item.url}
-                    onClick={() => handleNavigate(item.url)}
                     className="cursor-pointer"
                     data-space-id="trash"
                     data-space-name={t("sidebar.trash")}
                   >
-                    {(() => {
-                      const isActive = pathname === item.url
-                      const IconComponent = getIcon(item, isActive) as any
-                      return IconComponent && <IconComponent />
-                    })()}
-                    <span>{item.title}</span>
+                    <Link href={item.url}>
+                      {(() => {
+                        const isActive = pathname === item.url
+                        const IconComponent = getIcon(item, isActive) as any
+                        return IconComponent && <IconComponent />
+                      })()}
+                      <span>{item.title}</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );
@@ -351,12 +360,14 @@ export function NavMain({
             if (item.id === "settings") {
               return (
                 <SidebarMenuItem key={item.id || item.title}>
-                  <SidebarMenuButton onClick={() => window.location.hash = '#settings/General'}>
-                    {(() => {
-                      const IconComponent = getIcon(item, false) as any
-                      return IconComponent && <IconComponent />
-                    })()}
-                    <span>{item.title}</span>
+                  <SidebarMenuButton asChild>
+                    <Link href="#settings/General">
+                      {(() => {
+                        const IconComponent = getIcon(item, false) as any
+                        return IconComponent && <IconComponent />
+                      })()}
+                      <span>{item.title}</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );
@@ -366,24 +377,26 @@ export function NavMain({
             return (
               <SidebarMenuItem key={item.id || item.title}>
                 <SidebarMenuButton
+                  asChild
                   tooltip={item.title}
                   isActive={pathname === item.url}
-                  onClick={() => handleNavigate(item.url)}
                   className="cursor-pointer"
                   data-space-id={item.id}
                   data-space-name={item.title}
                 >
-                  {(() => {
-                    const isActive = pathname === item.url
-                    const IconComponent = getIcon(item, isActive) as any
-                    return IconComponent && <IconComponent />
-                  })()}
-                  <span>{item.title}</span>
-                  {item.badge !== undefined && item.badge > 0 && (
-                    <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-[4px] bg-primary px-0.5 text-[11px] font-semibold text-primary-foreground">
-                      {item.badge}
-                    </span>
-                  )}
+                  <Link href={item.url}>
+                    {(() => {
+                      const isActive = pathname === item.url
+                      const IconComponent = getIcon(item, isActive) as any
+                      return IconComponent && <IconComponent />
+                    })()}
+                    <span>{item.title}</span>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-[4px] bg-primary px-0.5 text-[11px] font-semibold text-primary-foreground">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             );

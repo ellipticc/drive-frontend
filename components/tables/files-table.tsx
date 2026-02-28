@@ -795,9 +795,9 @@ export const Table01DividerLineSm = ({
 
     // Build URL path from folder path
     const buildUrlPath = (folderPath: Array<{ id: string, name: string }>): string => {
-        if (folderPath.length <= 1) return '/vault';
+        if (folderPath.length <= 1) return '/v';
         const lastFolder = folderPath[folderPath.length - 1];
-        return '/vault?folderId=' + lastFolder.id;
+        return '/v?folderId=' + lastFolder.id;
     };
 
     // Truncate breadcrumb names that are too long (encrypted names)
@@ -1437,10 +1437,10 @@ export const Table01DividerLineSm = ({
 
     // Load files when folder or page changes, or when search query changes
     useEffect(() => {
-        // Treat `/vault` as the app's root folder view — allow root fetch on / or /vault
-        const isVaultRoute = pathname === '/vault' || pathname?.startsWith('/vault');
+        // Treat `/v` as the app's root folder view — allow root fetch on / or /v
+        const isVaultRoute = pathname === '/v' || pathname?.startsWith('/v');
 
-        // Prevent root fetch if we are not on the root page (but allow /vault)
+        // Prevent root fetch if we are not on the root page (but allow /v)
         if (currentFolderId === 'root' && !isVaultRoute && pathname !== '/' && filterMode === 'default') {
             // console.log(`Skipping root fetch because pathname is ${pathname}`);
             return;
@@ -1578,7 +1578,7 @@ export const Table01DividerLineSm = ({
             const filename = `Untitled paper ${year}-${month}-${day} ${hour}.${minute}.${second}`;
 
             // Navigate to paper creation page in the same tab
-            router.push('/paper/new?creating=1');
+            router.push('/p/new?creating=1');
             toast('Creating paper...');
 
             try {
@@ -1586,7 +1586,7 @@ export const Table01DividerLineSm = ({
 
                 if (newPaperId) {
                     toast.success('Paper created');
-                    router.push(`/paper?fileId=${newPaperId}`);
+                    router.push(`/p/${newPaperId}`);
                 }
             } catch (err) {
                 console.error('Failed to create new paper:', err);
@@ -1950,7 +1950,7 @@ export const Table01DividerLineSm = ({
                     if (item.type === 'file') {
                         handlePreviewClick(item.id, item.name, item.mimeType);
                     } else if (item.type === 'paper') {
-                        router.push(`/paper?fileId=${item.id}`);
+                        router.push(`/p/${item.id}`);
                     }
                     break;
                 case 'copyLink':
@@ -1961,7 +1961,7 @@ export const Table01DividerLineSm = ({
                     if (item.type === 'file') {
                         handlePreviewClick(item.id, item.name, item.mimeType);
                     } else if (item.type === 'paper') {
-                        router.push(`/paper?fileId=${item.id}`);
+                        router.push(`/p/${item.id}`);
                     }
                     break;
 
@@ -3281,7 +3281,7 @@ export const Table01DividerLineSm = ({
                                                 <Table.Head id="size" allowsSorting={true} align="right" className={`hidden md:table-cell w-28 ${visibleColumns.has('size') ? '' : '[&>*]:invisible'} pointer-events-none cursor-default ${selectedItems.size > 0 ? '[&_svg]:invisible' : ''} px-4`}>
                                                     <span className={`text-xs font-semibold whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-md px-1.5 py-1 transition-colors cursor-pointer pointer-events-auto ${selectedItems.size > 0 ? 'invisible' : ''}`}>{t("files.size")}</span>
                                                 </Table.Head>
-                                                
+
                                                 <Table.Head id="actions" align="right" className="w-12 px-2" />
                                             </Table.Header>
                                         )}
@@ -3300,7 +3300,7 @@ export const Table01DividerLineSm = ({
                                                             item={item}
                                                             isSelected={isSelected}
                                                             isDraggingSomewhere={isDraggingSomewhere}
-                                                            onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : (item.type === 'paper' ? () => router.push('/paper?fileId=' + item.id) : undefined))}
+                                                            onDoubleClick={item.type === 'folder' ? () => handleFolderDoubleClick(item.id, item.name) : (item.type === 'file' ? () => handlePreviewClick(item.id, item.name, item.mimeType) : (item.type === 'paper' ? () => router.push('/p/' + item.id) : undefined))}
                                                             className="group hover:bg-muted/50 transition-colors duration-150"
                                                             onContextMenu={handleContextMenu}
                                                         >
@@ -3514,7 +3514,7 @@ export const Table01DividerLineSm = ({
                                                     } else if (item.type === 'file') {
                                                         handlePreviewClick(item.id, item.name, item.mimeType);
                                                     } else if (item.type === 'paper') {
-                                                        router.push('/paper?fileId=' + item.id);
+                                                        router.push('/p/' + item.id);
                                                     }
                                                     return;
                                                 }
@@ -3541,7 +3541,7 @@ export const Table01DividerLineSm = ({
                                                 } else if (item.type === 'file') {
                                                     handlePreviewClick(item.id, item.name, item.mimeType);
                                                 } else if (item.type === 'paper') {
-                                                    router.push('/paper?fileId=' + item.id);
+                                                    router.push('/p/' + item.id);
                                                 }
                                             }}
                                             onContextMenu={(e) => handleContextMenu(e, item)}

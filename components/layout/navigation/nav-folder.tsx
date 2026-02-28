@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { IconChevronRight, IconFolder, IconLoader2 } from "@tabler/icons-react"
 import {
     SidebarMenuSub,
@@ -90,16 +91,13 @@ export function NavFolder({ folder, level = 0 }: NavFolderProps) {
         sessionStorage.setItem(`folder_open_${folder.id}`, String(nextState))
     }
 
-    const handleNavigate = (e: React.MouseEvent) => {
-        e.preventDefault()
-        router.push(`/vault?folderId=${folder.id}`)
-    }
+
 
     return (
         <SidebarMenuSubItem>
             <SidebarMenuSubButton asChild isActive={searchParams.get('folderId') === folder.id}>
-                <button
-                    onClick={handleNavigate}
+                <Link
+                    href={`/vault?folderId=${folder.id}`}
                     className="flex items-center gap-2 flex-1 min-w-0 pr-8 relative group/folder-btn transition-colors duration-200"
                     data-space-id={folder.id}
                     data-space-name={folder.name}
@@ -120,7 +118,7 @@ export function NavFolder({ folder, level = 0 }: NavFolderProps) {
                             />
                         </div>
                     )}
-                </button>
+                </Link>
             </SidebarMenuSubButton>
 
             {

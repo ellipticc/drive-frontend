@@ -85,18 +85,18 @@ export const AppSidebar = React.memo(function AppSidebar({
       }
       if (e.key === "O" && e.shiftKey && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
-        router.push('/new')
+        router.push('/')
       }
 
       // Single key shortcuts
       if (!e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
         if (e.key === "v") {
           e.preventDefault();
-          router.push('/vault');
+          router.push('/v');
         }
         if (e.key === "d") {
           e.preventDefault();
-          router.push('/paper/new');
+          router.push('/p/new');
         }
         if (e.key === "s") {
           e.preventDefault();
@@ -120,14 +120,14 @@ export const AppSidebar = React.memo(function AppSidebar({
     navMain: [
       {
         title: "Vault",
-        url: "/vault",
+        url: "/v",
         icon: IconStack2,
         id: "my-files",
         shortcut: "V",
       },
       {
-        title: "Draft", // Hardcoded for now, or t("sidebar.draft") if available? I'll use "Draft" as requested.
-        url: "/paper/new",
+        title: "Draft",
+        url: "/p/new",
         icon: IconWritingSign,
         id: "draft",
         shortcut: "D",
@@ -253,7 +253,7 @@ export const AppSidebar = React.memo(function AppSidebar({
           <SidebarMenuItem>
             <div className="flex w-full items-center justify-between group-data-[collapsible=icon]:hidden">
               <SidebarMenuButton asChild className="flex-1">
-                <a href="/new" className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); router.push('/new'); }}>
+                <a href="/" className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); router.push('/'); }}>
                   <IconCaretLeftRightFilled className="size-4 shrink-0" />
                   <span className="text-base font-geist-mono select-none break-all leading-none">ellipticc</span>
                 </a>
@@ -326,10 +326,9 @@ export const AppSidebar = React.memo(function AppSidebar({
         <SidebarGroup className="py-0">
           <SidebarGroupContent>
             <SidebarMenu className="mt-1">
-              {/* Chat (new chat) button */}
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  onClick={() => router.push('/new')}
+                  onClick={() => router.push('/')}
                   tooltip={{
                     children: (
                       <div className="flex items-center gap-1">
@@ -342,7 +341,7 @@ export const AppSidebar = React.memo(function AppSidebar({
                     side: "right",
                     hidden: state !== "collapsed"
                   }}
-                  isActive={pathname === '/new' && !searchParams.get('conversationId')}
+                  isActive={pathname === '/'}
                   className="relative group/menu-button group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 pl-2"
                 >
                   <IconEdit className="size-4 shrink-0" />

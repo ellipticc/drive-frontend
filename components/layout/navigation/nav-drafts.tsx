@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { IconChevronDown, IconLoader2, IconStackFilled } from "@tabler/icons-react"
 import {
     SidebarMenuSub,
@@ -115,13 +116,12 @@ export function NavDrafts({ item }: { item: any }) {
         sessionStorage.setItem("drafts-expanded", String(nextState))
     }
 
-    const handleNavigate = (url: string) => {
-        router.push(url)
-    }
+
 
     return (
         <SidebarMenuItem>
             <SidebarMenuButton
+                asChild
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
                 tooltip={{
@@ -133,41 +133,44 @@ export function NavDrafts({ item }: { item: any }) {
                     )
                 }}
                 isActive={pathname === item.url && !searchParams.has('fileId')}
-                onClick={() => handleNavigate(item.url)}
                 className="cursor-pointer group/nav-item group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 pl-2"
                 data-space-id="draft"
                 data-space-name={t("sidebar.drafts")}
             >
-                {!isLeaf ? (
-                    <div
-                        role="button"
-                        onClick={(e) => {
-                          if (state !== 'collapsed') {
-                            toggleOpen(e)
-                          }
-                        }}
-                        className={cn(
-                          "flex items-center justify-center rounded-sm transition-colors",
-                          state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer'
-                        )}
-                    >
-                        {isHovered && state !== 'collapsed' ? (
-                            <IconChevronDown
-                                className={cn("size-4 shrink-0 transition-transform duration-200", !isOpen && "-rotate-90")}
-                            />
-                        ) : (
-                            item.icon && <item.icon className="shrink-0 size-4" />
-                        )}
-                    </div>
-                ) : (
-                    item.icon && <item.icon />
-                )}
-                <span>{item.title}</span>
-                {state !== 'collapsed' && (
-                    <div className="ms-auto opacity-0 group-hover/nav-item:opacity-100 transition-opacity">
-                        <Kbd>{item.shortcut || 'D'}</Kbd>
-                    </div>
-                )}
+                <Link href={item.url}>
+                    {!isLeaf ? (
+                        <div
+                            role="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (state !== 'collapsed') {
+                                    toggleOpen(e)
+                                }
+                            }}
+                            className={cn(
+                                "flex items-center justify-center rounded-sm transition-colors",
+                                state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer'
+                            )}
+                        >
+                            {isHovered && state !== 'collapsed' ? (
+                                <IconChevronDown
+                                    className={cn("size-4 shrink-0 transition-transform duration-200", !isOpen && "-rotate-90")}
+                                />
+                            ) : (
+                                item.icon && <item.icon className="shrink-0 size-4" />
+                            )}
+                        </div>
+                    ) : (
+                        item.icon && <item.icon />
+                    )}
+                    <span>{item.title}</span>
+                    {state !== 'collapsed' && (
+                        <div className="ms-auto opacity-0 group-hover/nav-item:opacity-100 transition-opacity">
+                            <Kbd>{item.shortcut || 'D'}</Kbd>
+                        </div>
+                    )}
+                </Link>
             </SidebarMenuButton>
 
             {isOpen && state !== 'collapsed' && (
@@ -183,12 +186,14 @@ export function NavDrafts({ item }: { item: any }) {
                                 <Tooltip delayDuration={500}>
                                     <TooltipTrigger asChild>
                                         <SidebarMenuSubButton
+                                            asChild
                                             isActive={searchParams.get('fileId') === paper.id}
-                                            onClick={() => handleNavigate(`/paper?fileId=${paper.id}`)}
                                             className="cursor-pointer flex items-center gap-2"
                                         >
-                                            <IconStackFilled className="size-3.5 text-blue-500 !text-blue-500 shrink-0" />
-                                            <span className="truncate text-xs font-medium">{paper.name}</span>
+                                            <Link href={`/paper?fileId=${paper.id}`}>
+                                                <IconStackFilled className="size-3.5 text-blue-500 !text-blue-500 shrink-0" />
+                                                <span className="truncate text-xs font-medium">{paper.name}</span>
+                                            </Link>
                                         </SidebarMenuSubButton>
                                     </TooltipTrigger>
                                     <TooltipContent side="right" className="max-w-[200px] break-words">

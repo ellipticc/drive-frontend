@@ -125,7 +125,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
         if (!item) return;
         if (item.type === 'paper') {
             // Papers open in view-mode only
-            window.open('/paper?fileId=' + item.id + '&viewMode=view', '_blank');
+            window.open('/p/' + item.id + '?viewMode=view', '_blank');
             return;
         }
         // Files: open preview modal
@@ -486,7 +486,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
             // ALWAYS separate folders from files first (folders on top)
             const aIsFolder = a.type === 'folder';
             const bIsFolder = b.type === 'folder';
-            
+
             if (aIsFolder && !bIsFolder) return -1;
             if (!aIsFolder && bIsFolder) return 1;
 
@@ -714,7 +714,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                             id={item.id}
                                             onDoubleClick={() => {
                                                 if (item.type === 'paper') {
-                                                    window.open('/paper?fileId=' + item.id + '&viewMode=view', '_blank');
+                                                    window.open('/p/' + item.id + '?viewMode=view', '_blank');
                                                 } else {
                                                     openPreviewForTrash(item.id);
                                                 }
@@ -790,7 +790,7 @@ export const TrashTable = ({ searchQuery }: { searchQuery?: string }) => {
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem onClick={() => {
                                                                 if (item.type === 'paper') {
-                                                                    window.open('/paper?fileId=' + item.id + '&viewMode=view', '_blank');
+                                                                    window.open('/p/' + item.id + '?viewMode=view', '_blank');
                                                                 } else if (item.filename || item.mimeType) {
                                                                     openPreviewForTrash(item.id);
                                                                 } else {
