@@ -29,7 +29,7 @@ import { SiteHeader } from "@/components/layout/header/site-header"
 import { useAICrypto } from "@/hooks/use-ai-crypto";
 import { parseFile } from "@/lib/file-parser";
 import { calculateContextBreakdown, ContextBreakdown, trimHistoryByTokens } from "@/lib/context-calculator"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams, useParams } from "next/navigation"
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion"
 import { FeedbackModal } from "@/components/ai-elements/feedback-modal";
 import { ChatMessage } from "@/components/ai-elements/chat-message"
@@ -171,8 +171,9 @@ export default function AssistantPage() {
         await handleSubmit(userMessage.content, []);
     };
 
-    // Derived from URL, fallback to empty (New Chat)
-    const conversationId = searchParams.get('conversationId') || ""
+    // Derived from URL path or search query, fallback to empty (New Chat)
+    const params = useParams()
+    const conversationId = (params?.conversationId as string) || searchParams.get('conversationId') || ""
 
     const lastCreatedConversationId = React.useRef<string | null>(null);
 

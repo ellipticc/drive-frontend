@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import {
   IconHelpCircle,
   IconCaretLeftRightFilled,
@@ -13,9 +14,7 @@ import {
   IconWritingSign,
   IconEdit,
 } from "@tabler/icons-react"
-import { cn, useRelativeTime } from "@/lib/utils"
-import { sortChatsByLastMessage } from "@/lib/chat-utils"
-import type { ChatType } from "@/components/layout/navigation/nav-assistant"
+import { cn } from "@/lib/utils"
 
 import { NavMain } from "@/components/layout/navigation/nav-main"
 import { NavSecondary } from "@/components/layout/navigation/nav-secondary"
@@ -253,10 +252,10 @@ export const AppSidebar = React.memo(function AppSidebar({
           <SidebarMenuItem>
             <div className="flex w-full items-center justify-between group-data-[collapsible=icon]:hidden">
               <SidebarMenuButton asChild className="flex-1">
-                <a href="/" className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); router.push('/'); }}>
+                <Link href="/" className="flex items-center gap-2">
                   <IconCaretLeftRightFilled className="size-4 shrink-0" />
                   <span className="text-base font-geist-mono select-none break-all leading-none">ellipticc</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
               <SidebarTrigger className="ml-1" tooltip={{
                 children: (
@@ -328,7 +327,7 @@ export const AppSidebar = React.memo(function AppSidebar({
             <SidebarMenu className="mt-1">
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  onClick={() => router.push('/')}
+                  asChild
                   tooltip={{
                     children: (
                       <div className="flex items-center gap-1">
@@ -344,11 +343,13 @@ export const AppSidebar = React.memo(function AppSidebar({
                   isActive={pathname === '/'}
                   className="relative group/menu-button group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0 pl-2"
                 >
-                  <IconEdit className="size-4 shrink-0" />
-                  <span className="group-data-[collapsible=icon]:hidden">Chat</span>
-                  <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-60 transition-opacity flex group-data-[collapsible=icon]:hidden sm:flex">
-                    <span className="text-[9px]">⌘⇧</span>O
-                  </kbd>
+                  <Link href="/">
+                    <IconEdit className="size-4 shrink-0" />
+                    <span className="group-data-[collapsible=icon]:hidden">Chat</span>
+                    <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-0 group-hover/menu-button:opacity-60 transition-opacity flex group-data-[collapsible=icon]:hidden sm:flex">
+                      <span className="text-[9px]">⌘⇧</span>O
+                    </kbd>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 

@@ -145,6 +145,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
   const [renameDialogOpen, setRenameDialogOpen] = React.useState(false)
   const [renameTitle, setRenameTitle] = React.useState("")
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
+  const [dropdownOpen, setDropdownOpen] = React.useState(false)
 
   const isActive = currentConversationId === chat.id
 
@@ -152,6 +153,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
 
   const openRenameDialog = () => {
     setRenameTitle(chat.title)
+    setDropdownOpen(false)
     setRenameDialogOpen(true)
   }
 
@@ -205,7 +207,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
 
               {/* Actions dropdown on hover */}
               <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 focus-within:opacity-100 transition-opacity flex items-center bg-transparent">
-                <DropdownMenu>
+                <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                   <Tooltip delayDuration={300}>
                     <TooltipTrigger asChild>
                       <DropdownMenuTrigger asChild>
@@ -245,7 +247,12 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
                         e.stopPropagation()
                         try {
                           await actions.archiveChat(chat.id, true)
-                          toast.success("Archived")
+                          toast.success("Archived", {
+                            action: {
+                              label: "Undo",
+                              onClick: () => actions.archiveChat(chat.id, false)
+                            }
+                          })
                         } catch { toast.error("Failed") }
                       }}
                     >
@@ -254,7 +261,12 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteDialogOpen(true) }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDropdownOpen(false);
+                        setDeleteDialogOpen(true);
+                      }}
                       className="text-red-600 focus:bg-red-600/15 focus:text-red-600 hover:bg-red-600/15 hover:text-red-700 dark:text-red-500 dark:focus:bg-red-500/20 dark:focus:text-red-400 dark:hover:bg-red-500/20 dark:hover:text-red-400 font-medium"
                     >
                       <IconTrash className="size-3.5 mr-2 text-red-600 dark:text-red-500" />
@@ -293,7 +305,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
               <p className="text-xs text-destructive mt-1">Title cannot be empty</p>
             )}
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
               Cancel
             </Button>
