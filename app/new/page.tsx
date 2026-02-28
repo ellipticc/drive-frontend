@@ -743,17 +743,8 @@ export default function AssistantPage() {
                                 const data = JSON.parse(dataStr);
                                 let chunkReasoning = '';
 
-                                // Support encrypted reasoning payloads
-                                if (data.encrypted_reasoning && data.reasoning_iv) {
-                                    const { decrypted, sessionKey } = await decryptStreamChunk(
-                                        data.encrypted_reasoning,
-                                        data.reasoning_iv,
-                                        data.encapsulated_key,
-                                        currentSessionKey
-                                    );
-                                    chunkReasoning = decrypted;
-                                    currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
-                                } else if (data.reasoning) {
+                                // Support plaintext reasoning payloads
+                                if (data.reasoning) {
                                     chunkReasoning = data.reasoning;
                                 }
 
@@ -800,16 +791,9 @@ export default function AssistantPage() {
                                 const data = JSON.parse(dataStr);
                                 let stepData = null;
 
-                                // Support encrypted step payloads
-                                if (data.encrypted_step && data.step_iv) {
-                                    const { decrypted, sessionKey } = await decryptStreamChunk(
-                                        data.encrypted_step,
-                                        data.step_iv,
-                                        data.encapsulated_key,
-                                        currentSessionKey
-                                    );
-                                    currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
-                                    stepData = JSON.parse(decrypted);
+                                // Support plaintext step payloads
+                                if (data.step) {
+                                    stepData = data.step;
                                 } else {
                                     stepData = data;
                                 }
@@ -964,28 +948,6 @@ export default function AssistantPage() {
                                     );
                                     contentToAppend = decrypted;
                                     currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
-                                } else if (data.encrypted_suggestions && data.suggestions_iv) {
-                                    // Decrypt suggestions if they come encrypted
-                                    const { decrypted, sessionKey } = await decryptStreamChunk(
-                                        data.encrypted_suggestions,
-                                        data.suggestions_iv,
-                                        data.encapsulated_key,
-                                        currentSessionKey
-                                    );
-                                    currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
-                                    currentSuggestions = JSON.parse(decrypted);
-                                    setMessages(prev => {
-                                        const newMessages = [...prev];
-                                        const lastIdx = newMessages.length - 1;
-                                        const lastMessage = newMessages[lastIdx];
-                                        if (lastMessage && lastMessage.role === 'assistant') {
-                                            newMessages[lastIdx] = {
-                                                ...lastMessage,
-                                                suggestions: currentSuggestions
-                                            };
-                                        }
-                                        return newMessages;
-                                    });
                                 } else if (data.suggestions) {
                                     currentSuggestions = data.suggestions; // Update local tracker
                                     setMessages(prev => {
@@ -1000,6 +962,7 @@ export default function AssistantPage() {
                                         }
                                         return newMessages;
                                     });
+
                                 } else if (data.content) {
                                     contentToAppend = data.content;
                                 }
@@ -1104,31 +1067,11 @@ export default function AssistantPage() {
                         try {
                             const data = JSON.parse(dataStr);
                             let contentToAppend = "";
-                            if (data.encrypted_content && data.iv) {
-                                const { decrypted, sessionKey } = await decryptStreamChunk(
-                                    data.encrypted_content,
-                                    data.iv,
-                                    data.encapsulated_key,
-                                    currentSessionKey
-                                );
-                                contentToAppend = decrypted;
-                                currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
-                            } else if (data.encrypted_suggestions && data.suggestions_iv) {
-                                // Decrypt suggestions if they come encrypted in final buffer
-                                const { decrypted, sessionKey } = await decryptStreamChunk(
-                                    data.encrypted_suggestions,
-                                    data.suggestions_iv,
-                                    data.encapsulated_key,
-                                    currentSessionKey
-                                );
-                                currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
-                                currentSuggestions = JSON.parse(decrypted);
-                                console.log('[Stream] Found encrypted suggestions in final buffer');
+                            if (data.content) {
+                                contentToAppend = data.content;
                             } else if (data.suggestions) {
                                 currentSuggestions = data.suggestions; // Update local tracker
                                 console.log('[Stream] Found suggestions in final buffer');
-                            } else if (data.content) {
-                                contentToAppend = data.content;
                             }
                             if (contentToAppend) {
                                 answerBuffer += contentToAppend;
@@ -1441,19 +1384,7 @@ export default function AssistantPage() {
                         try {
                             const data = JSON.parse(dataStr);
 
-                            // Decryption Handling
-                            let decryptedContent = "";
-                            if (data.encrypted_content && data.iv) {
-                                const { decrypted, sessionKey } = await decryptStreamChunk(
-                                    data.encrypted_content,
-                                    data.iv,
-                                    data.encapsulated_key,
-                                    currentSessionKey
-                                );
-                                decryptedContent = decrypted;
-                                currentSessionKey = sessionKey; latestSessionKeyRef.current = sessionKey;
-                            }
-
+                            // Decryption Handling removed for streaming efficiency
                             setMessages(prev => {
                                 const newMessages = [...prev];
                                 const msg = newMessages[messageIndex];
@@ -1479,7 +1410,7 @@ export default function AssistantPage() {
                                     }
                                 }
 
-                                const contentToAdd = decryptedContent || data.content || "";
+                                const contentToAdd = data.content || "";
                                 if (contentToAdd) {
                                     assistantMessageContent += contentToAdd;
                                     msg.content = assistantMessageContent;
@@ -1930,7 +1861,7 @@ export default function AssistantPage() {
 
                 {isInitialLoading || (!isContentReady && messages.length === 0) ? (
                     // LOADING SKELETON - Simple pulsating paragraph (only on initial load)
-                    <div className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth">
+                    <div className="flex-1 overflow-y-auto px-4 py-6">
                         <div className="max-w-4xl mx-auto space-y-2">
                             {/* Pulsating skeleton lines - simulating paragraph text */}
                             <Skeleton className="h-4 w-full animate-pulse" />
@@ -1991,12 +1922,12 @@ export default function AssistantPage() {
 
                     // CHAT STATE: Scrollable Messages + Sticky Bottom Input
                     <div className="flex flex-col h-full w-full relative">
-                        {/* Messages Container - Virtual List for Performance */}
                         <div
                             ref={scrollContainerRef}
                             onScroll={onScroll}
-                            className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth min-h-0 max-w-full overflow-x-hidden"
+                            className="flex-1 overflow-y-auto px-4 py-4 min-h-0 max-w-full overflow-x-hidden"
                         >
+
                             {/* Standard List Rendering */}
                             <div className="flex flex-col items-center w-full min-h-full">
                                 {messages.map((message, index) => {

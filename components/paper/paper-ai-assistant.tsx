@@ -56,7 +56,6 @@ export function PaperAIAssistant({
     const {
         isReady,
         kyberPublicKey,
-        decryptStreamChunk,
         encryptMessage,
         loadChats,
         chats,
@@ -191,7 +190,6 @@ export function PaperAIAssistant({
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let answerBuffer = "";
-            let currentSessionKey: Uint8Array | undefined;
             let buffer = "";
             let pendingRafId: number | null = null;
 
@@ -243,20 +241,8 @@ export function PaperAIAssistant({
                                     continue;
                                 }
 
-                                // Decrypt or use plain content
-                                let contentToAppend = "";
-                                if (data.encrypted_content && data.iv) {
-                                    const { decrypted, sessionKey } = await decryptStreamChunk(
-                                        data.encrypted_content,
-                                        data.iv,
-                                        data.encapsulated_key,
-                                        currentSessionKey
-                                    );
-                                    contentToAppend = decrypted;
-                                    currentSessionKey = sessionKey;
-                                } else if (data.content) {
-                                    contentToAppend = data.content;
-                                }
+                                // Parse plain content
+                                let contentToAppend = data.content || "";
 
                                 if (contentToAppend) {
                                     // Strip thinking tags for simplicity
@@ -305,13 +291,7 @@ export function PaperAIAssistant({
                         try {
                             const data = JSON.parse(dataStr);
                             let contentToAppend = "";
-                            if (data.encrypted_content && data.iv) {
-                                const { decrypted, sessionKey } = await decryptStreamChunk(
-                                    data.encrypted_content, data.iv, data.encapsulated_key, currentSessionKey
-                                );
-                                contentToAppend = decrypted;
-                                currentSessionKey = sessionKey;
-                            } else if (data.content) {
+                            if (data.content) {
                                 contentToAppend = data.content;
                             }
                             if (contentToAppend) answerBuffer += contentToAppend;
@@ -368,7 +348,7 @@ export function PaperAIAssistant({
             setIsLoading(false);
             abortControllerRef.current = null;
         }
-    }, [isReady, kyberPublicKey, isLoading, messages, model, conversationId, encryptMessage, decryptStreamChunk, loadChats]);
+    }, [isReady, kyberPublicKey, isLoading, messages, model, conversationId, encryptMessage, loadChats]);
 
     // ── Cancel ────────────────────────────────────────────────
     const handleCancel = useCallback(() => {
@@ -639,7 +619,7 @@ export function PaperAIAssistant({
                     <div
                         ref={scrollContainerRef}
                         onScroll={onScroll}
-                        className="flex-1 overflow-y-auto px-3 py-3 scroll-smooth min-h-0 overflow-x-hidden"
+                        className="flex-1 overflow-y-auto px-3 py-3 min-h-0 overflow-x-hidden"
                     >
                         <div className="flex flex-col items-center w-full">
                             {messages.map((message, index) => {

@@ -23,10 +23,24 @@ export function useSmartScroll({
     const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
     const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-        if (scrollEndRef.current) {
-            scrollEndRef.current.scrollIntoView({ behavior, block: 'end' });
-            setUserInterrupted(false);
+        const container = scrollContainerRef.current;
+        if (!container) return;
+
+        if (behavior === 'smooth') {
+            if (scrollEndRef.current) {
+                scrollEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+        } else {
+            // Absolute instant snap to bottom to clear viewport
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    if (scrollContainerRef.current) {
+                        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+                    }
+                }, 10); // tiny delay ensures React has flushed the new message heights
+            });
         }
+        setUserInterrupted(false);
     }, []);
 
     // Handle scroll events to detect manual interruption
