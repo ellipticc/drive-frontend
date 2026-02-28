@@ -1,3 +1,3 @@
-import AssistantPage from "@/app/page";
+import AssistantPage from "@/app/new/page";
 
 export default AssistantPage;
