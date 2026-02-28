@@ -391,8 +391,8 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                                 {parsed.text && (
                                                     <div className="relative group/user-msg w-fit max-w-full">
                                                         <div className={cn(
-                                                            "px-4 py-3 rounded-2xl text-[15px] leading-relaxed shadow-sm font-medium w-fit selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap transition-colors duration-200",
-                                                            "bg-[var(--user-message-bg)] text-foreground dark:text-white"
+                                                            "px-4 py-3 rounded-2xl text-[15px] leading-relaxed shadow-sm font-medium w-fit selection:bg-[var(--user-message-selection)] selection:text-inherit break-words whitespace-pre-wrap transition-colors duration-200",
+                                                            "bg-[var(--user-message-bg)] text-foreground/90 dark:text-white/90"
                                                         )}>
                                                             {parsed.text}
                                                         </div>
@@ -675,7 +675,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                             </ChainOfThought>
                         )}
 
-                        <div className="w-full max-w-full break-words overflow-hidden">
+                        <div className="w-full max-w-full break-words overflow-hidden font-inter text-[13px]">
                             <MarkdownRenderer
                                 content={displayRes.content}
                                 sources={displayRes.sources}

@@ -204,7 +204,7 @@ export default function RootLayout({
 
       </head>
       <body
-        className={`${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} ${inter.variable} antialiased`}
+        className={`${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} antialiased`}
         suppressHydrationWarning
       >
         <InitialLoadingOverlay />

@@ -9,7 +9,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
+import { IconChevronDown, IconChevronRight, IconBulb, IconBulbFilled } from "@tabler/icons-react";
 import {
   createContext,
   memo,
@@ -214,6 +214,11 @@ export const ReasoningTrigger = memo(
         {children ?? (
           <div className="flex gap-2 items-center">
             <div className="relative flex items-center h-4">
+              {isOpen ? (
+                <IconBulbFilled className="size-3.5 text-amber-500 transition-colors" />
+              ) : (
+                <IconBulb className="size-3.5 text-muted-foreground transition-colors" />
+              )}
               {isOpen && <div className="absolute top-5 bottom-[-24px] left-1/2 -mx-px w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />}
             </div>
             <div className="flex-1">
@@ -251,8 +256,8 @@ export const ReasoningContent = memo(
         )}
         {...props}
       >
-        <div className="relative pl-9 text-muted-foreground/40 font-geist text-[11.5px] leading-relaxed">
-          <div className="absolute left-[7.5px] top-1 bottom-0 w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />
+        <div className="relative pl-9 text-muted-foreground/60 font-geist text-[10px] leading-relaxed">
+          <div className="absolute left-[16px] top-1 bottom-0 w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />
           <MarkdownRenderer
             content={children}
             isStreaming={isStreaming}

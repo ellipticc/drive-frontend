@@ -10,7 +10,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from '@/lib/utils';
-import { IconChevronDown, IconChevronRight, IconDots, IconSearch, IconCode } from "@tabler/icons-react";
+import { IconChevronDown, IconChevronRight, IconDots, IconSearch, IconCode, IconBulb, IconBulbFilled } from "@tabler/icons-react";
 import { createContext, memo, useContext, useMemo } from "react";
 import { CodeBlock } from "./markdown-components";
 
@@ -89,6 +89,11 @@ export const ChainOfThoughtHeader = memo(
           {...props}
         >
           <div className="relative flex items-center h-4">
+            {isOpen ? (
+              <IconBulbFilled className="size-3.5 text-amber-500 transition-colors" />
+            ) : (
+              <IconBulb className="size-3.5 text-muted-foreground transition-colors" />
+            )}
             {isOpen && <div className="absolute top-5 bottom-[-12px] left-1/2 -mx-px w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />}
           </div>
           <span className="font-medium text-[11.5px]">
@@ -117,9 +122,9 @@ export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
 };
 
 const stepStatusStyles = {
-  active: "text-foreground font-geist text-[11.5px]",
-  complete: "text-muted-foreground font-geist text-[11.5px]",
-  pending: "text-muted-foreground/50 font-geist text-[11.5px]",
+  active: "text-foreground font-geist text-[10px]",
+  complete: "text-muted-foreground font-geist text-[10px]",
+  pending: "text-muted-foreground/50 font-geist text-[10px]",
 };
 
 const getStepIcon = (stepType?: ChainOfThoughtStepProps['stepType']) => {
@@ -169,7 +174,7 @@ export const ChainOfThoughtStep = memo(
           )}>
             <DefaultIcon className="size-3.5 opacity-60" />
           </div>
-          <div className="flex-1 w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors mt-1" />
+          <div className="flex-1 w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors mt-1 mb-[-4px]" />
         </div>
         <div className="flex-1 min-w-0 pb-4">
           <div className="font-medium leading-tight">{label}</div>

@@ -231,9 +231,7 @@ export default function AssistantPage() {
 
         const currentChat = chats.find((c) => c.id === conversationId);
         if (!currentChat) {
-            // Chat not in list yet (still loading) — immediately clear stale header state
-            setIsTypingTitle(false);
-            setDisplayedTitle("");
+            // Chat not in list yet (still loading)
             return;
         }
 
@@ -1862,7 +1860,7 @@ export default function AssistantPage() {
 
                 {isInitialLoading || (!isContentReady && messages.length === 0) ? (
                     // LOADING SKELETON - Simple pulsating paragraph (only on initial load)
-                    <div className="flex-1 overflow-y-auto px-4 py-6 font-inter text-[12px]">
+                    <div className="flex-1 overflow-y-auto px-4 py-6 text-[12px]">
                         <div className="max-w-4xl mx-auto space-y-2">
                             {/* Pulsating skeleton lines - simulating paragraph text */}
                             <Skeleton className="h-4 w-full animate-pulse" />

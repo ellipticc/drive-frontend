@@ -157,6 +157,7 @@ html {
   --text-500: #999999;
   --accent-hover: #C6613F;
   --user-message-bg: oklch(0.9423 0.0097 72.66);
+  --user-message-selection: oklch(0.85 0.02 72.66);
   --ease-silk: cubic-bezier(0.2, 0.0, 0, 1.0);
 }
 
@@ -208,6 +209,7 @@ html {
   --text-500: #6B6B65;
   --accent-hover: #E5AA7F;
   --user-message-bg: oklch(0.3605 0.0078 43.21);
+  --user-message-selection: oklch(0.45 0.01 43.21);
 }
 
 
