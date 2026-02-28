@@ -199,7 +199,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
 
     const models = [
         { id: "auto", name: "Auto", description: "Balances speed & quality", provider: "auto" },
-        { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", description: "Versatile, 131k context", provider: "llama" },
+        { id: "deepseek-ai/DeepSeek-V3.1", name: "DeepSeek V3.1", description: "General, 128k context", provider: "deepseek" },
         { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B", description: "Vision, General", provider: "openai" },
         { id: "qwen/qwen3-32b", name: "Qwen 3 32B", description: "Code, Reasoning", provider: "alibaba" },
         { id: "moonshotai/kimi-k2-instruct-0905", name: "Kimi K2", description: "Long Context, 262k", provider: "moonshotai" },

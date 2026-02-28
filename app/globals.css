@@ -98,10 +98,10 @@
 }
 
 :root {
-  --font-sans: var(--font-inter), 'Inter', sans-serif;
-  --font-geist-sans: var(--font-inter), 'Inter', sans-serif;
+  --font-sans: 'Google Sans', sans-serif;
+  --font-geist-sans: 'Google Sans', sans-serif;
   --font-geist-mono: var(--font-geist-mono);
-  --font-cal-sans: var(--font-inter), 'Inter', sans-serif;
+  --font-cal-sans: 'Google Sans', sans-serif;
   --font-commit-mono: var(--font-geist-mono);
 
   /* Table surface: used for table/card backgrounds to create separation from the sidebar in dark mode */

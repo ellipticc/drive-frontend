@@ -119,9 +119,9 @@ export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
 };
 
 const stepStatusStyles = {
-  active: "text-foreground",
-  complete: "text-muted-foreground",
-  pending: "text-muted-foreground/50",
+  active: "text-foreground font-geist text-sm",
+  complete: "text-muted-foreground font-geist text-sm",
+  pending: "text-muted-foreground/50 font-geist text-sm",
 };
 
 const getStepIcon = (stepType?: ChainOfThoughtStepProps['stepType']) => {

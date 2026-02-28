@@ -61,7 +61,7 @@ export function PaperScrollNavigation({
         setIsHovered(true);
 
         if (scrollToBlock) {
-            scrollToBlock(id, 'auto');
+            scrollToBlock(id, 'smooth');
         } else {
             const element = document.getElementById(`block-${id}`);
             if (element) {
@@ -207,21 +207,29 @@ export function PaperScrollNavigation({
         };
     }, []);
 
-    // Stop highlighting when clicking elsewhere
+    // Stop highlighting when clicking elsewhere or scrolling manually
     useEffect(() => {
+        const resetInteraction = () => {
+            userInteractionRef.current = false;
+            setHighlightedId(null);
+            if (clearHighlight) clearHighlight();
+        };
+
         const handleClickOutside = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
             // If click is outside navigation component, stop user interaction to allow passive scroll-based updates
             if (containerRef.current && !containerRef.current.contains(target)) {
-                userInteractionRef.current = false;
-                if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
-                setHighlightedId(null);
-                if (clearHighlight) clearHighlight();
+                resetInteraction();
             }
         };
 
+        window.addEventListener('wheel', resetInteraction, { passive: true });
+        window.addEventListener('touchmove', resetInteraction, { passive: true });
         document.addEventListener('click', handleClickOutside);
+
         return () => {
+            window.removeEventListener('wheel', resetInteraction);
+            window.removeEventListener('touchmove', resetInteraction);
             document.removeEventListener('click', handleClickOutside);
             if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
             if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);

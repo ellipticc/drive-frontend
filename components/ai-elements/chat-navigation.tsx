@@ -41,7 +41,7 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
         setIsHovered(true);
 
         if (scrollToMessage) {
-            scrollToMessage(id, 'auto');
+            scrollToMessage(id, 'smooth');
         } else {
             const element = document.getElementById(`message-${id}`);
             if (element) {
@@ -172,6 +172,31 @@ export function ChatScrollNavigation({ messages, scrollToMessage }: ChatScrollNa
                 cancelAnimationFrame(rafRef.current);
                 rafRef.current = null;
             }
+        };
+    }, []);
+
+    // Stop highlighting when clicking elsewhere or scrolling manually
+    useEffect(() => {
+        const resetInteraction = () => {
+            userInteractionRef.current = false;
+        };
+
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (containerRef.current && !containerRef.current.contains(target)) {
+                resetInteraction();
+            }
+        };
+
+        window.addEventListener('wheel', resetInteraction, { passive: true });
+        window.addEventListener('touchmove', resetInteraction, { passive: true });
+        document.addEventListener('click', handleClickOutside);
+
+        return () => {
+            window.removeEventListener('wheel', resetInteraction);
+            window.removeEventListener('touchmove', resetInteraction);
+            document.removeEventListener('click', handleClickOutside);
+            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
         };
     }, []);
 

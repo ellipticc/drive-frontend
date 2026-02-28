@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, JetBrains_Mono, Ubuntu, Space_Grotesk, Inter } from "next/font/google";
+import { Geist_Mono, JetBrains_Mono, Ubuntu, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
@@ -20,15 +20,6 @@ import { InitialLoadingOverlay } from "@/components/initial-loading-overlay";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 
-// Font definitions
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "700"],
-  variable: "--font-sharp-grotesk",
-  display: "swap",
-  preload: true,
-});
-
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -48,14 +39,6 @@ const ubuntu = Ubuntu({
   subsets: ["latin"],
   variable: "--font-ubuntu",
   display: 'swap',
-  preload: true,
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-inter",
-  display: "swap",
   preload: true,
 });
 
@@ -217,7 +200,7 @@ export default function RootLayout({
 
       </head>
       <body
-        className={`${inter.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} antialiased`}
+        className={`${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} antialiased`}
         suppressHydrationWarning
       >
         <InitialLoadingOverlay />
