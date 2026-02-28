@@ -256,7 +256,7 @@ export const ReasoningContent = memo(
         )}
         {...props}
       >
-        <div className="text-muted-foreground/60 font-geist text-sm">
+        <div className="text-muted-foreground/50 font-geist text-[11.5px] leading-relaxed">
           <MarkdownRenderer
             content={children}
             isStreaming={isStreaming}

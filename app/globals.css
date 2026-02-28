@@ -97,6 +97,10 @@
   }
 }
 
+html {
+  font-size: 15px;
+}
+
 :root {
   --font-sans: 'Google Sans', sans-serif;
   --font-geist-sans: 'Google Sans', sans-serif;

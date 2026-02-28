@@ -93,7 +93,7 @@ export const ChainOfThoughtHeader = memo(
           ) : (
             <IconBulb className="size-4" />
           )}
-          <span className="font-medium">
+          <span className="font-medium text-[11.5px]">
             {children ?? label ?? "Thought process"}
           </span>
           {isOpen ? (
@@ -119,9 +119,9 @@ export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
 };
 
 const stepStatusStyles = {
-  active: "text-foreground font-geist text-sm",
-  complete: "text-muted-foreground font-geist text-sm",
-  pending: "text-muted-foreground/50 font-geist text-sm",
+  active: "text-foreground font-geist text-[11.5px]",
+  complete: "text-muted-foreground font-geist text-[11.5px]",
+  pending: "text-muted-foreground/50 font-geist text-[11.5px]",
 };
 
 const getStepIcon = (stepType?: ChainOfThoughtStepProps['stepType']) => {

@@ -191,7 +191,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     }
 
     // Thinking mode supported models
-    const thinkingSupportedModels = ["qwen/qwen3-32b", "openai/gpt-oss-120b"];
+    const thinkingSupportedModels = ["qwen/qwen3-32b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "deepseek-ai/DeepSeek-V3.1"];
     const isThinkingSupported = thinkingSupportedModels.includes(effectiveModel);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -338,7 +338,7 @@ export const EnhancedPromptInput: React.FC<EnhancedPromptInputProps> = ({
     return (
         <div
             className={cn(
-                "relative w-full max-w-4xl mx-auto transition-all duration-300 font-sans",
+                "relative w-full max-w-[52rem] mx-auto transition-all duration-300 font-sans",
                 isDragging && "scale-[1.02]"
             )}
             onDragOver={onDragOver}
