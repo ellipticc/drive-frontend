@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import {
     IconBubbleText,
     IconLoader2,
@@ -189,7 +190,8 @@ const ChatCommandItem = React.memo(function ChatCommandItem({
             className="p-0 outline-none focus-visible:ring-0 data-[selected=true]:bg-transparent data-[selected=true]:text-foreground"
             value={chat.title + " " + chat.id}
         >
-            <div
+            <Link
+                href={`/c/${chat.id}`}
                 className={cn(
                     "w-full cursor-pointer py-[7px] px-3 group relative flex items-center gap-2 rounded-lg outline-none",
                     "transition-colors duration-100",
@@ -201,7 +203,12 @@ const ChatCommandItem = React.memo(function ChatCommandItem({
                 )}
                 onPointerEnter={(e) => { e.stopPropagation(); onHoverStart() }}
                 onPointerLeave={(e) => { e.stopPropagation(); onHoverEnd() }}
-                onClick={(e) => { e.stopPropagation(); onGo() }}
+                onClick={(e) => {
+                    // Prevent default Link behavior if we want to handle it via onGo (which closes dialog)
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onGo();
+                }}
             >
                 <IconBubbleText className="shrink-0 h-[15px] w-[15px] text-muted-foreground/60" />
 
@@ -264,7 +271,7 @@ const ChatCommandItem = React.memo(function ChatCommandItem({
                         </ActionTooltip>
                     </div>
                 </div>
-            </div>
+            </Link>
         </CommandItem>
     )
 })
@@ -320,7 +327,10 @@ export function GlobalSearch({
     const handleHoverStart = React.useCallback((chatId: string) => {
         setHoveredConversationId(chatId)
         if (isExpanded) setPreviewConversationId(chatId) // only fetch when preview visible
-    }, [isExpanded])
+
+        // Manual prefetch on hover to ensure it's ready even if Link's internal prefetch hasn't fired
+        router.prefetch(`/c/${chatId}`)
+    }, [isExpanded, router])
 
     const handleHoverEnd = React.useCallback(() => {
         setHoveredConversationId(null)
