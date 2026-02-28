@@ -10,8 +10,7 @@ const nextConfig: NextConfig = {
   compress: true, // Enable gzip compression
   poweredByHeader: false, // Remove X-Powered-By header for security
   experimental: {
-    optimizeCss: true, // Optimize CSS
-    scrollRestoration: true, // Better navigation performance
+    // optimizeCss: true, // Disable to ensure Webpack
   },
   webpack: (config) => {
     // config.externals.push(

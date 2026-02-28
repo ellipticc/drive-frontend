@@ -76,9 +76,8 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "deploy/*"
+          source: "deploy/"
           target: "/var/www/app-frontend"
-          strip_components: 1
 
       - name: Deploy and Restart via PM2
         uses: appleboy/ssh-action@v1.0.3
@@ -88,30 +87,28 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /var/www/app-frontend
-            echo "Installing production dependencies..."
+            echo "Installing production dependencies on VPS..."
             npm ci --production --legacy-peer-deps
             
-            echo "Reloading application with PM2..."
-            # Check if process exists to decide between start or reload
+            echo "Reloading application with PM2 on port 3005..."
             pm2 describe app-frontend > /dev/null
             if [ $? -eq 0 ]; then
               pm2 reload ecosystem.config.js --update-env
             else
               pm2 start ecosystem.config.js
             fi
-            
             echo "Deployment complete!"
 
       - name: Notify Discord on Success
         if: success()
         run: |
           curl -H "Content-Type: application/json" \
-               -d '{"content": "**SSR Frontend Deployment Successful!**\n**Project:** Ellipticc Drive\n**Mode:** SSR + PM2\n**Status:** Application is live and PM2 has been reloaded."}' \
+               -d '{"content": "**Standard SSR Deployment Successful!**\n**Project:** Ellipticc Drive\n**Port:** 3005\n**Status:** Application is live and PM2 reloaded."}' \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Notify Discord on Failure
         if: failure()
         run: |
           curl -H "Content-Type: application/json" \
-               -d '{"content": "**SSR Frontend Deployment Failed!**\n**Project:** Ellipticc Drive\n**Check Logs:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
+               -d '{"content": "**Standard SSR Deployment Failed!**\n**Check Logs:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
