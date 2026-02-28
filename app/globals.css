@@ -48,6 +48,7 @@
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
   --font-geist-mono: var(--font-geist-mono);
+  --font-inter: var(--font-inter);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -155,6 +156,7 @@ html {
   --text-400: #888888;
   --text-500: #999999;
   --accent-hover: #C6613F;
+  --user-message-bg: oklch(0.9423 0.0097 72.66);
   --ease-silk: cubic-bezier(0.2, 0.0, 0, 1.0);
 }
 
@@ -205,6 +207,7 @@ html {
   --text-400: #8A8A88;
   --text-500: #6B6B65;
   --accent-hover: #E5AA7F;
+  --user-message-bg: oklch(0.3605 0.0078 43.21);
 }
 
 

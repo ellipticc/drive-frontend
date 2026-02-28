@@ -1862,7 +1862,7 @@ export default function AssistantPage() {
 
                 {isInitialLoading || (!isContentReady && messages.length === 0) ? (
                     // LOADING SKELETON - Simple pulsating paragraph (only on initial load)
-                    <div className="flex-1 overflow-y-auto px-4 py-6">
+                    <div className="flex-1 overflow-y-auto px-4 py-6 font-inter text-[12px]">
                         <div className="max-w-4xl mx-auto space-y-2">
                             {/* Pulsating skeleton lines - simulating paragraph text */}
                             <Skeleton className="h-4 w-full animate-pulse" />
@@ -1880,8 +1880,8 @@ export default function AssistantPage() {
                     </div>
                 ) : messages.length === 0 ? (
                     // ZERO STATE: Centered Input
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                        <div className="w-full max-w-4xl mx-auto px-4 space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-4 font-inter text-[12px]">
+                        <div className="w-full max-w-5xl mx-auto px-4 space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
 
                             {/* Greeting / Brand */}
                             <div className="text-center space-y-2">
@@ -1892,7 +1892,7 @@ export default function AssistantPage() {
                             </div>
 
                             {/* Center Input Area */}
-                            <div className="w-full max-w-5xl mx-auto px-4 z-20 mx-auto">
+                            <div className="w-full max-w-5xl mx-auto px-4 z-20">
                                 <EnhancedPromptInput
                                     onSubmit={async (text, files, thinkingMode, searchMode, style) => {
                                         await handleSubmit(text, files, thinkingMode, searchMode, undefined, false, style);
@@ -1926,7 +1926,7 @@ export default function AssistantPage() {
                         <div
                             ref={scrollContainerRef}
                             onScroll={onScroll}
-                            className="flex-1 overflow-y-auto px-4 py-4 min-h-0 max-w-full overflow-x-hidden"
+                            className="flex-1 overflow-y-auto px-4 py-4 min-h-0 max-w-full overflow-x-hidden font-inter text-[13.5px]"
                         >
 
                             {/* Standard List Rendering */}
@@ -1944,7 +1944,7 @@ export default function AssistantPage() {
                                             id={`message-${message.id}`}
                                             className={cn("w-full flex justify-center animate-in fade-in duration-300", spacing)}
                                         >
-                                            <div className="w-full max-w-3xl">
+                                            <div className="w-full max-w-4xl">
                                                 {message.isCheckpoint ? (
                                                     <Checkpoint className="my-4">
                                                         <CheckpointIcon>
@@ -2026,7 +2026,7 @@ export default function AssistantPage() {
                             )}
 
                             <div className="flex justify-center w-full">
-                                <div className="max-w-4xl w-full px-4">
+                                <div className="max-w-5xl w-full px-4">
                                     <EnhancedPromptInput
                                         onSubmit={async (text, files, thinkingMode, searchMode, style) => {
                                             await handleSubmit(text, files, thinkingMode, searchMode, undefined, false, style);

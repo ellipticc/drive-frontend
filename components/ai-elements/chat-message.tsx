@@ -391,8 +391,8 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                                 {parsed.text && (
                                                     <div className="relative group/user-msg w-fit max-w-full">
                                                         <div className={cn(
-                                                            "px-4 py-3 rounded-2xl text-[15px] leading-relaxed shadow-sm font-medium w-fit selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap",
-                                                            "bg-primary text-primary-foreground"
+                                                            "px-4 py-3 rounded-2xl text-[15px] leading-relaxed shadow-sm font-medium w-fit selection:bg-primary-foreground/20 selection:text-inherit break-words whitespace-pre-wrap transition-colors duration-200",
+                                                            "bg-[var(--user-message-bg)] text-foreground dark:text-white"
                                                         )}>
                                                             {parsed.text}
                                                         </div>

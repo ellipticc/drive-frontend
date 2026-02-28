@@ -10,7 +10,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from '@/lib/utils';
-import { IconBulb, IconBulbFilled, IconChevronDown, IconChevronRight, IconDots, IconSearch, IconCode } from "@tabler/icons-react";
+import { IconChevronDown, IconChevronRight, IconDots, IconSearch, IconCode } from "@tabler/icons-react";
 import { createContext, memo, useContext, useMemo } from "react";
 import { CodeBlock } from "./markdown-components";
 
@@ -88,11 +88,9 @@ export const ChainOfThoughtHeader = memo(
           )}
           {...props}
         >
-          {isOpen ? (
-            <IconBulbFilled className="size-4 text-primary animate-pulse" />
-          ) : (
-            <IconBulb className="size-4" />
-          )}
+          <div className="relative flex items-center h-4">
+            {isOpen && <div className="absolute top-5 bottom-[-12px] left-1/2 -mx-px w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />}
+          </div>
           <span className="font-medium text-[11.5px]">
             {children ?? label ?? "Thought process"}
           </span>
@@ -126,13 +124,13 @@ const stepStatusStyles = {
 
 const getStepIcon = (stepType?: ChainOfThoughtStepProps['stepType']) => {
   switch (stepType) {
-    case 'search':
+    case 'searching':
       return IconSearch;
     case 'code':
       return IconCode;
     case 'thinking':
     case 'think':
-      return IconBulb;
+      return IconDots;
     default:
       return IconDots;
   }
@@ -166,12 +164,12 @@ export const ChainOfThoughtStep = memo(
       >
         <div className="relative mt-0.5 flex flex-col items-center">
           <div className={cn(
-            "p-1 rounded-full bg-muted/50 border border-border/50",
-            status === 'active' && "bg-primary/10 border-primary/20 text-primary"
+            "p-1 rounded-full",
+            status === 'active' && "text-primary"
           )}>
-            <DefaultIcon className="size-3.5" />
+            <DefaultIcon className="size-3.5 opacity-60" />
           </div>
-          <div className="flex-1 w-px bg-border/30 mt-1" />
+          <div className="flex-1 w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors mt-1" />
         </div>
         <div className="flex-1 min-w-0 pb-4">
           <div className="font-medium leading-tight">{label}</div>

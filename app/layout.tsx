@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, JetBrains_Mono, Ubuntu } from "next/font/google";
+import { Geist_Mono, JetBrains_Mono, Ubuntu, Inter } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
@@ -26,6 +26,13 @@ const geistMono = Geist_Mono({
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  display: 'swap',
+  preload: true,
+});
+
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
   display: 'swap',
   preload: true,
@@ -197,7 +204,7 @@ export default function RootLayout({
 
       </head>
       <body
-        className={`${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} antialiased`}
+        className={`${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} ${inter.variable} antialiased`}
         suppressHydrationWarning
       >
         <InitialLoadingOverlay />
