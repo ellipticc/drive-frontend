@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams, useParams } from "next/navigation"
 import Link from "next/link"
 import {
   IconHistory,
@@ -147,7 +147,9 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [dropdownOpen, setDropdownOpen] = React.useState(false)
 
-  const isActive = currentConversationId === chat.id
+  const params = useParams()
+  const pathConversationId = params?.conversationId as string
+  const isActive = (currentConversationId === chat.id) || (pathConversationId === chat.id)
 
 
 
@@ -305,7 +307,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
               <p className="text-xs text-destructive mt-1">Title cannot be empty</p>
             )}
           </div>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="flex flex-row justify-end gap-2">
             <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
               Cancel
             </Button>

@@ -1893,7 +1893,7 @@ export default function AssistantPage() {
                             </div>
 
                             {/* Center Input Area */}
-                            <div className="w-full max-w-3xl mx-auto px-4 z-20">
+                            <div className="w-full max-w-[64rem] mx-auto px-4 z-20">
                                 <EnhancedPromptInput
                                     onSubmit={async (text, files, thinkingMode, searchMode, style) => {
                                         await handleSubmit(text, files, thinkingMode, searchMode, undefined, false, style);
@@ -1923,24 +1923,7 @@ export default function AssistantPage() {
                 ) : (
 
                     // CHAT STATE: Scrollable Messages + Sticky Bottom Input
-                    <div className="flex flex-col h-full w-full relative">
-                        <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b overflow-x-hidden">
-                            <div className="max-w-4xl mx-auto px-4">
-                                <SiteHeader
-                                    sticky={true}
-                                    customTitle={
-                                        displayedTitle ? (
-                                            <h1 className="text-sm font-medium truncate max-w-[200px] md:max-w-md">
-                                                {displayedTitle}
-                                            </h1>
-                                        ) : (
-                                            <h1 className="text-sm font-medium">Chat</h1>
-                                        )
-                                    }
-                                />
-                            </div>
-                        </div>
-
+                    <>
                         <div
                             ref={scrollContainerRef}
                             onScroll={onScroll}
@@ -1965,10 +1948,7 @@ export default function AssistantPage() {
                                                 spacing
                                             )}
                                         >
-                                            <div className={cn(
-                                                "w-full",
-                                                message.role === 'assistant' ? "max-w-2xl px-4" : "max-w-3xl px-4"
-                                            )}>
+                                            <div className="w-full max-w-[64rem]">
                                                 {message.isCheckpoint ? (
                                                     <Checkpoint className="my-4">
                                                         <CheckpointIcon>
@@ -2019,8 +1999,7 @@ export default function AssistantPage() {
                                             </div>
                                         </div>
                                     );
-                                })
-                                }
+                                })}
                                 {/* Scroll Anchor */}
                                 <div ref={scrollEndRef} className="h-1 w-full" />
                             </div>
@@ -2050,7 +2029,7 @@ export default function AssistantPage() {
                             )}
                             {/* Input Area (Sticky Bottom for Chat) */}
                             <div className="sticky bottom-0 z-40 bg-background/0 w-full pb-6 px-4">
-                                <div className="max-w-3xl mx-auto">
+                                <div className="max-w-[64rem] mx-auto">
                                     <EnhancedPromptInput
                                         onSubmit={async (text, files, thinkingMode, searchMode, style) => {
                                             await handleSubmit(text, files, thinkingMode, searchMode, undefined, false, style);
@@ -2083,19 +2062,19 @@ export default function AssistantPage() {
                             messages={messages}
                             scrollToMessage={scrollToMessage}
                         />
-                    </div>
+                    </>
                 )}
-
-                <FeedbackModal
-                    isOpen={isFeedbackModalOpen}
-                    onOpenChange={setIsFeedbackModalOpen}
-                    messageId={feedbackMessageId}
-                    initialRating={feedbackRating}
-                    promptContext={feedbackPromptContext}
-                    responseContext={feedbackResponseContext}
-                    onSubmit={submitFeedback}
-                />
             </div>
+
+            <FeedbackModal
+                isOpen={isFeedbackModalOpen}
+                onOpenChange={setIsFeedbackModalOpen}
+                messageId={feedbackMessageId}
+                initialRating={feedbackRating}
+                promptContext={feedbackPromptContext}
+                responseContext={feedbackResponseContext}
+                onSubmit={submitFeedback}
+            />
 
             {/* Rename Dialog */}
             <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>

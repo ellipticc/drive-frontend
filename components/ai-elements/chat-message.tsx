@@ -629,7 +629,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                             </div>
                         )}
 
-                        <div className="text-foreground text-sm leading-relaxed font-geist tracking-tight">
+                        <div className="text-foreground leading-relaxed font-geist tracking-tight">
                             <MarkdownRenderer content={displayRes.content} isStreaming={message.isThinking} />
                         </div>
                     </div>
