@@ -76,44 +76,30 @@ export function formatFileSize(bytes: number, decimals: number = 2): string {
  * - different year: "22 December 2025"
  */
 export function formatRelativeTime(dateInput: string | Date | number): string {
-    const date = new Date(dateInput);
-    if (isNaN(date.getTime())) return '';
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const sec = Math.floor(diffMs / 1000);
-    if (sec < 60) {
-        return `${sec} second${sec === 1 ? '' : 's'} ago`;
-    }
-    const min = Math.floor(sec / 60);
-    if (min < 60) {
-        return `${min} minute${min === 1 ? '' : 's'} ago`;
-    }
-    const hr = Math.floor(min / 60);
-    if (hr < 24) {
-        return `${hr} hour${hr === 1 ? '' : 's'} ago`;
-    }
-    const year = date.getFullYear();
-    const monthNames = [
-        'January','February','March','April','May','June','July','August','September','October','November','December'
-    ];
-    const month = monthNames[date.getMonth()];
-    const day = date.getDate();
-    if (year === now.getFullYear()) {
-        return `${day} ${month}`;
-    }
-    return `${day} ${month} ${year}`;
-}
-
-import { useState, useEffect } from 'react';
-
-/**
- * React hook that returns a formatted relative time string and updates regularly.
- */
-export function useRelativeTime(dateInput: string | Date | number): string {
-    const [now, setNow] = useState(new Date());
-    useEffect(() => {
-        const interval = setInterval(() => setNow(new Date()), 1000);
-        return () => clearInterval(interval);
-    }, []);
-    return formatRelativeTime(dateInput);
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return '';
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const sec = Math.floor(diffMs / 1000);
+  if (sec < 60) {
+    return `${sec} second${sec === 1 ? '' : 's'} ago`;
+  }
+  const min = Math.floor(sec / 60);
+  if (min < 60) {
+    return `${min} minute${min === 1 ? '' : 's'} ago`;
+  }
+  const hr = Math.floor(min / 60);
+  if (hr < 24) {
+    return `${hr} hour${hr === 1 ? '' : 's'} ago`;
+  }
+  const year = date.getFullYear();
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const month = monthNames[date.getMonth()];
+  const day = date.getDate();
+  if (year === now.getFullYear()) {
+    return `${day} ${month}`;
+  }
+  return `${day} ${month} ${year}`;
 }

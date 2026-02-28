@@ -13,7 +13,8 @@ import {
     IconMessageCircleOff,
     IconCopy,
 } from "@tabler/icons-react"
-import { useRelativeTime, cn } from "@/lib/utils"
+import { cn } from "@/lib/utils"
+import { useRelativeTime } from "@/hooks/use-relative-time"
 import { sortChatsByLastMessage } from "@/lib/chat-utils"
 import type { ChatType } from "@/components/layout/navigation/nav-assistant"
 import {
