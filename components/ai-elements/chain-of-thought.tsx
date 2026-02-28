@@ -10,7 +10,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from '@/lib/utils';
-import { IconBulb, IconBulbFilled, IconChevronDown, IconChevronRight, IconDots, IconSearch, IconCode } from "@tabler/icons-react";
+import { IconBulb, IconBulbFilled, IconChevronDown, IconCheck, IconChevronRight, IconDots, IconSearch, IconCode } from "@tabler/icons-react";
 import { createContext, memo, useContext, useMemo } from "react";
 import { CodeBlock } from "./markdown-components";
 
@@ -116,6 +116,7 @@ export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
   stdout?: string;
   status?: "complete" | "active" | "pending";
   stepType?: "thinking" | "search" | "code" | "think" | "searching" | "default";
+  isLast?: boolean;
 };
 
 const stepStatusStyles = {
@@ -150,46 +151,78 @@ export const ChainOfThoughtStep = memo(
     status = "complete",
     stepType,
     children,
+    isLast = false,
     ...props
   }: ChainOfThoughtStepProps) => {
+    const isCompleted = status === "complete";
+    const isActive = status === "active";
     const DefaultIcon = Icon || getStepIcon(stepType);
 
     return (
       <div
         className={cn(
-          "flex gap-3 text-sm",
+          "flex relative text-sm group",
           stepStatusStyles[status],
           "fade-in-0 slide-in-from-top-1 animate-in duration-300",
           className
         )}
         {...props}
       >
-        <div className="relative mt-0.5 flex flex-col items-center">
-          <div className={cn(
-            "p-1 rounded-full bg-muted/50 border border-border/50",
-            status === 'active' && "bg-primary/10 border-primary/20 text-primary"
-          )}>
-            <DefaultIcon className="size-3.5" />
-          </div>
-          <div className="flex-1 w-px bg-border/30 mt-1" />
-        </div>
-        <div className="flex-1 min-w-0 pb-4">
-          <div className="font-medium leading-tight">{label}</div>
-          {description && (
-            <div className="text-muted-foreground/80 text-xs mt-1 leading-relaxed">{description}</div>
-          )}
-          {(content || code || stdout || children) && (
-            <div className="mt-3 space-y-3">
-              {content && (
-                <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                  {content}
-                </div>
+        {/* Vertical connector line */}
+        {!isLast && (
+          <div
+            className="absolute left-[9px] top-[24px] bottom-0 w-[1px] bg-border/40 group-last:hidden"
+            aria-hidden="true"
+          />
+        )}
+
+        <div className="flex gap-4 w-full">
+          {/* Leading icon section */}
+          <div className="relative z-10 flex-shrink-0 mt-0.5">
+            <div className={cn(
+              "flex h-[18px] w-[18px] items-center justify-center rounded-md border text-muted-foreground bg-background",
+              isCompleted && "bg-muted/50 text-foreground border-border/60",
+              isActive && "border-primary/40 bg-primary/5 text-primary",
+              "transition-colors duration-200"
+            )}>
+              {Icon ? (
+                <Icon className="h-3 w-3" />
+              ) : isCompleted ? (
+                <IconCheck className="h-2.5 w-2.5" />
+              ) : isActive ? (
+                <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+              ) : (
+                <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
               )}
-              {code && <CodeBlock code={code} language="python" />}
-              {stdout && <CodeBlock code={stdout} language="plain" />}
-              {children}
             </div>
-          )}
+          </div>
+
+          {/* Content section */}
+          <div className="flex-1 min-w-0 pb-4 pr-2">
+            <div className="flex flex-col">
+              <span className="font-semibold text-foreground/90 leading-tight">
+                {label}
+              </span>
+              {description && (
+                <span className="text-muted-foreground/70 text-xs mt-0.5 leading-relaxed">
+                  {description}
+                </span>
+              )}
+            </div>
+
+            {(content || code || stdout || children) && (
+              <div className="mt-3 space-y-3 pl-1">
+                {content && (
+                  <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap text-[13px]">
+                    {content}
+                  </div>
+                )}
+                {code && <CodeBlock code={code} language="python" />}
+                {stdout && <CodeBlock code={stdout} language="plain" />}
+                {children}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );

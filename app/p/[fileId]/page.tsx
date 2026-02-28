@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef, Suspense, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect, Suspense, useState, useCallback, useRef, useMemo } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { masterKeyManager } from "@/lib/master-key";
 import { IconLoader2, IconCloudCheck, IconHistory, IconEdit, IconFolderSymlink, IconTrash, IconCopy, IconFileText, IconPrinter, IconDownload, IconHelp, IconHome, IconStackFilled, IconLetterCase, IconChevronUp, IconChevronDown, IconLayoutSidebar, IconAbc, IconSparkles } from "@tabler/icons-react";
@@ -15,7 +15,6 @@ import {
     DropdownMenuSub,
     DropdownMenuSubContent,
     DropdownMenuSubTrigger,
-    DropdownMenuCheckboxItem,
     DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -161,7 +160,7 @@ function PaperHeader({
     const [titleMenuOpen, setTitleMenuOpen] = useState(false);
 
     // Calculate word count stats
-    const stats = useMemo(() => countWords(editorValue), [editorValue]);
+    const stats = React.useMemo(() => countWords(editorValue), [editorValue]);
 
     // Focus input when renaming mode starts
     useEffect(() => {
@@ -284,19 +283,17 @@ function PaperHeader({
                                 </DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent>
                                     <div className="px-4 py-3 space-y-3 text-sm min-w-[180px]">
-                                        <div className="space-y-2 text-muted-foreground">
-                                            <div className="flex justify-between gap-6">
-                                                <span className="font-medium">Words</span>
-                                                <span className="font-semibold text-foreground text-base">{stats.words.toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex justify-between gap-6">
-                                                <span className="font-medium">Characters</span>
-                                                <span className="font-semibold text-foreground text-base">{stats.characters.toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex justify-between gap-6">
-                                                <span className="font-medium">No Spaces</span>
-                                                <span className="font-semibold text-foreground text-base">{stats.charactersNoSpaces.toLocaleString()}</span>
-                                            </div>
+                                        <div className="flex justify-between gap-6">
+                                            <span className="font-medium">Words</span>
+                                            <span className="font-semibold text-foreground text-base">{stats.words.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between gap-6">
+                                            <span className="font-medium">Characters</span>
+                                            <span className="font-semibold text-foreground text-base">{stats.characters.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between gap-6">
+                                            <span className="font-medium">No Spaces</span>
+                                            <span className="font-semibold text-foreground text-base">{stats.charactersNoSpaces.toLocaleString()}</span>
                                         </div>
                                         <DropdownMenuSeparator className="-mx-1" />
                                         <div className="px-4 py-2 flex items-center justify-between">
@@ -530,7 +527,7 @@ function PaperEditorView({
     }, [wordCountExpanded]);
 
     // Calculate stats for word count display
-    const stats = useMemo(() => countWords(editorValue), [editorValue]);
+    const stats = React.useMemo(() => countWords(editorValue), [editorValue]);
 
     const editor = usePlateEditor({
         plugins: EditorKit,
@@ -787,16 +784,19 @@ function PaperEditorView({
 }
 
 function PaperPageContent() {
-    const searchParams = useSearchParams();
     const router = useRouter();
-    const fileId = searchParams.get('fileId');
+    const params = useParams();
+    const searchParams = useSearchParams();
+
+    // Support both dynamic route [fileId] and legacy query param ?fileId=
+    const fileId = (params?.fileId as string) || searchParams.get('fileId');
     const [isMounted, setIsMounted] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isUnsaved, setIsUnsaved] = useState(false);
+    const [content, setContent] = useState<Value>([{ type: 'h1', children: [{ text: '' }] }]);
     const [historyOpen, setHistoryOpen] = useState(false);
     const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
-    const [content, setContent] = useState<Value | undefined>(undefined);
     const [paperTitle, setPaperTitle] = useState<string>("Untitled Paper");
     const [showWordCount, setShowWordCount] = useState(false);
 

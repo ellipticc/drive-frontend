@@ -59,7 +59,7 @@ export const AppSidebar = React.memo(function AppSidebar({
   const { t } = useLanguage()
   const { handleFileUpload, handleFolderUpload } = useGlobalUpload()
   const { user: contextUser, loading: userLoading } = useUser()
-  const { toggleSidebar, state, isMobile } = useSidebar()
+  const { toggleSidebar, state, isMobile, setOpenMobile } = useSidebar()
   const { chats, renameChat, pinChat, deleteChat, archiveChat } = useAICrypto();
   const chatActions = React.useMemo(() => ({ renameChat, pinChat, deleteChat, archiveChat }), [renameChat, pinChat, deleteChat, archiveChat]);
   const [searchOpen, setSearchOpen] = React.useState(false)
@@ -106,6 +106,13 @@ export const AppSidebar = React.memo(function AppSidebar({
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
   }, [router])
+
+  // Close sidebar on mobile after navigation
+  React.useEffect(() => {
+    if (isMobile && state === "expanded") {
+      setOpenMobile(false);
+    }
+  }, [pathname, isMobile, state]);
 
   const isChat = pathname === '/' || pathname === '/new' || pathname.startsWith('/c/') || pathname.startsWith('/paper') || pathname.startsWith('/p/');
 

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { useRouter, usePathname, useSearchParams, useParams } from "next/navigation"
 import Link from "next/link"
 import { IconChevronDown, IconLoader2, IconStackFilled } from "@tabler/icons-react"
 import {
@@ -10,6 +10,7 @@ import {
     SidebarMenuSubButton,
     SidebarMenuItem,
     SidebarMenuButton,
+    SidebarGroup,
     useSidebar,
 } from "@/components/ui/sidebar"
 import { Kbd } from "@/components/ui/kbd"
@@ -27,6 +28,7 @@ export function NavDrafts({ item }: { item: any }) {
     const { state, toggleSidebar } = useSidebar()
     const { t } = useLanguage()
 
+    const params = useParams()
     const [isOpen, setIsOpen] = React.useState(() => {
         if (typeof window !== "undefined") {
             return sessionStorage.getItem("drafts-expanded") === "true"
@@ -116,8 +118,6 @@ export function NavDrafts({ item }: { item: any }) {
         sessionStorage.setItem("drafts-expanded", String(nextState))
     }
 
-
-
     return (
         <SidebarMenuItem>
             <SidebarMenuButton
@@ -181,27 +181,30 @@ export function NavDrafts({ item }: { item: any }) {
                             {t("sidebar.loading")}
                         </div>
                     ) : papers.length > 0 ? (
-                        papers.map((paper) => (
-                            <SidebarMenuSubItem key={paper.id}>
-                                <Tooltip delayDuration={500}>
-                                    <TooltipTrigger asChild>
-                                        <SidebarMenuSubButton
-                                            asChild
-                                            isActive={searchParams.get('fileId') === paper.id}
-                                            className="cursor-pointer flex items-center gap-2"
-                                        >
-                                            <Link href={`/paper?fileId=${paper.id}`}>
-                                                <IconStackFilled className="size-3.5 text-blue-500 !text-blue-500 shrink-0" />
-                                                <span className="truncate text-xs font-medium">{paper.name}</span>
-                                            </Link>
-                                        </SidebarMenuSubButton>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="right" className="max-w-[200px] break-words">
-                                        {paper.name}
-                                    </TooltipContent>
-                                </Tooltip>
-                            </SidebarMenuSubItem>
-                        ))
+                        papers.map((paper) => {
+                            const activeId = params?.fileId as string;
+                            return (
+                                <SidebarMenuSubItem key={paper.id}>
+                                    <Tooltip delayDuration={500}>
+                                        <TooltipTrigger asChild>
+                                            <SidebarMenuSubButton
+                                                asChild
+                                                isActive={activeId === paper.id}
+                                                className="cursor-pointer flex items-center gap-2"
+                                            >
+                                                <Link href={`/p/${paper.id}`}>
+                                                    <IconStackFilled className="size-3.5 text-blue-500 !text-blue-500 shrink-0" />
+                                                    <span className="truncate text-xs font-medium">{paper.name}</span>
+                                                </Link>
+                                            </SidebarMenuSubButton>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right" className="max-w-[200px] break-words">
+                                            {paper.name}
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </SidebarMenuSubItem>
+                            )
+                        })
                     ) : (
                         <div className="px-2 py-1 text-[10px] text-muted-foreground/60 italic">
                             {t("sidebar.empty")}

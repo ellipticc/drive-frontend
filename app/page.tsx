@@ -243,26 +243,11 @@ export default function AssistantPage() {
         setIsStarred(!!currentChat.pinned);
         document.title = `${newTitle} | Ellipticc`;
 
-        // Only run typing animation if title actually changed
-        if (newTitle !== prevTitleRef.current) {
-            setIsTypingTitle(true);
-            let i = 0;
-            setDisplayedTitle("");
-            const interval = setInterval(() => {
-                setDisplayedTitle(newTitle.substring(0, i + 1));
-                i++;
-                if (i >= newTitle.length) {
-                    clearInterval(interval);
-                    setIsTypingTitle(false);
-                }
-            }, 30);
-            prevTitleRef.current = newTitle;
-            return () => clearInterval(interval);
-        } else {
-            setDisplayedTitle(newTitle);
-            setIsTypingTitle(false);
-        }
-    }, [conversationId, chats, chatTitle]);
+        // Update immediately to avoid header lag on navigation
+        setDisplayedTitle(newTitle);
+        setIsTypingTitle(false);
+        prevTitleRef.current = newTitle;
+    }, [conversationId, chats]);
 
     const scrollToMessage = (messageId: string, behavior: ScrollBehavior = 'smooth') => {
         const element = document.getElementById(`message-${messageId}`);
@@ -1864,7 +1849,7 @@ export default function AssistantPage() {
                 {isInitialLoading || (!isContentReady && messages.length === 0) ? (
                     // LOADING SKELETON - Simple pulsating paragraph (only on initial load)
                     <div className="flex-1 overflow-y-auto px-4 py-6">
-                        <div className="max-w-[64rem] mx-auto space-y-2">
+                        <div className="max-w-[44rem] mx-auto space-y-2">
                             {/* Pulsating skeleton lines - simulating paragraph text */}
                             <Skeleton className="h-4 w-full animate-pulse" />
                             <Skeleton className="h-4 w-[95%] animate-pulse" style={{ animationDelay: '100ms' }} />
@@ -1882,7 +1867,7 @@ export default function AssistantPage() {
                 ) : messages.length === 0 ? (
                     // ZERO STATE: Centered Input
                     <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                        <div className="w-full max-w-[64rem] mx-auto px-4 space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
+                        <div className="w-full max-w-[44rem] mx-auto px-4 space-y-8 animate-in fade-in zoom-in-95 duration-500 slide-in-from-bottom-4">
 
                             {/* Greeting / Brand */}
                             <div className="text-center space-y-2">
@@ -1893,7 +1878,7 @@ export default function AssistantPage() {
                             </div>
 
                             {/* Center Input Area */}
-                            <div className="w-full max-w-[64rem] mx-auto px-4 z-20">
+                            <div className="w-full max-w-[44rem] mx-auto px-4 z-20">
                                 <EnhancedPromptInput
                                     onSubmit={async (text, files, thinkingMode, searchMode, style) => {
                                         await handleSubmit(text, files, thinkingMode, searchMode, undefined, false, style);
@@ -1948,7 +1933,7 @@ export default function AssistantPage() {
                                                 spacing
                                             )}
                                         >
-                                            <div className="w-full max-w-[64rem]">
+                                            <div className="w-full max-w-[44rem]">
                                                 {message.isCheckpoint ? (
                                                     <Checkpoint className="my-4">
                                                         <CheckpointIcon>
@@ -2007,7 +1992,7 @@ export default function AssistantPage() {
 
                         {/* Sticky Input Footer - Centered with consistent max-width */}
                         <div
-                            className="sticky bottom-0 z-40 w-full bg-background/95 pb-4 pt-0 transition-all duration-300 ease-in-out"
+                            className="sticky bottom-0 z-40 w-full bg-background pb-2 pt-0 transition-all duration-300 ease-in-out"
                         >
                             {/* Scroll to Bottom Button - Absolute to top of footer */}
                             {showScrollToBottom && (
@@ -2028,8 +2013,8 @@ export default function AssistantPage() {
                                 </div>
                             )}
                             {/* Input Area (Sticky Bottom for Chat) */}
-                            <div className="sticky bottom-0 z-40 bg-background/0 w-full pb-6 px-4">
-                                <div className="max-w-[64rem] mx-auto">
+                            <div className="w-full pb-4 px-4">
+                                <div className="max-w-[44rem] mx-auto">
                                     <EnhancedPromptInput
                                         onSubmit={async (text, files, thinkingMode, searchMode, style) => {
                                             await handleSubmit(text, files, thinkingMode, searchMode, undefined, false, style);
@@ -2051,7 +2036,7 @@ export default function AssistantPage() {
                                         toolResultTokens={contextBreakdown?.toolResultTokens || 0}
                                     />
                                     {/* Disclaimer Text */}
-                                    <p className="text-xs text-center text-muted-foreground mt-2 select-none" aria-hidden="false">
+                                    <p className="text-[11px] text-center text-muted-foreground/60 mt-2 select-none" aria-hidden="false">
                                         While we strive for accuracy, the AI may occasionally get things wrong.
                                     </p>
                                 </div>
