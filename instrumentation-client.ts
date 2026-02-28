@@ -4,6 +4,13 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { initFrontendTelemetry } from "./lib/telemetry";
+import posthog from 'posthog-js';
+
+// PostHog initialization
+posthog.init('phc_uW5RylxF4E47GbvWfWejp5o3MA8pBTksAUbcWYxeWu', {
+  api_host: 'https://eu.i.posthog.com',
+  defaults: '2026-01-30'
+})
 
 // Initialize OpenTelemetry FIRST (before Sentry)
 initFrontendTelemetry();

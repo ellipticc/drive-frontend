@@ -88,6 +88,9 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /var/www/app-frontend
+            echo "Cleaning up node_modules to ensure fresh install..."
+            rm -rf node_modules
+            
             echo "Installing production dependencies on VPS..."
             npm ci --production --legacy-peer-deps
             

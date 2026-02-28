@@ -165,6 +165,7 @@
     "pkijs": "^3.3.3",
     "platejs": "^52.0.17",
     "postcss": "^8.5.6",
+    "posthog-js": "^1.154.0",
     "pvutils": "^1.1.5",
     "qrcode": "^1.5.4",
     "radix-ui": "^1.4.3",

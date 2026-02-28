@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, JetBrains_Mono, Ubuntu, Space_Grotesk } from "next/font/google";
+import { Geist_Mono, JetBrains_Mono, Ubuntu } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
@@ -8,12 +8,9 @@ import { UserProvider } from "@/components/user-context";
 import { GlobalUploadProvider } from "@/components/global-upload-context";
 import { CurrentFolderProvider } from "@/components/current-folder-context";
 import { ConditionalLayout } from "@/components/layout/conditional-layout";
-
 import { NotificationProvider } from "@/components/notifications/notification-provider";
 import { LanguageProvider } from "@/lib/i18n/language-context";
-
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
-
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DOMErrorBoundary } from "@/components/error-boundary-dom";
 import { InitialLoadingOverlay } from "@/components/initial-loading-overlay";
