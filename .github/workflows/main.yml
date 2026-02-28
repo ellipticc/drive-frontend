@@ -67,7 +67,7 @@ jobs:
           cp -r public deploy/
           cp package.json deploy/
           cp package-lock.json deploy/
-          cp next.config.ts deploy/
+          cp next.config.mjs deploy/
           cp ecosystem.config.js deploy/
 
       - name: Sync bundle to VPS
