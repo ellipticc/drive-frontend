@@ -318,13 +318,12 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
         <div
             id={message.id}
             className={cn(
-                "flex w-full gap-3 group scroll-mt-24", // optimized scroll margin for sticky header
-                isUser ? "justify-end" : "justify-start"
+                "flex w-full gap-3 group scroll-mt-24 justify-center" // optimized scroll margin for sticky header
             )}>
 
             {/* Message Content */}
             <div className={cn(
-                "flex flex-col min-w-0 transition-all duration-200 w-full max-w-3xl",
+                "flex flex-col min-w-0 transition-all duration-200 w-full max-w-[46rem]",
                 isUser
                     ? (isEditingPrompt ? "items-start !max-w-[none]" : "items-end ml-auto")
                     : "items-start"
