@@ -219,7 +219,7 @@ export const ReasoningTrigger = memo(
               ) : (
                 <IconBulb className="size-3.5 text-neutral-400 dark:text-stone-500 transition-colors" />
               )}
-              {isOpen && <div className="absolute top-5 bottom-[-16px] left-1/2 -mx-px w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />}
+              {isOpen && <div className="absolute top-5 bottom-[-16px] left-[6px] w-[1.5px] bg-border transition-colors rounded-sm" />}
             </div>
             <div className="flex-1">
               {getThinkingMessage(isStreaming, duration, tokenCount, thinkingType)}
@@ -256,8 +256,8 @@ export const ReasoningContent = memo(
         )}
         {...props}
       >
-        <div className="relative pl-[26px] text-neutral-400 dark:text-stone-500 font-geist text-[13px] leading-relaxed">
-          <div className="absolute left-[7px] top-0 bottom-0 w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />
+        <div className="relative pl-[26px] text-neutral-400 dark:text-stone-500 [&_*]:text-neutral-400 [&_*]:dark:text-stone-500 font-geist text-[12.5px] leading-relaxed">
+          <div className="absolute left-[6px] top-0 bottom-0 w-[1.5px] bg-border transition-colors rounded-sm" />
           <MarkdownRenderer
             content={children}
             isStreaming={isStreaming}

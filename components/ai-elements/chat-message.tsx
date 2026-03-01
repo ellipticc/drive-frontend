@@ -324,10 +324,10 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
 
             {/* Message Content */}
             <div className={cn(
-                "flex flex-col min-w-0 transition-all duration-200",
+                "flex flex-col min-w-0 transition-all duration-200 w-full max-w-3xl",
                 isUser
-                    ? (isEditingPrompt ? "w-full max-w-full items-start !max-w-[none]" : "items-end max-w-[85%]")
-                    : "items-start flex-1 max-w-[46rem]"
+                    ? (isEditingPrompt ? "items-start !max-w-[none]" : "items-end ml-auto")
+                    : "items-start"
             )}>
                 {isUser ? (
                     // ... User Message Render ...
@@ -391,7 +391,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                                                 {parsed.text && (
                                                     <div className="relative group/user-msg w-fit max-w-full">
                                                         <div className={cn(
-                                                            "px-4 py-3 rounded-2xl text-[15px] leading-relaxed shadow-sm font-medium w-fit selection:bg-[var(--user-message-selection)] selection:text-inherit break-words whitespace-pre-wrap transition-colors duration-200",
+                                                            "px-4 py-3 rounded-2xl text-[14px] leading-relaxed shadow-sm font-medium w-fit selection:bg-[var(--user-message-selection)] selection:text-inherit break-words whitespace-pre-wrap transition-colors duration-200",
                                                             "bg-[var(--user-message-bg)] text-foreground/90 dark:text-white/90"
                                                         )}>
                                                             {parsed.text}

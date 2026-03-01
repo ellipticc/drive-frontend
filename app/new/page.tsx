@@ -1753,12 +1753,12 @@ export default function AssistantPage() {
                         disabled={isTypingTitle || displayedTitle === "New Chat"}
                     >
                         <span className="truncate">
-                            {displayedTitle}
+                            {displayedTitle || chatTitle || "..."}
                         </span>
                     </Button>
 
                     {/* Chevron immediately adjacent and shares hover via group-control */}
-                    {(!isTypingTitle && displayedTitle && displayedTitle !== "New Chat") && (
+                    {(!!conversationId) && (
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-6 text-muted-foreground/70 rounded-md transition-colors hover:bg-sidebar-accent/20 dark:hover:bg-sidebar-accent/30 group-hover/control:bg-sidebar-accent/20">
@@ -1798,7 +1798,7 @@ export default function AssistantPage() {
     );
 
     // Chat Header Actions - Pin, New Chat, Context indicator, three-dots menu
-    const ChatHeaderActions = (!isTypingTitle && displayedTitle && displayedTitle !== "New Chat") ? (
+    const ChatHeaderActions = (!!conversationId) ? (
         <div className="flex items-center gap-1">
 
             {/* Three-dots menu */}

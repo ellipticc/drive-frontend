@@ -205,7 +205,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
         >
           <Link href={`/c/${chat.id}`}>
             <div className="flex items-center w-full relative">
-              <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight group-hover/chat-item:[mask-image:linear-gradient(to_right,black_70%,transparent_90%)]" />
+              <SmartTruncatedTooltip text={chat.title} className="flex-1 min-w-0 font-medium tracking-tight" />
 
               {/* Actions dropdown on hover */}
               <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/chat-item:opacity-100 focus-within:opacity-100 transition-opacity flex items-center bg-transparent">
@@ -215,7 +215,7 @@ function ChatItem({ chat, actions }: { chat: ChatType; actions: ChatActions }) {
                       <DropdownMenuTrigger asChild>
                         <div
                           role="button"
-                          className="flex items-center justify-center size-5 hover:bg-black/10 dark:hover:bg-white/10 rounded-sm text-sidebar-foreground/80 hover:text-sidebar-foreground cursor-pointer"
+                          className="flex items-center justify-center size-5 rounded-sm text-sidebar-foreground/80 hover:text-sidebar-foreground cursor-pointer"
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                         >
                           <IconDotsVertical className="size-4" />
@@ -406,8 +406,8 @@ export function NavPinned({ onSearchOpen, chats, actions }: NavProps) {
             }
           }}
           className={cn(
-            "flex items-center justify-center rounded-sm transition-colors",
-            state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer'
+            "flex items-center justify-center rounded-sm transition-colors text-sidebar-foreground/80 hover:text-sidebar-foreground",
+            state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'transition-colors cursor-pointer'
           )}
         >
           {isHovered && state !== "collapsed" ? (
@@ -496,8 +496,8 @@ export function NavHistory({ onSearchOpen, chats, actions }: NavProps) {
             }
           }}
           className={cn(
-            "flex items-center justify-center rounded-sm transition-colors",
-            state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer'
+            "flex items-center justify-center rounded-sm transition-colors text-sidebar-foreground/80 hover:text-sidebar-foreground",
+            state === 'collapsed' ? 'cursor-default pointer-events-auto' : 'transition-colors cursor-pointer'
           )}
         >
           {isHovered && state !== "collapsed" ? (
