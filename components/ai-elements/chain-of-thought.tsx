@@ -83,18 +83,18 @@ export const ChainOfThoughtHeader = memo(
       <Collapsible onOpenChange={setIsOpen} open={isOpen}>
         <CollapsibleTrigger
           className={cn(
-            "flex items-center gap-1.5 text-neutral-300 dark:text-stone-500 text-sm transition-colors hover:text-neutral-400 dark:hover:text-stone-400 group",
+            "flex items-center gap-1.5 text-neutral-400 dark:text-stone-500 text-sm transition-colors hover:text-neutral-500 dark:hover:text-stone-400 group",
             className
           )}
           {...props}
         >
           <div className="relative flex items-center h-4">
             {isOpen ? (
-              <IconBulbFilled className="size-3.5 text-neutral-300 dark:text-stone-500 transition-colors" />
+              <IconBulbFilled className="size-3.5 text-neutral-400 dark:text-stone-500 transition-colors" />
             ) : (
-              <IconBulb className="size-3.5 text-neutral-300 dark:text-stone-500 transition-colors" />
+              <IconBulb className="size-3.5 text-neutral-400 dark:text-stone-500 transition-colors" />
             )}
-            {isOpen && <div className="absolute top-5 bottom-[-12px] left-1/2 -mx-px w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />}
+            {isOpen && <div className="absolute top-5 bottom-[-16px] left-1/2 -mx-px w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />}
           </div>
           <span className="font-medium text-[11.5px]">
             {children ?? label ?? "Thought process"}
@@ -123,8 +123,8 @@ export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
 
 const stepStatusStyles = {
   active: "text-foreground font-geist text-[13px]",
-  complete: "text-neutral-300 dark:text-stone-500 font-geist text-[13px]",
-  pending: "text-neutral-300/50 dark:text-stone-500/50 font-geist text-[13px]",
+  complete: "text-neutral-400 dark:text-stone-500 font-geist text-[13px]",
+  pending: "text-neutral-400/50 dark:text-stone-500/50 font-geist text-[13px]",
 };
 
 const getStepIcon = (stepType?: ChainOfThoughtStepProps['stepType']) => {
@@ -167,14 +167,14 @@ export const ChainOfThoughtStep = memo(
         )}
         {...props}
       >
-        <div className="relative mt-0.5 flex flex-col items-center">
+        <div className="relative mt-[2px] flex flex-col items-center w-[14px]">
           <div className={cn(
-            "p-1 rounded-full",
+            "flex items-center justify-center rounded-full",
             status === 'active' && "text-primary"
           )}>
             <DefaultIcon className="size-3.5 opacity-60" />
           </div>
-          <div className="flex-1 w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors mt-1 mb-[-4px]" />
+          <div className="flex-1 w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors mt-1.5 mb-[-6px]" />
         </div>
         <div className="flex-1 min-w-0 pb-4">
           <div className="font-medium leading-tight">{label}</div>

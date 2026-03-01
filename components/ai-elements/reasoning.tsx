@@ -206,7 +206,7 @@ export const ReasoningTrigger = memo(
     return (
       <CollapsibleTrigger
         className={cn(
-          "flex w-full items-center gap-2 text-neutral-300 dark:text-stone-500 text-sm transition-colors hover:text-neutral-400 dark:hover:text-stone-400",
+          "flex w-full items-center gap-2 text-neutral-400 dark:text-stone-500 text-sm transition-colors hover:text-neutral-500 dark:hover:text-stone-400",
           className
         )}
         {...props}
@@ -215,11 +215,11 @@ export const ReasoningTrigger = memo(
           <div className="flex gap-2 items-center">
             <div className="relative flex items-center h-4">
               {isOpen ? (
-                <IconBulbFilled className="size-3.5 text-neutral-300 dark:text-stone-500 transition-colors" />
+                <IconBulbFilled className="size-3.5 text-neutral-400 dark:text-stone-500 transition-colors" />
               ) : (
-                <IconBulb className="size-3.5 text-neutral-300 dark:text-stone-500 transition-colors" />
+                <IconBulb className="size-3.5 text-neutral-400 dark:text-stone-500 transition-colors" />
               )}
-              {isOpen && <div className="absolute top-5 bottom-[-12px] left-1/2 -mx-px w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />}
+              {isOpen && <div className="absolute top-5 bottom-[-16px] left-1/2 -mx-px w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />}
             </div>
             <div className="flex-1">
               {getThinkingMessage(isStreaming, duration, tokenCount, thinkingType)}
@@ -256,8 +256,8 @@ export const ReasoningContent = memo(
         )}
         {...props}
       >
-        <div className="relative pl-9 text-neutral-300 dark:text-stone-500 font-inter text-[13px] leading-relaxed">
-          <div className="absolute left-[7px] top-1 bottom-0 w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />
+        <div className="relative pl-[26px] text-neutral-400 dark:text-stone-500 font-geist text-[13px] leading-relaxed">
+          <div className="absolute left-[7px] top-0 bottom-0 w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />
           <MarkdownRenderer
             content={children}
             isStreaming={isStreaming}

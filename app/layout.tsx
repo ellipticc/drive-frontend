@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist_Mono, JetBrains_Mono, Ubuntu, Inter } from "next/font/google";
+import { Geist_Mono, JetBrains_Mono, Ubuntu, Inter, DM_Sans } from "next/font/google";
 import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
@@ -43,6 +43,14 @@ const ubuntu = Ubuntu({
   subsets: ["latin"],
   variable: "--font-ubuntu",
   display: 'swap',
+  preload: true,
+});
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-dm-sans",
+  display: "swap",
   preload: true,
 });
 
@@ -204,7 +212,7 @@ export default function RootLayout({
 
       </head>
       <body
-        className={`${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} ${inter.variable} antialiased`}
+        className={`${dmSans.variable} ${inter.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${ubuntu.variable} antialiased`}
         suppressHydrationWarning
       >
         <InitialLoadingOverlay />

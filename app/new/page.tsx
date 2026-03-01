@@ -216,9 +216,13 @@ export default function AssistantPage() {
     const [isTypingTitle, setIsTypingTitle] = React.useState(false);
 
     const prevTitleRef = React.useRef("");
+    const prevConversationIdRef = React.useRef(conversationId);
 
     // Unified effect
     React.useEffect(() => {
+        const isNavigation = prevConversationIdRef.current !== conversationId;
+        prevConversationIdRef.current = conversationId;
+
         if (!conversationId) {
             setChatTitle("New Chat");
             setDisplayedTitle("New Chat");
@@ -240,21 +244,29 @@ export default function AssistantPage() {
         setIsStarred(!!currentChat.pinned);
         document.title = `${newTitle} | Ellipticc`;
 
-        // Only run typing animation if title actually changed
+        // Only run typing animation if title actually changed AND it wasn't just a navigation
         if (newTitle !== prevTitleRef.current) {
-            setIsTypingTitle(true);
-            let i = 0;
-            setDisplayedTitle("");
-            const interval = setInterval(() => {
-                setDisplayedTitle(newTitle.substring(0, i + 1));
-                i++;
-                if (i >= newTitle.length) {
-                    clearInterval(interval);
-                    setIsTypingTitle(false);
-                }
-            }, 30);
-            prevTitleRef.current = newTitle;
-            return () => clearInterval(interval);
+            if (isNavigation || !prevTitleRef.current || prevTitleRef.current === "New Chat") {
+                // Skip animation on navigation or initial load
+                setDisplayedTitle(newTitle);
+                setIsTypingTitle(false);
+                prevTitleRef.current = newTitle;
+            } else {
+                // Animate on rename within the same conversation
+                setIsTypingTitle(true);
+                let i = 0;
+                setDisplayedTitle("");
+                const interval = setInterval(() => {
+                    setDisplayedTitle(newTitle.substring(0, i + 1));
+                    i++;
+                    if (i >= newTitle.length) {
+                        clearInterval(interval);
+                        setIsTypingTitle(false);
+                    }
+                }, 30);
+                prevTitleRef.current = newTitle;
+                return () => clearInterval(interval);
+            }
         } else {
             setDisplayedTitle(newTitle);
             setIsTypingTitle(false);

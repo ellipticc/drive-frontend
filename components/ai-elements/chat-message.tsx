@@ -327,7 +327,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                 "flex flex-col min-w-0 transition-all duration-200",
                 isUser
                     ? (isEditingPrompt ? "w-full max-w-full items-start !max-w-[none]" : "items-end max-w-[85%]")
-                    : "items-start flex-1 max-w-full"
+                    : "items-start flex-1 max-w-[46rem]"
             )}>
                 {isUser ? (
                     // ... User Message Render ...

@@ -44,7 +44,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --font-sans: var(--font-google-sans);
+  --font-sans: var(--font-dm-sans);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
   --font-geist-mono: var(--font-geist-mono);
@@ -103,16 +103,16 @@ html {
 }
 
 :root {
-  --font-sans: 'Google Sans', sans-serif;
-  --font-geist-sans: 'Google Sans', sans-serif;
+  --font-sans: 'DM Sans', sans-serif;
+  --font-geist-sans: 'DM Sans', sans-serif;
   --font-geist-mono: var(--font-geist-mono);
-  --font-cal-sans: 'Google Sans', sans-serif;
+  --font-cal-sans: 'DM Sans', sans-serif;
   --font-commit-mono: var(--font-geist-mono);
 
   /* Table surface: used for table/card backgrounds to create separation from the sidebar in dark mode */
   --table-surface: var(--card);
 
-  --background: oklch(0.9653 0.0054 117.92);
+  --background: oklch(0.9861 0.0034 67.78);
   --foreground: oklch(0.147 0.004 49.25);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.147 0.004 49.25);
@@ -137,7 +137,7 @@ html {
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.45rem;
-  --sidebar: oklch(0.9242 0.0109 118.03);
+  --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.147 0.004 49.25);
   --sidebar-primary: oklch(0.216 0.006 56.043);
   --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
@@ -145,8 +145,8 @@ html {
   --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
   --sidebar-border: oklch(0.923 0.003 48.717);
   --sidebar-ring: oklch(0.709 0.01 56.259);
-  --bg-0: #FAF9F5;
-  --bg-000: #FAF9F5;
+  --bg-0: oklch(0.9861 0.0034 67.78);
+  --bg-000: oklch(0.9861 0.0034 67.78);
   --bg-100: #FFFFFF;
   --bg-200: #F0EEE6;
   --bg-300: #DDDDDD;
