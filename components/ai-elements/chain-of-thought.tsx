@@ -83,16 +83,16 @@ export const ChainOfThoughtHeader = memo(
       <Collapsible onOpenChange={setIsOpen} open={isOpen}>
         <CollapsibleTrigger
           className={cn(
-            "flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground group",
+            "flex items-center gap-1.5 text-neutral-300 dark:text-stone-500 text-sm transition-colors hover:text-neutral-400 dark:hover:text-stone-400 group",
             className
           )}
           {...props}
         >
           <div className="relative flex items-center h-4">
             {isOpen ? (
-              <IconBulbFilled className="size-3.5 text-amber-500 transition-colors" />
+              <IconBulbFilled className="size-3.5 text-neutral-300 dark:text-stone-500 transition-colors" />
             ) : (
-              <IconBulb className="size-3.5 text-muted-foreground transition-colors" />
+              <IconBulb className="size-3.5 text-neutral-300 dark:text-stone-500 transition-colors" />
             )}
             {isOpen && <div className="absolute top-5 bottom-[-12px] left-1/2 -mx-px w-[1.5px] bg-foreground/20 dark:bg-foreground/30 transition-colors" />}
           </div>
@@ -100,9 +100,9 @@ export const ChainOfThoughtHeader = memo(
             {children ?? label ?? "Thought process"}
           </span>
           {isOpen ? (
-            <IconChevronDown className="size-3.5 opacity-70 group-hover:opacity-100 transition-transform" />
+            <IconChevronDown className="size-3.5 opacity-50 group-hover:opacity-100 transition-transform" />
           ) : (
-            <IconChevronRight className="size-3.5 opacity-70 group-hover:opacity-100 transition-transform" />
+            <IconChevronRight className="size-3.5 opacity-50 group-hover:opacity-100 transition-transform" />
           )}
         </CollapsibleTrigger>
       </Collapsible>
@@ -122,9 +122,9 @@ export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
 };
 
 const stepStatusStyles = {
-  active: "text-foreground font-geist text-[10px]",
-  complete: "text-muted-foreground font-geist text-[10px]",
-  pending: "text-muted-foreground/50 font-geist text-[10px]",
+  active: "text-foreground font-geist text-[13px]",
+  complete: "text-neutral-300 dark:text-stone-500 font-geist text-[13px]",
+  pending: "text-neutral-300/50 dark:text-stone-500/50 font-geist text-[13px]",
 };
 
 const getStepIcon = (stepType?: ChainOfThoughtStepProps['stepType']) => {

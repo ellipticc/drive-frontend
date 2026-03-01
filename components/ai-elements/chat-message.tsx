@@ -675,7 +675,7 @@ export function ChatMessage({ message, isLast, onCopy, onEdit, onFeedback, onReg
                             </ChainOfThought>
                         )}
 
-                        <div className="w-full max-w-full break-words overflow-hidden font-inter text-[13px]">
+                        <div className="w-full max-w-full break-words overflow-hidden font-inter text-[14px]">
                             <MarkdownRenderer
                                 content={displayRes.content}
                                 sources={displayRes.sources}

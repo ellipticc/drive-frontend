@@ -345,8 +345,8 @@ export const Text: React.FC<{
   <p
     className={cn(
       'text-foreground',
-      'text-base leading-relaxed',
-      'my-2',
+      'text-[14px] leading-relaxed',
+      'my-2.5',
       className
     )}
   >
@@ -365,7 +365,7 @@ export const UnorderedList: React.FC<{
     className={cn(
       'list-disc list-outside',
       'my-3 space-y-1.5 pl-6',
-      'text-foreground text-base',
+      'text-foreground text-[14px]',
       className
     )}
   >
@@ -381,7 +381,7 @@ export const OrderedList: React.FC<{
     className={cn(
       'list-decimal list-outside',
       'my-3 space-y-1.5 pl-6',
-      'text-foreground text-base',
+      'text-foreground text-[14px]',
       className
     )}
   >
